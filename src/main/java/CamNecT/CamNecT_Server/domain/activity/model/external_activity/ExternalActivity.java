@@ -67,6 +67,10 @@ public class ExternalActivity {
     @Column(columnDefinition = "TEXT")
     private String context;
 
+    public void updateThumbnail(String thumbnailUrl) {
+        this.thumbnailUrl = thumbnailUrl;
+    }
+
     public void update(ActivityRequest request) {
         this.title = request.title();
         this.category = request.category();

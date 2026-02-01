@@ -40,7 +40,8 @@ public class PortfolioController {
         return portfolioService.create(userId, portfolioRequest);
     }
 
-    //todo :
+    //todo : 수정 삭제 로직 구현
+
 
     @PostMapping("/uploads/presign/thumbnail")
     public ApiResponse<PresignUploadResponse> presignThumbnail(

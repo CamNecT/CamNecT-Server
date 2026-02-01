@@ -8,6 +8,11 @@ import CamNecT.CamNecT_Server.domain.activity.model.external_activity.ExternalAc
 import CamNecT.CamNecT_Server.domain.activity.service.ActivityService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
+import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadRequest;
+import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadResponse;
+import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
+import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +25,9 @@ import java.util.List;
 @RequestMapping("/api/activity")
 @RequiredArgsConstructor
 public class ActivityController {
+
     private final ActivityService activityService;
+    private final PresignEngine presignEngine;
 
     //todo : s3 로직 도입
 
@@ -38,24 +45,16 @@ public class ActivityController {
     @PostMapping
     public ActivityPreviewResponse create(
             @UserId Long userId,
-            @RequestBody ActivityRequest request
+            @RequestBody @Valid ActivityRequest request
     ) {
-        ExternalActivity activity = activityService.create(userId, request);
-
-        return new ActivityPreviewResponse(
-                activity.getActivityId(),
-                activity.getTitle(),
-                activity.getContext(),
-                activity.getThumbnailUrl(),
-                null
-        );
+        return activityService.create(userId, request);
     }
 
     @PatchMapping("/{activityId}")
     public ApiResponse<String> update(
             @UserId Long userId,
             @PathVariable Long activityId,
-            @RequestBody ActivityRequest request
+            @RequestBody @Valid ActivityRequest request
     ) {
         activityService.update(userId, activityId, request);
 
@@ -91,7 +90,24 @@ public class ActivityController {
         return ApiResponse.success(message);
     }
 
-    //todo : 썸네일 업로드 & 첨부파일 업로드 로직 구현
+    // --- S3 Presign URL 발급 API 추가 ---
 
+    @PostMapping("/uploads/presign/thumbnail")
+    public ApiResponse<PresignUploadResponse> presignThumbnail(
+            @UserId Long userId,
+            @RequestBody @Valid PresignUploadRequest req
+    ) {
+        String keyPrefix = "activity/user-" + userId + "/thumbnail";
+        return ApiResponse.success(presignEngine.issueUpload(userId, UploadPurpose.ACTIVITY_ATTACHMENT, keyPrefix, req.contentType(), req.size(), req.originalFilename()));
+    }
+
+    @PostMapping("/uploads/presign/attachment")
+    public ApiResponse<PresignUploadResponse> presignAttachment(
+            @UserId Long userId,
+            @RequestBody @Valid PresignUploadRequest req
+    ) {
+        String keyPrefix = "activity/user-" + userId + "/attachments";
+        return ApiResponse.success(presignEngine.issueUpload(userId, UploadPurpose.ACTIVITY_ATTACHMENT, keyPrefix, req.contentType(), req.size(), req.originalFilename()));
+    }
 
 }
