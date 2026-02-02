@@ -6,6 +6,7 @@ import CamNecT.CamNecT_Server.domain.auth.dto.signup.SignupRequest;
 import CamNecT.CamNecT_Server.domain.auth.dto.signup.SignupResponse;
 import CamNecT.CamNecT_Server.domain.auth.service.LoginService;
 import CamNecT.CamNecT_Server.domain.auth.service.SignupService;
+import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,6 +26,7 @@ public class AuthController {
 
     private final SignupService signupService;
     private final LoginService loginService;
+    private final UserRepository userRepository;
 
     @Operation(
             summary = "로그인",
@@ -61,5 +63,13 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public SignupResponse signup(@RequestBody @Valid SignupRequest req) {
         return signupService.signup(req);
+    }
+
+    @Operation(summary = "아이디 중복확인", description = "사용 가능하면 true, 이미 사용 중이면 false")
+    @GetMapping("/{username}/available")
+    public boolean isUsernameAvailable(@PathVariable String username) {
+        String u = (username == null) ? "" : username.trim();
+        if (u.isBlank()) return false;          // 빈 값은 사용 불가
+        return !userRepository.existsByUsername(u);
     }
 }
