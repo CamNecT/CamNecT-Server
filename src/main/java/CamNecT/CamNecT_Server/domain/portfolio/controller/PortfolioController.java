@@ -3,6 +3,7 @@ package CamNecT.CamNecT_Server.domain.portfolio.controller;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.request.PortfolioRequest;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioDetailResponse;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioPreviewResponse;
+import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioResponse;
 import CamNecT.CamNecT_Server.domain.portfolio.service.PortfolioService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
@@ -17,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/portfolio")
+@RequestMapping("/api/portfolio/{portfolioUserId}")
 @RequiredArgsConstructor
 public class PortfolioController {
 
@@ -25,22 +26,49 @@ public class PortfolioController {
     private final PresignEngine presignEngine;
 
     @GetMapping
-    public List<PortfolioPreviewResponse> portfolioPreview (@UserId Long userId){
-        return portfolioService.portfolioPreview(userId);
+    public ApiResponse<PortfolioResponse<List<PortfolioPreviewResponse>>> portfolioPreview (@UserId Long userId, @PathVariable Long portfolioUserId){
+        return ApiResponse.success(portfolioService.portfolioPreview(userId, portfolioUserId));
     }
 
-    @GetMapping("{portfolioId}")
-    public PortfolioDetailResponse portfolioDetail (@UserId Long userId, @PathVariable Long portfolioId) {
-        return portfolioService.portfolioDetail(userId, portfolioId);
+    @GetMapping("/{portfolioId}")
+    public ApiResponse<PortfolioResponse<PortfolioDetailResponse>> portfolioDetail (@UserId Long userId, @PathVariable Long portfolioUserId,@PathVariable Long portfolioId) {
+        return ApiResponse.success(portfolioService.portfolioDetail(userId, portfolioUserId,portfolioId));
     }
 
     @PostMapping
-    public PortfolioPreviewResponse createPortfolio (@UserId Long userId, @RequestBody @Valid PortfolioRequest portfolioRequest){
+    public ApiResponse<PortfolioPreviewResponse> createPortfolio (@UserId Long userId, @PathVariable Long portfolioUserId, @RequestBody @Valid PortfolioRequest portfolioRequest){
 
-        return portfolioService.create(userId, portfolioRequest);
+        return ApiResponse.success(portfolioService.create(userId, portfolioUserId, portfolioRequest));
     }
 
-    //todo : 수정 삭제 로직 구현
+    @PatchMapping("/{portfolioId}")
+    public ApiResponse<PortfolioPreviewResponse> updatePortfolio (@UserId Long userId, @PathVariable Long portfolioId, @RequestBody @Valid PortfolioRequest portfolioRequest){
+        return ApiResponse.success(portfolioService.update(userId, portfolioId,portfolioRequest));
+    }
+
+    @DeleteMapping("/{portfolioId}")
+    public ApiResponse<String> deletePortfolio(@UserId Long userId, @PathVariable Long portfolioId){
+        portfolioService.delete(userId, portfolioId);
+        return ApiResponse.success("포트폴리오가 삭제되었습니다.");
+    }
+
+    // 공개 여부 설정
+    @PatchMapping("/{portfolioId}/public")
+    public ApiResponse<Boolean> togglePublic(
+            @UserId Long userId,
+            @PathVariable Long portfolioId
+    ) {
+        return ApiResponse.success(portfolioService.togglePublic(userId, portfolioId));
+    }
+
+    // 즐겨찾기 설정
+    @PatchMapping("/{portfolioId}/favorite")
+    public ApiResponse<Boolean> toggleFavorite(
+            @UserId Long userId,
+            @PathVariable Long portfolioId
+    ) {
+        return ApiResponse.success(portfolioService.toggleFavorite(userId, portfolioId));
+    }
 
 
     @PostMapping("/uploads/presign/thumbnail")

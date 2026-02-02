@@ -12,9 +12,10 @@ import java.util.List;
 @Repository
 public interface PortfolioRepository extends JpaRepository<PortfolioProject, Long> {
 
-    @Query("SELECT new CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioPreviewResponse(p.portfolioId, p.title, p.thumbnailUrl) " +
+    @Query("SELECT new CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioPreviewResponse(p.portfolioId, p.title, p.thumbnailUrl, p.isPublic, p.isFavorite) " +
             "FROM PortfolioProject p " +
-            "WHERE p.userId = :userId")
+            "WHERE p.userId = :userId " +
+            "ORDER BY p.createdAt DESC")
     List<PortfolioPreviewResponse> findPreviewsByUserId(@Param("userId") Long userId);
 
 }

@@ -1,11 +1,11 @@
 package CamNecT.CamNecT_Server.domain.portfolio.dto.response;
 
-import CamNecT.CamNecT_Server.domain.portfolio.model.PortfolioProject;
+import CamNecT.CamNecT_Server.domain.portfolio.dto.PortfolioProjectDto;
 
 import java.util.List;
 
 public record PortfolioDetailResponse(
     Boolean isMine,
-    PortfolioProject portfolio,
+    PortfolioProjectDto portfolio,
     List<PortfolioAssetView> portfolioAssets
 ) {}
