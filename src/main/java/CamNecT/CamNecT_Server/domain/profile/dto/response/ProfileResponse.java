@@ -23,6 +23,7 @@ public record ProfileResponse(
     public record ProfileBasicsDto(
             String bio,
             Boolean openToCoffeeChat,
+            Boolean isFollowerVisible,
             String profileImageUrl,
             String studentNo,
             Integer yearLevel,
