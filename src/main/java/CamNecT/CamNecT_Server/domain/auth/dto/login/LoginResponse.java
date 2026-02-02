@@ -7,6 +7,8 @@ public record LoginResponse(
         long accessTokenExpiresInMs,
         long refreshTokenExpiresInMs,
         Long userId,
-        String status         // ADMIN_PENDING / ACTIVE ...
+        String status,         // ADMIN_PENDING / ACTIVE ...
+        String role,
+        LoginNextStep nextStep    // HOME / EMAIL_REVERIFY / DOCUMENT_REQUIRED / ONBOARDING_REQUIRED / DOCUMENT_REVIEW_WAITING / VERIFICATION_COMPLETE / ADMIN_DASHBOAR
 ) {
 }

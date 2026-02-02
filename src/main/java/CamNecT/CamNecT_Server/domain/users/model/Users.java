@@ -59,6 +59,11 @@ public class Users {
     @Column(name = "role", nullable = false, length = 20)
     private UserRole role = UserRole.USER;
 
+    @Builder.Default
+    @Column(name = "verification_complete_pending", nullable = false)
+    private boolean verificationCompletePending = false;
+
+
     @CreationTimestamp // 생성 시 자동으로 시간 입력
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -66,6 +71,8 @@ public class Users {
     @UpdateTimestamp // 수정 시 자동으로 시간 업데이트
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+
 
 
     public void changePasswordHash(String passwordHash) {
@@ -79,4 +86,9 @@ public class Users {
     public void changeStatus(UserStatus newStatus) {
         this.status = newStatus;
     }
+
+
+    //로그인시 User상태위한 메서드들
+    public void markVerificationCompletePending() { this.verificationCompletePending = true; }
+    public void clearVerificationCompletePending() { this.verificationCompletePending = false; }
 }
