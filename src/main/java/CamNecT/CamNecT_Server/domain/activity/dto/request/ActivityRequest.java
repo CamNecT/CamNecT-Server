@@ -9,7 +9,7 @@ public record ActivityRequest(
         String title,
         List<Long> tagIds,
         String content,
-        String thumbnailUrl,
-        List<String> attachmentUrl
+        String thumbnailKey,
+        List<String> attachmentKey
 ) {
 }
