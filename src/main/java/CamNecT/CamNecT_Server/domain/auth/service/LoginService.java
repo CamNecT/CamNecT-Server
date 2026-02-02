@@ -11,10 +11,12 @@ import CamNecT.CamNecT_Server.global.jwt.JwtFacade;
 import CamNecT.CamNecT_Server.global.jwt.JwtUtil;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class LoginService {
@@ -27,7 +29,14 @@ public class LoginService {
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest req) {
         Users user = userRepository.findByUsername(req.username())
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_CREDENTIALS));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+
+        String enc = user.getPasswordHash();
+        log.warn("[LOGIN] userId={}, username={}, encHead={}, encLen={}",
+                user.getUserId(),
+                user.getUsername(),
+                enc == null ? "null" : enc.substring(0, Math.min(12, enc.length())),
+                enc == null ? -1 : enc.length());
 
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
             throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
