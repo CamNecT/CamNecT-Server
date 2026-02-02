@@ -1,10 +1,16 @@
 package CamNecT.CamNecT_Server.domain.auth.service;
 
+import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginNextStep;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginRequest;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginResponse;
+import CamNecT.CamNecT_Server.domain.users.model.UserRole;
 import CamNecT.CamNecT_Server.domain.users.model.UserStatus;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
+import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
+import CamNecT.CamNecT_Server.domain.users.repository.UserTagMapRepository;
+import CamNecT.CamNecT_Server.domain.verification.document.model.DocumentVerificationSubmission;
+import CamNecT.CamNecT_Server.domain.verification.document.repository.DocumentVerificationSubmissionRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.jwt.JwtFacade;
@@ -23,6 +29,9 @@ public class LoginService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final JwtFacade jwtFacade;
+    private final DocumentVerificationSubmissionRepository submissionRepo;
+    private final UserProfileRepository userProfileRepository;
+    private final UserTagMapRepository userTagMapRepository;
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest req) {
@@ -34,25 +43,112 @@ public class LoginService {
             throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
         }
 
-        if (!user.isEmailVerified() || user.getStatus() == UserStatus.EMAIL_PENDING) {
-            throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
-        }
-
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }
 
+        // 1) 관리자
+        if (user.getRole() == UserRole.ADMIN) {
+            String access = jwtFacade.createAccessToken(user);
+            String refresh = jwtFacade.createRefreshToken(user);
+
+            return new LoginResponse(
+                    "Bearer", access, refresh,
+                    jwtUtil.getAccessTokenExpirationMs(),
+                    jwtUtil.getRefreshTokenExpirationMs(),
+                    user.getUserId(),
+                    user.getStatus().name(),
+                    user.getRole().name(),
+                    LoginNextStep.ADMIN_DASHBOARD,
+                    null, null, null,
+                    false
+            );
+        }
+
+        // 2) 이메일 미인증
+        if (!user.isEmailVerified() || user.getStatus() == UserStatus.EMAIL_PENDING) {
+            // 토큰 발급하지 않는 방식 권장
+            return new LoginResponse(
+                    null,
+                    null, null,
+                    0L, 0L,
+                    user.getUserId(),
+                    user.getStatus().name(),
+                    user.getRole().name(),
+                    LoginNextStep.EMAIL_REVERIFY,
+                    null, null, null,
+                    false
+            );
+        }
+
+        // 3) 최신 증명서 제출 조회
+        DocumentVerificationSubmission latest = submissionRepo
+                .findTopByUserIdOrderBySubmittedAtDesc(user.getUserId())
+                .orElse(null);
+
+        String docStatus = (latest == null) ? null : latest.getStatus().name();
+        Long latestSubmissionId = (latest == null) ? null : latest.getId();
+        String rejectReason = (latest == null) ? null : latest.getRejectReason();
+
+        // 4) 온보딩 완료 여부
+        boolean onboardingDone = isOnboardingDone(user.getUserId());
+
+        // 5) nextStep 결정 (String -> LoginNextStep)
+        LoginNextStep nextStep = resolveNext(user, latest, onboardingDone);
+
+        //최초 1회만 학교인증완료상태 보여줌
+        if (nextStep == LoginNextStep.VERIFICATION_COMPLETE && user.isVerificationCompletePending()) {
+            user.clearVerificationCompletePending();
+        }
+
+        // 6) 토큰 발급
         String access = jwtFacade.createAccessToken(user);
         String refresh = jwtFacade.createRefreshToken(user);
 
         return new LoginResponse(
-                "Bearer",
-                access,
-                refresh,
+                "Bearer", access, refresh,
                 jwtUtil.getAccessTokenExpirationMs(),
                 jwtUtil.getRefreshTokenExpirationMs(),
                 user.getUserId(),
-                user.getStatus().name()
+                user.getStatus().name(),
+                user.getRole().name(),
+                nextStep,
+                docStatus,
+                latestSubmissionId,
+                rejectReason,
+                onboardingDone
         );
+    }
+    private boolean isOnboardingDone(Long userId) {
+        // “소개/사진/태그”가 모두 필요하다는 요구 기준으로 엄격하게 체크
+        return userProfileRepository.findByUserId(userId)
+                .map(p -> org.springframework.util.StringUtils.hasText(p.getBio())
+                        && org.springframework.util.StringUtils.hasText(p.getProfileImageUrl())
+                        && userTagMapRepository.countByUserId(userId) > 0
+                )
+                .orElse(false);
+    }
+
+    private LoginNextStep resolveNext(Users user, DocumentVerificationSubmission latest, boolean onboardingDone) {
+
+        // ACTIVE면 인증완료/홈은 프론트에서 1회 처리(로컬 저장)로 나누는 걸 추천
+        if (user.getStatus() == UserStatus.ACTIVE) {
+            return user.isVerificationCompletePending() //처음 인증완료상태면 인증완료화면으로
+                    ? LoginNextStep.VERIFICATION_COMPLETE
+                    : LoginNextStep.HOME;
+        }
+
+        // ADMIN_PENDING 흐름
+        if (user.getStatus() == UserStatus.ADMIN_PENDING) {
+            if (latest == null) return LoginNextStep.DOCUMENT_REQUIRED;
+
+            return switch (latest.getStatus()) {
+                case REJECTED, CANCELED -> LoginNextStep.DOCUMENT_REQUIRED;
+                case PENDING -> onboardingDone ? LoginNextStep.DOCUMENT_REVIEW_WAITING : LoginNextStep.ONBOARDING_REQUIRED;
+                case APPROVED -> LoginNextStep.VERIFICATION_COMPLETE;
+            };
+        }
+        // 방어적 기본값
+        return LoginNextStep.HOME;
     }
 }

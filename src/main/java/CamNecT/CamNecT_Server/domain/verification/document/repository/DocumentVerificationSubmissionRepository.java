@@ -18,4 +18,6 @@ public interface DocumentVerificationSubmissionRepository extends JpaRepository<
     Optional<DocumentVerificationSubmission> findByIdAndUserId(Long id, Long userId);
 
     Page<DocumentVerificationSubmission> findByStatusOrderBySubmittedAtDesc(VerificationStatus status, Pageable pageable);
+
+    Optional<DocumentVerificationSubmission> findTopByUserIdOrderBySubmittedAtDesc(Long userId);
 }
