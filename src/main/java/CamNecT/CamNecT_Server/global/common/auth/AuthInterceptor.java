@@ -51,7 +51,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
 
         if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authorization 헤더 전송 형식이 잘못되었습니다.");
+            throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
         }
         return header.substring(7);
     }
