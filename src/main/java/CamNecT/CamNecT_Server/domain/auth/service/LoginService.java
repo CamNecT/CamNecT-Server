@@ -59,9 +59,7 @@ public class LoginService {
                     user.getUserId(),
                     user.getStatus().name(),
                     user.getRole().name(),
-                    LoginNextStep.ADMIN_DASHBOARD,
-                    null, null, null,
-                    false
+                    LoginNextStep.ADMIN_DASHBOARD
             );
         }
 
@@ -75,9 +73,7 @@ public class LoginService {
                     user.getUserId(),
                     user.getStatus().name(),
                     user.getRole().name(),
-                    LoginNextStep.EMAIL_REVERIFY,
-                    null, null, null,
-                    false
+                    LoginNextStep.EMAIL_REVERIFY
             );
         }
 
@@ -86,9 +82,9 @@ public class LoginService {
                 .findTopByUserIdOrderBySubmittedAtDesc(user.getUserId())
                 .orElse(null);
 
-        String docStatus = (latest == null) ? null : latest.getStatus().name();
-        Long latestSubmissionId = (latest == null) ? null : latest.getId();
-        String rejectReason = (latest == null) ? null : latest.getRejectReason();
+//        String docStatus = (latest == null) ? null : latest.getStatus().name();
+//        Long latestSubmissionId = (latest == null) ? null : latest.getId();
+//        String rejectReason = (latest == null) ? null : latest.getRejectReason();
 
         // 4) 온보딩 완료 여부
         boolean onboardingDone = isOnboardingDone(user.getUserId());
@@ -112,11 +108,7 @@ public class LoginService {
                 user.getUserId(),
                 user.getStatus().name(),
                 user.getRole().name(),
-                nextStep,
-                docStatus,
-                latestSubmissionId,
-                rejectReason,
-                onboardingDone
+                nextStep
         );
     }
     private boolean isOnboardingDone(Long userId) {
