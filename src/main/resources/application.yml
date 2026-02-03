@@ -76,5 +76,12 @@ server:
   port: 8080
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiration-ms: 360000
-  refresh-token-expiration-ms: 1209600000
+  access-token-expiration-ms: 1209600000 #360000        # 6min
+  refresh-token-expiration-ms: 1209600000   # 14day
+
+security:
+  interceptor:
+    auth:
+      enabled: true
+    admin:
+      enabled: true
