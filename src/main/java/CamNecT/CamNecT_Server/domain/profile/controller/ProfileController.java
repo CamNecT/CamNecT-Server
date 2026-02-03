@@ -2,6 +2,7 @@ package CamNecT.CamNecT_Server.domain.profile.controller;
 
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateBioRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateOnboardingRequest;
+import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileTagsRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileResponse;
@@ -90,16 +91,14 @@ public class ProfileController {
     }
 
     @Operation(
-            summary = "마이페이지 팔로워/팔로잉 수 공개 설정 수정",
-            description = "팔로워/팔로잉 수 공개 여부 등 개인정보 노출 설정을 변경합니다."
+            summary = "마이페이지 개인정보 노출 여부 수정",
+            description = "팔로워/팔로잉 수, 학력, 경력, 자격증 공개 여부를 각각 변경합니다."
     )
     @PatchMapping("/me/privacy")
-    public ApiResponse<ProfileStatusResponse> updatePrivacySettings(
-            @UserId Long userId,
-            @RequestParam Boolean visible
-    ) {
-        ProfileStatusResponse response = profileService.updateFollowerVisibility(userId, visible);
-        return ApiResponse.success(response);
+    public ApiResponse<Void> updatePrivacy(@UserId Long userId,
+                                           @RequestBody UpdatePrivacyRequest request) {
+        profileService.updatePrivacy(userId, request);
+        return ApiResponse.success(null);
     }
 
 }
