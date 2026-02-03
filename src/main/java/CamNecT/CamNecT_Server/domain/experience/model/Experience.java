@@ -24,10 +24,10 @@ public class Experience {
     private Users user;
 
     @Column(name = "company_name", nullable = false, length = 100)
-    private String companyName;
+    private String companyName; // 회사명
 
     @Column(name = "major_name", length = 100)
-    private String majorName; // 직무 (이미지상 major_name으로 명시됨)
+    private String majorName; // 직무
 
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate; // 취업일

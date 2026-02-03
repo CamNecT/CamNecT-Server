@@ -24,11 +24,19 @@ public enum UserErrorCode implements BaseErrorCode {
     // 443xx - 권한/상태
     USER_SUSPENDED(HttpStatus.FORBIDDEN, 44302, "정지된 사용자입니다."),
     USER_NOT_ADMIN(HttpStatus.FORBIDDEN, 44303, "관리자 유저가 아닙니다."),
+    EXPERIENCE_FORBIDDEN(HttpStatus.FORBIDDEN, 44304, "해당 경력 정보에 대한 수정/삭제 권한이 없습니다."),
+    CERTIFICATE_FORBIDDEN(HttpStatus.FORBIDDEN, 44305, "해당 자격증 정보에 대한 수정/삭제 권한이 없습니다."),
+    EDUCATION_FORBIDDEN(HttpStatus.FORBIDDEN, 44306, "해당 학력 정보에 대한 수정/삭제 권한이 없습니다."),
     PORTFOLIO_FORBIDDEN(HttpStatus.FORBIDDEN, 44310, "포트폴리오에 대한 권한이 없습니다."),
 
     // 444xx - 리소스
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, 44401, "유저를 찾을 수 없습니다."),
     USER_PROFILE_NOT_FOUND(HttpStatus.NOT_FOUND, 44402, "유저 프로필을 찾을 수 없습니다."),
+    EXPERIENCE_NOT_FOUND(HttpStatus.NOT_FOUND, 44404, "해당 경력 정보를 찾을 수 없습니다."),
+    CERTIFICATE_NOT_FOUND(HttpStatus.NOT_FOUND, 44405, "해당 자격증 정보를 찾을 수 없습니다."),
+    EDUCATION_NOT_FOUND(HttpStatus.NOT_FOUND, 44406, "해당 학력 정보를 찾을 수 없습니다."),
+    INSTITUTION_NOT_FOUND(HttpStatus.NOT_FOUND, 44407, "해당 학교 정보를 찾을 수 없습니다."),
+    MAJOR_NOT_FOUND(HttpStatus.NOT_FOUND, 44408, "해당 전공 정보를 찾을 수 없습니다."),
     PORTFOLIO_NOT_FOUND(HttpStatus.NOT_FOUND, 44410, "해당 포트폴리오가 없습니다."),
 
     // 449xx - 충돌

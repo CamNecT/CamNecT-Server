@@ -55,7 +55,7 @@ public class ProfileService {
     private final DownloadUrlIssuer downloadUrlIssuer;
 
     @Transactional(readOnly = true)
-    public ProfileResponse getUserProfile(Long profileUserId) {
+    public ProfileResponse getUserProfile(Long loginUserId, Long profileUserId) {
 
         Users user = userRepository.findByUserId(profileUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
@@ -64,8 +64,11 @@ public class ProfileService {
 
         String profileImageUrl = downloadUrlIssuer.issueDisplayUrl(userProfile.getProfileImageUrl());
 
-        int following = userFollowRepository.countByFollowingId(profileUserId);
-        int follower = userFollowRepository.countByFollowerId(profileUserId);
+        boolean isOwner = (loginUserId != null) && loginUserId.equals(profileUserId);
+        boolean showFollower = isOwner || Boolean.TRUE.equals(userProfile.getIsFollowerVisible());
+
+        int following = showFollower ? userFollowRepository.countByFollowingId(profileUserId) : 0;
+        int follower = showFollower ? userFollowRepository.countByFollowerId(profileUserId) : 0;
 
         List<PortfolioPreviewResponse> portfolioPreviewResponses = portfolioRepository.findPreviewsByUserId(profileUserId);
 
@@ -87,14 +90,13 @@ public class ProfileService {
         ProfileResponse.ProfileBasicsDto basicProfile = new ProfileResponse.ProfileBasicsDto(
                 userProfile.getBio(),
                 userProfile.getOpenToCoffeeChat(),
+                userProfile.getIsFollowerVisible(),
                 profileImageUrl,
                 userProfile.getStudentNo(),
                 userProfile.getYearLevel(),
                 userProfile.getInstitutionId(),
                 userProfile.getMajorId()
         );
-
-        //Boolean isFollowing = userFollowRepository.existsByFollowerIdAndFollowingId(userId, profileUserId);
 
         return new ProfileResponse(
                 user.getUserId(),
@@ -107,8 +109,27 @@ public class ProfileService {
                 experienceList,
                 certificateList,
                 tags
-                //isFollowing
         );
+    }
+
+    @Transactional
+    public ProfileStatusResponse updateFollowerVisibility(Long userId, Boolean visible) {
+        UserProfile userProfile = userProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+
+        userProfile.updatePrivacySettings(visible);
+
+        return new ProfileStatusResponse(userProfile.getUser().getStatus());
+    }
+
+    @Transactional
+    public ProfileStatusResponse updateBio(Long userId, String bio) {
+        UserProfile userProfile = userProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+
+        userProfile.updateOnboardingProfile(bio, null);
+
+        return new ProfileStatusResponse(userProfile.getUser().getStatus());
     }
 
     @Transactional
@@ -243,11 +264,17 @@ public class ProfileService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    try { fileStorage.delete(storageKey); } catch (Exception ignored) {}
+                    try {
+                        fileStorage.delete(storageKey);
+                    } catch (Exception ignored) {
+                    }
                 }
             });
         } else {
-            try { fileStorage.delete(storageKey); } catch (Exception ignored) {}
+            try {
+                fileStorage.delete(storageKey);
+            } catch (Exception ignored) {
+            }
         }
     }
 

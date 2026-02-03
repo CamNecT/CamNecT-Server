@@ -8,6 +8,7 @@ import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +26,7 @@ public class CertificateService {
     @Transactional
     public void addCertificate(Long userId, CertificateRequest request) {
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
 
         Certificate certificate = Certificate.builder()
                 .user(user)
@@ -50,11 +51,11 @@ public class CertificateService {
     @Transactional
     public void updateCertificate(Long userId, Long certificateId, CertificateRequest request) {
         Certificate certificate = certificateRepository.findById(certificateId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(UserErrorCode.CERTIFICATE_NOT_FOUND));
 
         // 본인 확인
         if (!certificate.getUser().getUserId().equals(userId)) {
-            throw new CustomException(ErrorCode.FORBIDDEN);
+            throw new CustomException(UserErrorCode.CERTIFICATE_FORBIDDEN);
         }
 
         certificate.updateCertificate(
@@ -70,10 +71,10 @@ public class CertificateService {
     @Transactional
     public void deleteCertificate(Long userId, Long certificateId) {
         Certificate certificate = certificateRepository.findById(certificateId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(UserErrorCode.CERTIFICATE_NOT_FOUND));
 
         if (!certificate.getUser().getUserId().equals(userId)) {
-            throw new CustomException(ErrorCode.FORBIDDEN);
+            throw new CustomException(UserErrorCode.CERTIFICATE_FORBIDDEN);
         }
 
         certificateRepository.delete(certificate);
