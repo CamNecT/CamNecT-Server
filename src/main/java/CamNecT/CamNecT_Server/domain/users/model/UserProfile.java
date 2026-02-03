@@ -27,6 +27,10 @@ public class UserProfile {
     @Builder.Default
     private Boolean openToCoffeeChat = false;
 
+    @Column(name = "is_follower_visible", nullable = false)
+    @Builder.Default
+    private Boolean isFollowerVisible = true;
+
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
 
@@ -58,5 +62,11 @@ public class UserProfile {
         this.yearLevel = yearLevel;
         this.institutionId = institutionId;
         this.majorId = majorId;
+    }
+
+    public void updatePrivacySettings(Boolean isFollowerVisible) {
+        if (isFollowerVisible != null) {
+            this.isFollowerVisible = isFollowerVisible;
+        }
     }
 }

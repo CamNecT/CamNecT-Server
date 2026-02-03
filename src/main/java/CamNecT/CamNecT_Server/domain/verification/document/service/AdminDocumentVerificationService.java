@@ -121,15 +121,15 @@ public class AdminDocumentVerificationService {
 
             // 정책: ADMIN_PENDING만 승인 가능
             if (user.getStatus() != UserStatus.ADMIN_PENDING) {
-                // 여기 에러코드는 새로 파는 게 맞지만, 당장 없으면 기존 코드로 처리
                 throw new CustomException(VerificationErrorCode.ONLY_PENDING_CAN_REVIEW);
             }
 
-            // ✅ 승인 시 관리자 입력값을 UserProfile에 반영
+            // 승인 시 관리자 입력값을 UserProfile에 반영
             applyProfileInfoForApprove(user.getUserId(), req);
 
             s.approve(adminId);
             user.changeStatus(UserStatus.ACTIVE);
+            user.markVerificationCompletePending();
 
             eventPublisher.publishEvent(new DocumentVerificationReviewedEvent(
                     user.getEmail(),

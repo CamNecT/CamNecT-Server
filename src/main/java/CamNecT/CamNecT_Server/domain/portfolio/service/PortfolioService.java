@@ -1,9 +1,11 @@
 package CamNecT.CamNecT_Server.domain.portfolio.service;
 
+import CamNecT.CamNecT_Server.domain.portfolio.dto.PortfolioProjectDto;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.request.PortfolioRequest;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioAssetView;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioDetailResponse;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioPreviewResponse;
+import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioResponse;
 import CamNecT.CamNecT_Server.domain.portfolio.model.PortfolioAsset;
 import CamNecT.CamNecT_Server.domain.portfolio.model.PortfolioProject;
 import CamNecT.CamNecT_Server.domain.portfolio.repository.PortfolioAssetRepository;
@@ -39,19 +41,21 @@ public class PortfolioService {
     private final UploadTicketRepository ticketRepo;
     private final FileStorage fileStorage;
 
-    public List<PortfolioPreviewResponse> portfolioPreview(Long userId) {
+    public PortfolioResponse<List<PortfolioPreviewResponse>> portfolioPreview(Long userId, Long portfolioUserId) {
         List<PortfolioPreviewResponse> rows = portfolioRepository.findPreviewsByUserId(userId);
 
-        return rows.stream()
+        List<PortfolioPreviewResponse> resultList =  rows.stream()
                 .map(r -> {
                     String key = r.thumbnailUrl(); // DB에 저장된 건 key
                     String url = presignOrNull(key, null, null);
-                    return new PortfolioPreviewResponse(r.portfolioId(), r.title(), url);
+                    return new PortfolioPreviewResponse(r.portfolioId(), r.title(), url, r.isPublic(), r.isFavorite());
                 })
                 .toList();
+
+        return PortfolioResponse.of(userId.equals(portfolioUserId), resultList);
     }
 
-    public PortfolioDetailResponse portfolioDetail(Long userId, Long portfolioId) {
+    public PortfolioResponse<PortfolioDetailResponse> portfolioDetail(Long userId, Long portfolioUserId, Long portfolioId) {
 
         PortfolioProject portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
@@ -60,7 +64,7 @@ public class PortfolioService {
 
         String thumbKey = portfolio.getThumbnailUrl();
         String thumbUrl = presignOrNull(thumbKey, "thumbnail", null);
-        portfolio.setThumbnailUrl(thumbUrl);
+        PortfolioProjectDto projectDto = PortfolioProjectDto.from(portfolio, thumbUrl);
 
         List<PortfolioAsset> assets = portfolioAssetRepository.findAssetsByPortfolioId(portfolioId);
 
@@ -75,11 +79,14 @@ public class PortfolioService {
                 ))
                 .collect(Collectors.toList());
 
-        return new PortfolioDetailResponse(isMine, portfolio, views);
+        return PortfolioResponse.of(userId.equals(portfolioUserId), new PortfolioDetailResponse(isMine, projectDto, views));
     }
 
     @Transactional
-    public PortfolioPreviewResponse create(Long userId, PortfolioRequest request) {
+    public PortfolioPreviewResponse create(Long userId, Long portfolioUserId, PortfolioRequest request) {
+
+        if(!userId.equals(portfolioUserId))
+            throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
 
         //요청에 따라 PortfolioProject 생성
         PortfolioProject project = PortfolioProject.builder()
@@ -144,7 +151,9 @@ public class PortfolioService {
         return new PortfolioPreviewResponse(
                 saved.getPortfolioId(),
                 saved.getTitle(),
-                presignOrNull(saved.getThumbnailUrl(), "thumbnail", null)
+                presignOrNull(saved.getThumbnailUrl(), "thumbnail", null),
+                saved.isPublic(),
+                saved.isFavorite()
         );
     }
 
@@ -250,8 +259,38 @@ public class PortfolioService {
         return new PortfolioPreviewResponse(
                 project.getPortfolioId(),
                 project.getTitle(),
-                presignOrNull(project.getThumbnailUrl(), "thumbnail", null)
+                presignOrNull(project.getThumbnailUrl(), "thumbnail", null),
+                project.isPublic(),
+                project.isFavorite()
         );
+    }
+
+    @Transactional
+    public boolean togglePublic(Long userId, Long portfolioId) {
+        PortfolioProject project = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND)); // 포트폴리오를 찾을 수 없습니다.
+
+        validateOwnership(userId, project);
+
+        project.setPublic(!project.isPublic());
+        return project.isPublic();
+    }
+
+    @Transactional
+    public boolean toggleFavorite(Long userId, Long portfolioId) {
+        PortfolioProject project = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND)); // 포트폴리오를 찾을 수 없습니다.
+
+        validateOwnership(userId, project);
+
+        project.setFavorite(!project.isFavorite());
+        return project.isFavorite();
+    }
+
+    private void validateOwnership(Long userId, PortfolioProject project) {
+        if (!project.getUserId().equals(userId)) {
+            throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN); // 수정 권한이 없습니다.
+        }
     }
 
     public void delete(Long userId, Long portfolioId) {

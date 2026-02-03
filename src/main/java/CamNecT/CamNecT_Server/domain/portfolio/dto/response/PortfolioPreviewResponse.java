@@ -5,13 +5,17 @@ import CamNecT.CamNecT_Server.domain.portfolio.model.PortfolioProject;
 public record PortfolioPreviewResponse(
         Long portfolioId,
         String title,
-        String thumbnailUrl
+        String thumbnailUrl,
+        boolean isPublic,
+        boolean isFavorite
 ) {
     public static PortfolioPreviewResponse of(PortfolioProject project) {
         return new PortfolioPreviewResponse(
                 project.getPortfolioId(),
                 project.getTitle(),
-                project.getThumbnailUrl()
+                project.getThumbnailUrl(),
+                project.isPublic(),
+                project.isFavorite()
         );
     }
 }
