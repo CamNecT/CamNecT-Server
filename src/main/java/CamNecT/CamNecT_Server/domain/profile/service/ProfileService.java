@@ -94,7 +94,7 @@ public class ProfileService {
                 userProfile.getIsFollowerVisible(),
                 profileImageUrl,
                 userProfile.getStudentNo(),
-                userProfile.getYearLevel(),
+//                userProfile.getYearLevel(),
                 userProfile.getInstitutionId(),
                 userProfile.getMajorId()
         );
