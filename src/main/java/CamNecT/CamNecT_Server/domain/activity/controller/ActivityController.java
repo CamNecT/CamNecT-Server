@@ -37,23 +37,24 @@ public class ActivityController {
             description = "카테고리(enum타입 - STUDY, CLUB, EXTERNAL, RECRUITMENT), 태그, 제목, 정렬 기준(enum타입 - RECOMMEND, DEADLINE, BOOKMARK, RECRUIT, LATEST), 을 적용하여 활동 목록을 무한 스크롤(Slice) 방식으로 조회합니다."
     )
     @GetMapping
-    public Slice<ActivityPreviewResponse> getActivities(
+    public ApiResponse<Slice<ActivityPreviewResponse>> getActivities(
             @UserId Long userId,
             @RequestParam(required = false) ActivityCategory category,
             @RequestParam(required = false) List<Long> tagIds,
             @RequestParam(required = false) String title,
             @RequestParam(defaultValue = "LATEST") String sortType,
             Pageable pageable) {
-        return activityService.getActivities(userId, category, tagIds, title, sortType, pageable);
+
+        return ApiResponse.success(activityService.getActivities(userId, category, tagIds, title, sortType, pageable));
     }
 
     @Operation(summary = "대외활동 등록", description = "동아리/스터디에 해당하는 대외활동을 생성합니다.")
     @PostMapping
-    public ActivityPreviewResponse create(
+    public ApiResponse<ActivityPreviewResponse> create(
             @UserId Long userId,
             @RequestBody @Valid ActivityRequest request
     ) {
-        return activityService.create(userId, request);
+        return ApiResponse.success(activityService.create(userId, request));
     }
 
     @Operation(summary = "대외활동 수정", description = "기존 대외활동 게시글을 수정합니다.")
