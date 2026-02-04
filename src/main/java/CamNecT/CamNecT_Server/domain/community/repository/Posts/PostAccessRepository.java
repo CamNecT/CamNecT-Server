@@ -4,5 +4,5 @@ import CamNecT.CamNecT_Server.domain.community.model.Posts.PostAccess;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PostAccessRepository extends JpaRepository<PostAccess, Long> {
-    boolean existsByPost_IdAndUserId(Long postId, Long userId);
+    boolean existsByPost_IdAndUser_UserId(Long postId, Long userId);
 }
