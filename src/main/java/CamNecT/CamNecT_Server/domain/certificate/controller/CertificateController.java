@@ -3,13 +3,12 @@ package CamNecT.CamNecT_Server.domain.certificate.controller;
 import CamNecT.CamNecT_Server.domain.certificate.dto.request.CertificateRequest;
 import CamNecT.CamNecT_Server.domain.certificate.dto.response.CertificateResponse;
 import CamNecT.CamNecT_Server.domain.certificate.service.CertificateService;
-import CamNecT.CamNecT_Server.domain.users.model.CustomUserDetails;
+import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,9 +27,9 @@ public class CertificateController {
     )
     @GetMapping
     public ApiResponse<List<CertificateResponse>> getMyCertificates(
-            @AuthenticationPrincipal CustomUserDetails userDetails
+            @UserId Long userId
     ) {
-        List<CertificateResponse> response = certificateService.getMyCertificate(userDetails.getUserId());
+        List<CertificateResponse> response = certificateService.getMyCertificate(userId);
         return ApiResponse.success(response);
     }
 
@@ -40,10 +39,10 @@ public class CertificateController {
     )
     @PostMapping
     public ApiResponse<Void> addCertificate(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @UserId Long userId,
             @RequestBody @Valid CertificateRequest request
     ) {
-        certificateService.addCertificate(userDetails.getUserId(), request);
+        certificateService.addCertificate(userId, request);
         return ApiResponse.success(null);
     }
 
@@ -53,11 +52,11 @@ public class CertificateController {
     )
     @PatchMapping("/{certificateId}")
     public ApiResponse<Void> updateCertificate(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @UserId Long userId,
             @PathVariable Long certificateId,
             @RequestBody @Valid CertificateRequest request
     ) {
-        certificateService.updateCertificate(userDetails.getUserId(), certificateId, request);
+        certificateService.updateCertificate(userId, certificateId, request);
         return ApiResponse.success(null);
     }
 
@@ -67,10 +66,10 @@ public class CertificateController {
     )
     @DeleteMapping("/{certificateId}")
     public ApiResponse<Void> deleteCertificate(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @UserId Long userId,
             @PathVariable Long certificateId
     ) {
-        certificateService.deleteCertificate(userDetails.getUserId(), certificateId);
+        certificateService.deleteCertificate(userId, certificateId);
         return ApiResponse.success(null);
     }
 }
