@@ -217,7 +217,7 @@ public class PortfolioService {
                 PortfolioAsset existing = currentByKey.get(k);
                 if (existing != null) {
                     existing.updateSortOrder(order++);
-                    keepKeys.add(k);
+                    keepKeys.add(existing.getFileUrl());
                     continue;
                 }
 
