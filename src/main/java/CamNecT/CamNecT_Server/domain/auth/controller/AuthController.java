@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final SignupService signupService;
     private final LoginService loginService;
     private final UserRepository userRepository;
     private final EmailVerificationService emailVerificationService;

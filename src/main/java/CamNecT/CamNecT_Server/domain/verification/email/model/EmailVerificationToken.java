@@ -25,7 +25,7 @@ public class EmailVerificationToken {
     private Long id;
 
     //send 단계에서 user가 없으므로 email이 기준키
-    @Column(name = "email", nullable = false, length = 255)
+    @Column(name = "email", nullable = false)
     private String email;
 
     //verify 단계에서 user 객체 생성 후 주입

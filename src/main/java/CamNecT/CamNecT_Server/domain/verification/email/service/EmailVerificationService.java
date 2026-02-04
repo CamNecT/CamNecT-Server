@@ -5,7 +5,6 @@ import CamNecT.CamNecT_Server.domain.auth.dto.signup.VerifySignupEmailResponse;
 import CamNecT.CamNecT_Server.domain.users.model.UserStatus;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
-import CamNecT.CamNecT_Server.domain.verification.email.dto.VerifyEmailCodeResponse;
 import CamNecT.CamNecT_Server.domain.verification.email.event.EmailVerificationCodeIssuedEvent;
 import CamNecT.CamNecT_Server.domain.verification.email.model.EmailTokenUtil;
 import CamNecT.CamNecT_Server.domain.verification.email.model.EmailVerificationToken;
