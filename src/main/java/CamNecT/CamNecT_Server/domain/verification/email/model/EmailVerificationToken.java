@@ -4,6 +4,7 @@ import CamNecT.CamNecT_Server.domain.users.model.Users;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -38,6 +39,10 @@ public class EmailVerificationToken {
 
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt; // 생성일시
 
     protected EmailVerificationToken(Users user, String codeHash, LocalDateTime expiresAt) {
         this.user = user;

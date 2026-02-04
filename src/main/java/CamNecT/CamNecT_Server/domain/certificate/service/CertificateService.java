@@ -31,11 +31,11 @@ public class CertificateService {
         Certificate certificate = Certificate.builder()
                 .user(user)
                 .certificateName(request.certificateName())
-                .issuerName(request.issuerName()).
-                acquiredDate(request.acquiredDate())
-                .expireDate(request.expireDate())
+                .acquiredDate(request.acquiredDate())
                 .credentialUrl(request.credentialUrl())
-                .description(request.description())
+//                .issuerName(request.issuerName())
+//                .expireDate(request.expireDate())
+//                .description(request.description())
                 .build();
 
         certificateRepository.save(certificate);
@@ -60,11 +60,11 @@ public class CertificateService {
 
         certificate.updateCertificate(
                 request.certificateName(),
-                request.issuerName(),
                 request.acquiredDate(),
-                request.expireDate(),
-                request.credentialUrl(),
-                request.description()
+                request.credentialUrl()
+//                request.issuerName(),
+//                request.expireDate(),
+//                request.description()
         );
     }
 

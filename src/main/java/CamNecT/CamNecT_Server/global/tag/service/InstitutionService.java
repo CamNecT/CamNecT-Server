@@ -5,6 +5,8 @@ import CamNecT.CamNecT_Server.global.tag.dto.response.InstitutionResponse;
 import CamNecT.CamNecT_Server.global.tag.repository.InstitutionRepository;
 import CamNecT.CamNecT_Server.global.tag.model.Institutions;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,15 +19,11 @@ public class InstitutionService {
 
     private final InstitutionRepository institutionRepository;
 
-    public InstitutionListResponse getInstitutions() {
-        List<InstitutionResponse> items =
-                institutionRepository.findAllByOrderByInstitutionNameKorAsc().stream()
-                        .map(InstitutionResponse::from)
-                        .toList();
+    public InstitutionListResponse searchInstitutions(String keyword) {
+        Pageable limit = PageRequest.of(0, 10);
+        List<Institutions> institutions = institutionRepository.searchActiveInstitutions(keyword, limit);
 
-        return InstitutionListResponse.builder()
-                .items(items)
-                .build();
+        return InstitutionListResponse.from(institutions);
     }
 
     public InstitutionResponse getInstitution(Long id) {

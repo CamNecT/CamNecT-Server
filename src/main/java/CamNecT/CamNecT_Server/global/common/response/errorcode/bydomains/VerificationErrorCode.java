@@ -27,6 +27,9 @@ public enum VerificationErrorCode implements BaseErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, 42402, "유저를 찾을 수 없습니다."),
     FILE_NOT_FOUND(HttpStatus.NOT_FOUND, 42403, "파일을 찾을 수 없습니다."),
 
+    //425xx - 외부 시스템
+    MAIL_SEND_FAILED(HttpStatus.BAD_GATEWAY, 42501, "메일 발송에 실패했습니다."),
+
     // 429xx - 상태/규칙 위반
     PENDING_ALREADY_EXISTS(HttpStatus.CONFLICT, 42930, "이미 처리 대기(PENDING) 중인 요청이 있습니다."),
     ONLY_PENDING_CAN_REVIEW(HttpStatus.CONFLICT, 42910, "PENDING 상태만 처리할 수 있습니다."),

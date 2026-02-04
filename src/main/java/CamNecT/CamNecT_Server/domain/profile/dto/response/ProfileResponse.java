@@ -26,7 +26,7 @@ public record ProfileResponse(
             Boolean isFollowerVisible,
             String profileImageUrl,
             String studentNo,
-            Integer yearLevel,
+//            Integer yearLevel,
             Long institutionId,
             Long majorId
     ) {}

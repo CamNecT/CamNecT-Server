@@ -36,14 +36,10 @@ public class EducationService {
         Institutions institution = institutionRepository.findById(request.institutionId())
                 .orElseThrow(() -> new CustomException(UserErrorCode.INSTITUTION_NOT_FOUND));
 
-        Majors major = majorRepository.findById(request.majorId())
-                .orElseThrow(() -> new CustomException(UserErrorCode.MAJOR_NOT_FOUND));
 
         Education education = Education.builder()
                 .user(user)
                 .institution(institution)
-                .major(major)
-                .degree(request.degree())
                 .startDate(request.startDate())
                 .endDate(request.endDate())
                 .status(request.status())
@@ -73,13 +69,9 @@ public class EducationService {
         Institutions institution = institutionRepository.findById(request.institutionId())
                 .orElseThrow(() -> new CustomException(UserErrorCode.INSTITUTION_NOT_FOUND));
 
-        Majors major = majorRepository.findById(request.majorId())
-                .orElseThrow(() -> new CustomException(UserErrorCode.MAJOR_NOT_FOUND));
 
         education.updateEducation(
                 institution,
-                major,
-                request.degree(),
                 request.startDate(),
                 request.endDate(),
                 request.status(),
