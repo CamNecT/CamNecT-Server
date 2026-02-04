@@ -26,11 +26,8 @@ public class EmailVerificationService {
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.USER_NOT_FOUND));
 
-        String tempToken = jwtUtil.generateAccessToken(user.getUserId(),user.getRole());
-        long expiresMinutes = jwtUtil.getVerificationTokenExpirationMs() / 60000L;
-
         if (user.isEmailVerified()) {
-            return new VerifyEmailCodeResponse(user.getUserId(),tempToken, expiresMinutes); // 이미 인증된 경우 idempotent
+            return new VerifyEmailCodeResponse(user.getUserId(), null, 0L);//이미 인증된 경우 idempotent
         }
 
         EmailVerificationToken token = tokenRepository.findTopByUserAndUsedAtIsNullOrderByIdDesc(user)
@@ -51,6 +48,10 @@ public class EmailVerificationService {
         token.markUsed();
         user.markEmailVerified();
         user.changeStatus(UserStatus.ADMIN_PENDING);
+
+        String tempToken = jwtUtil.generateVerificationToken(user.getUserId(),user.getRole());
+        long expiresMinutes = jwtUtil.getVerificationTokenExpirationMs() / 60000L;
+
         return new VerifyEmailCodeResponse(user.getUserId(),tempToken, expiresMinutes);
     }
 }

@@ -38,10 +38,11 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         String uri = request.getRequestURI();
 
+        //TODO : REFRESH TOKEN도 사용처 만들기
         if (type == TokenType.REFRESH) { //현재는 refresh는 안쓰고 있습니다!!
-            throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
+            throw new CustomException(AuthErrorCode.TOKEN_TYPE_NOT_ALLOWED);
         } else if (type == TokenType.VERIFICATION && !isAllowedForVerificationToken(uri)) {
-                throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
+                throw new CustomException(AuthErrorCode.TOKEN_TYPE_NOT_ALLOWED);
         }
 
         Long userId = jwtUtil.getUserId(token);
@@ -63,6 +64,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     }
 
     private boolean isAllowedForVerificationToken(String uri) {
-        return uri.startsWith("/api/verification/documents");
+        return uri.equals("/api/verification/documents")
+                || uri.startsWith("/api/verification/documents/");
     }
 }
