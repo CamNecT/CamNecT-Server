@@ -3,13 +3,12 @@ package CamNecT.CamNecT_Server.domain.education.controller;
 import CamNecT.CamNecT_Server.domain.education.dto.request.EducationRequest;
 import CamNecT.CamNecT_Server.domain.education.dto.response.EducationResponse;
 import CamNecT.CamNecT_Server.domain.education.service.EducationService;
-import CamNecT.CamNecT_Server.domain.users.model.CustomUserDetails;
+import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,9 +27,9 @@ public class EducationController {
     )
     @GetMapping
     public ApiResponse<List<EducationResponse>> getMyEducations(
-            @AuthenticationPrincipal CustomUserDetails userDetails
+            @UserId Long userId
     ) {
-        List<EducationResponse> response = educationService.getMyEducations(userDetails.getUserId());
+        List<EducationResponse> response = educationService.getMyEducations(userId);
         return ApiResponse.success(response);
     }
 
@@ -40,10 +39,10 @@ public class EducationController {
     )
     @PostMapping
     public ApiResponse<Void> addEducation(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @UserId Long userId,
             @RequestBody @Valid EducationRequest request
     ) {
-        educationService.addEducation(userDetails.getUserId(), request);
+        educationService.addEducation(userId, request);
         return ApiResponse.success(null);
     }
 
@@ -53,11 +52,11 @@ public class EducationController {
     )
     @PatchMapping("/{educationId}")
     public ApiResponse<Void> updateEducation(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @UserId Long userId,
             @PathVariable Long educationId,
             @RequestBody @Valid EducationRequest request
     ) {
-        educationService.updateEducation(userDetails.getUserId(), educationId, request);
+        educationService.updateEducation(userId, educationId, request);
         return ApiResponse.success(null);
     }
 
@@ -67,10 +66,10 @@ public class EducationController {
     )
     @DeleteMapping("/{educationId}")
     public ApiResponse<Void> deleteEducation(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @UserId Long userId,
             @PathVariable Long educationId
     ) {
-        educationService.deleteEducation(userDetails.getUserId(), educationId);
+        educationService.deleteEducation(userId, educationId);
         return ApiResponse.success(null);
     }
 }

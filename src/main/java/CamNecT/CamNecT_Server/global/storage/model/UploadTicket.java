@@ -1,5 +1,7 @@
 package CamNecT.CamNecT_Server.global.storage.model;
 
+import CamNecT.CamNecT_Server.global.common.exception.CustomException;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.StorageErrorCode;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -85,7 +87,7 @@ public class UploadTicket {
 
     public void updateStorageKey(String newStorageKey) {
         if (newStorageKey == null || newStorageKey.isBlank()) {
-            throw new IllegalArgumentException("storageKey cannot be blank");
+            throw new CustomException(StorageErrorCode.STORAGE_KEY_REQUIRED);
         }
         this.storageKey = newStorageKey;
     }

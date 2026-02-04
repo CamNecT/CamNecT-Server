@@ -54,19 +54,15 @@ public class DocumentVerificationService {
             throw new CustomException(VerificationErrorCode.UNSUPPORTED_CONTENT_TYPE);
         }
 
-        long pending = ticketRepo.countByUserIdAndPurposeAndStatus(
-                userId, UploadPurpose.VERIFICATION_DOCUMENT, UploadTicket.Status.PENDING
-        );
-        if (pending >= 1) throw new CustomException(VerificationErrorCode.TOO_MANY_FILES);
-
         String keyPrefix = "verification/user-" + userId + "/documents";
 
+        // 티켓 만료 정리 + active pending 제한은 PresignEngine.issueUpload()가 담당
         return presignEngine.issueUpload(
                 userId,
                 UploadPurpose.VERIFICATION_DOCUMENT,
                 keyPrefix,
                 ct,
-                req.size(),
+                props.maxFileSizeBytes(),     // 티켓에는 "허용 상한"을 저장
                 req.originalFilename()
         );
     }

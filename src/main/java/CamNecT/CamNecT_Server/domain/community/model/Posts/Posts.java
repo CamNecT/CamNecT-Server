@@ -3,6 +3,7 @@ package CamNecT.CamNecT_Server.domain.community.model.Posts;
 import CamNecT.CamNecT_Server.domain.community.model.Boards;
 import CamNecT.CamNecT_Server.domain.community.model.enums.PostAccessType;
 import CamNecT.CamNecT_Server.domain.community.model.enums.PostStatus;
+import CamNecT.CamNecT_Server.domain.users.model.Users;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -27,8 +28,9 @@ public class Posts {
     @JoinColumn(name = "board_id", nullable = false)
     private Boards board;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private Users user;
 
     @Column(name = "title", nullable = false, length = 200)
     private String title;
@@ -40,8 +42,11 @@ public class Posts {
     @Column(name = "is_anonymous", nullable = false)
     private boolean isAnonymous;
 
+    @OneToOne(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private PostStats stats;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
+    @Column(name = "status", nullable = false)
     private PostStatus status;
 
     @Enumerated(EnumType.STRING)
@@ -63,10 +68,11 @@ public class Posts {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    public static Posts create(Boards board, Long userId, String title, String content, boolean isAnonymous) {
+    //TODO PostStats 선언을 create안에서..? -> Post post = Posts.builder().....
+    public static Posts create(Boards board, Users user, String title, String content, boolean isAnonymous) {
         return Posts.builder()
                 .board(board)
-                .userId(userId)
+                .user(user)
                 .title(title)
                 .content(content)
                 .isAnonymous(isAnonymous)

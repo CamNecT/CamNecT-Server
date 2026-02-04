@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.community.model.Posts;
 
+import CamNecT.CamNecT_Server.domain.users.model.Users;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -34,17 +35,18 @@ public class PostBookmarks {
     @ToString.Exclude
     private Posts post;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private Users user;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public static PostBookmarks create(Posts post, Long userId) {
+    public static PostBookmarks create(Posts post, Users user) {
         return PostBookmarks.builder()
                 .post(post)
-                .userId(userId)
+                .user(user)
                 .build();
     }
 }
