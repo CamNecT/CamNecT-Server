@@ -20,6 +20,8 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     //List<Long> 형식으로 들어오는 유저 id에 해당하는 프로필들 반환
     List<UserProfile> findAllByUserIdIn(List<Long> userIds);
 
+    boolean existsByUserId(Long userId);
+
 
     @Query("SELECT DISTINCT up FROM UserProfile up " +
             "JOIN UserTagMap utm ON up.userId = utm.userId " +

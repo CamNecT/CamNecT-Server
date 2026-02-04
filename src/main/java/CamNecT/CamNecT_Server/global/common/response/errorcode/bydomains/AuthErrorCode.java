@@ -32,6 +32,7 @@ public enum AuthErrorCode implements BaseErrorCode {
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, 41901, "이미 가입된 이메일입니다."),
     USERNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, 41902, "이미 사용 중인 아이디입니다."),
     PHONENUM_ALREADY_EXISTS(HttpStatus.CONFLICT, 41903, "이미 사용 중인 전화번호입니다."),
+    ONBOARDING_ALREADY_CREATED(HttpStatus.CONFLICT, 41905, "이미 프로필 초기 설정이 존재합니다."),
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, 41904, "서버가 생성하려는 자원이 이미 존재해서 충돌");
     private final HttpStatus httpStatus;
     private final int code;
