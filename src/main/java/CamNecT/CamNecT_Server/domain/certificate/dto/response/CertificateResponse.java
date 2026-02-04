@@ -7,21 +7,21 @@ import java.time.LocalDate;
 public record CertificateResponse(
         Long certificateId,
         String certificateName,
-        String issuerName,
         LocalDate acquiredDate,
-        LocalDate expireDate,
-        String credentialUrl,
-        String description
+        String credentialUrl
+//        String issuerName,
+//        LocalDate expireDate,
+//        String description
 ) {
     public static CertificateResponse from(Certificate certificate) {
         return new CertificateResponse(
                 certificate.getCertificateId(),
                 certificate.getCertificateName(),
-                certificate.getIssuerName(),
                 certificate.getAcquiredDate(),
-                certificate.getExpireDate(),
-                certificate.getCredentialUrl(),
-                certificate.getDescription()
+                certificate.getCredentialUrl()
+//                certificate.getIssuerName(),
+//                certificate.getExpireDate(),
+//                certificate.getDescription()
         );
     }
 }

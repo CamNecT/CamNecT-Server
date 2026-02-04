@@ -5,10 +5,10 @@ import java.time.LocalDate;
 public record CertificateRequest(
         Long userId,
         String certificateName,
-        String issuerName,
         LocalDate acquiredDate,
-        LocalDate expireDate,
-        String credentialUrl,
-        String description
+        String credentialUrl
+//        String issuerName,
+//        LocalDate expireDate,
+//        String description
 ) {
 }

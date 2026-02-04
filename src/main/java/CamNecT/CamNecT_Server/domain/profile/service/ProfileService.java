@@ -9,6 +9,7 @@ import CamNecT.CamNecT_Server.domain.experience.repository.ExperienceRepository;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioPreviewResponse;
 import CamNecT.CamNecT_Server.domain.portfolio.repository.PortfolioRepository;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateOnboardingRequest;
+import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileTagsRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileResponse;
@@ -93,7 +94,7 @@ public class ProfileService {
                 userProfile.getIsFollowerVisible(),
                 profileImageUrl,
                 userProfile.getStudentNo(),
-                userProfile.getYearLevel(),
+//                userProfile.getYearLevel(),
                 userProfile.getInstitutionId(),
                 userProfile.getMajorId()
         );
@@ -113,13 +114,16 @@ public class ProfileService {
     }
 
     @Transactional
-    public ProfileStatusResponse updateFollowerVisibility(Long userId, Boolean visible) {
-        UserProfile userProfile = userProfileRepository.findByUserId(userId)
+    public void updatePrivacy(Long userId, UpdatePrivacyRequest request) {
+        UserProfile profile = userProfileRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
-        userProfile.updatePrivacySettings(visible);
-
-        return new ProfileStatusResponse(userProfile.getUser().getStatus());
+        profile.updatePrivacySettings(
+                request.isFollowerVisible(),
+                request.isEducationVisible(),
+                request.isExperienceVisible(),
+                request.isCertificateVisible()
+        );
     }
 
     @Transactional

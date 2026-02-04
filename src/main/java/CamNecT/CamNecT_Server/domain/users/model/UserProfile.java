@@ -31,6 +31,18 @@ public class UserProfile {
     @Builder.Default
     private Boolean isFollowerVisible = true;
 
+    @Column(name = "is_education_visible", nullable = false)
+    @Builder.Default
+    private Boolean isEducationVisible = true;
+
+    @Column(name = "is_experience_visible", nullable = false)
+    @Builder.Default
+    private Boolean isExperienceVisible = true;
+
+    @Column(name = "is_certificate_visible", nullable = false)
+    @Builder.Default
+    private Boolean isCertificateVisible = true;
+
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
 
@@ -64,9 +76,15 @@ public class UserProfile {
         this.majorId = majorId;
     }
 
-    public void updatePrivacySettings(Boolean isFollowerVisible) {
-        if (isFollowerVisible != null) {
-            this.isFollowerVisible = isFollowerVisible;
-        }
+    public void updatePrivacySettings(
+            Boolean isFollowerVisible,
+            Boolean isEducationVisible,
+            Boolean isExperienceVisible,
+            Boolean isCertificateVisible
+    ) {
+        if (isFollowerVisible != null) this.isFollowerVisible = isFollowerVisible;
+        if (isEducationVisible != null) this.isEducationVisible = isEducationVisible;
+        if (isExperienceVisible != null) this.isExperienceVisible = isExperienceVisible;
+        if (isCertificateVisible != null) this.isCertificateVisible = isCertificateVisible;
     }
 }
