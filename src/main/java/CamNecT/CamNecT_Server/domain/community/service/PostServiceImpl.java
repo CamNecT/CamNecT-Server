@@ -244,8 +244,7 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public void acceptComment(Long userId, Long postId, Long commentId) {
-        Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(CommunityErrorCode.USER_NOT_FOUND));
+        if (userId == null) throw new CustomException(CommunityErrorCode.USER_NOT_FOUND);
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
