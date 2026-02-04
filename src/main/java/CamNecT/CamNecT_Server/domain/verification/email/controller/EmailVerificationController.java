@@ -1,6 +1,7 @@
 package CamNecT.CamNecT_Server.domain.verification.email.controller;
 
 import CamNecT.CamNecT_Server.domain.verification.email.dto.VerifyEmailCodeRequest;
+import CamNecT.CamNecT_Server.domain.verification.email.dto.VerifyEmailCodeResponse;
 import CamNecT.CamNecT_Server.domain.verification.email.service.EmailVerificationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,8 +16,7 @@ public class EmailVerificationController {
     private final EmailVerificationService emailVerificationService;
 
     @PostMapping("/email/verify-code")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void verifyCode(@RequestBody @Valid VerifyEmailCodeRequest req) {
-        emailVerificationService.verifyEmailCode(req.userId(), req.code());
+    public VerifyEmailCodeResponse verifyCode(@RequestBody @Valid VerifyEmailCodeRequest req) {
+        return emailVerificationService.verifyEmailCode(req.userId(), req.code());
     }
 }

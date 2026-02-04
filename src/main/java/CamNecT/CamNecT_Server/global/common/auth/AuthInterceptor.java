@@ -31,9 +31,17 @@ public class AuthInterceptor implements HandlerInterceptor {
         //토큰 유효성 검사
         jwtUtil.validateOrThrow(token);
 
-        if (jwtUtil.getTokenType(token) != TokenType.ACCESS) {
+        TokenType type = jwtUtil.getTokenType(token);
+        if (type == null) {
             throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
-            // 없으면 AuthErrorCode에 추가하거나, UNAUTHORIZED 계열로 매핑
+        }
+
+        String uri = request.getRequestURI();
+
+        if (type == TokenType.REFRESH) { //현재는 refresh는 안쓰고 있습니다!!
+            throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
+        } else if (type == TokenType.VERIFICATION && !isAllowedForVerificationToken(uri)) {
+                throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
         }
 
         Long userId = jwtUtil.getUserId(token);
@@ -52,5 +60,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
         }
         return header.substring(7);
+    }
+
+    private boolean isAllowedForVerificationToken(String uri) {
+        return uri.startsWith("/api/verification/documents");
     }
 }

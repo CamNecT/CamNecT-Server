@@ -30,15 +30,18 @@ public class JwtUtil {
     private final SecretKey key;
     private final long accessTokenExpirationMs;
     private final long refreshTokenExpirationMs;
+    private final long verificationTokenExpirationMs;
 
     public JwtUtil(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token-expiration-ms}") long accessTokenExpirationMs,
-            @Value("${jwt.refresh-token-expiration-ms}") long refreshTokenExpirationMs
+            @Value("${jwt.refresh-token-expiration-ms}") long refreshTokenExpirationMs,
+            @Value("${jwt.verification-token-expiration-ms}") long verificationTokenExpirationMs
     ) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessTokenExpirationMs = accessTokenExpirationMs;
         this.refreshTokenExpirationMs = refreshTokenExpirationMs;
+        this.verificationTokenExpirationMs = verificationTokenExpirationMs;
     }
 
     public String generateAccessToken(Long userId, UserRole role) {
@@ -47,6 +50,10 @@ public class JwtUtil {
 
     public String generateRefreshToken(Long userId, UserRole role) {
         return generateToken(userId, role, TokenType.REFRESH, refreshTokenExpirationMs);
+    }
+
+    public String generateVerificationToken(Long userId, UserRole role) {
+        return generateToken(userId, role, TokenType.VERIFICATION, verificationTokenExpirationMs);
     }
 
     private String generateToken(Long userId, UserRole role, TokenType type, long expirationMs) {

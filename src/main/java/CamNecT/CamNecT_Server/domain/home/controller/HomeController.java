@@ -2,6 +2,7 @@ package CamNecT.CamNecT_Server.domain.home.controller;
 
 import CamNecT.CamNecT_Server.domain.home.dto.HomeResponse;
 import CamNecT.CamNecT_Server.domain.home.service.HomeService;
+import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +19,7 @@ public class HomeController {
 
     @GetMapping
     public ApiResponse<HomeResponse> home(
-            @RequestHeader("X-Device-Id") Long userId
+            @UserId Long userId
     ) {
         return ApiResponse.success(homeService.getHome(userId));
     }
