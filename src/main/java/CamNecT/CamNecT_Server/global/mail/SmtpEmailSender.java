@@ -2,6 +2,8 @@ package CamNecT.CamNecT_Server.global.mail;
 
 import CamNecT.CamNecT_Server.domain.verification.document.dto.AdminReviewDocumentVerificationRequest;
 import CamNecT.CamNecT_Server.domain.verification.document.model.DocumentType;
+import CamNecT.CamNecT_Server.global.common.exception.CustomException;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.VerificationErrorCode;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,7 +75,8 @@ public class SmtpEmailSender implements EmailSender {
             helper.setText(text, html); //html 우선. html이 안되는 환경이면 text
             mailSender.send(mimeMessage);
         } catch (MessagingException | MailException e) {
-            throw new IllegalStateException("MAIL_SEND_FAILED", e);
+            log.error("[mail] send failed to={}", toEmail, e);
+            throw new CustomException(VerificationErrorCode.MAIL_SEND_FAILED, e);
         }
     }
 
@@ -176,7 +179,8 @@ public class SmtpEmailSender implements EmailSender {
             mailSender.send(mimeMessage);
 
         } catch (MessagingException | MailException e) {
-            throw new IllegalStateException("MAIL_SEND_FAILED", e);
+            log.error("[mail] send failed to={}", toEmail, e);
+            throw new CustomException(VerificationErrorCode.MAIL_SEND_FAILED, e);
         }
     }
 
