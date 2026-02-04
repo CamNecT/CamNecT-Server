@@ -16,14 +16,15 @@ import CamNecT.CamNecT_Server.domain.community.repository.Posts.*;
 import CamNecT.CamNecT_Server.domain.point.model.PointEvent;
 import CamNecT.CamNecT_Server.domain.point.service.PointService;
 import CamNecT.CamNecT_Server.domain.users.model.UserRole;
+import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
-import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CommunityErrorCode;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,10 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
+
+    @Value("${app.point.reward.comment-selection:50}")
+    private int reward;
+
 
     private final BoardsRepository boardsRepository;
     private final PostsRepository postsRepository;
@@ -58,8 +63,8 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public CreatePostResponse create(Long userId, CreatePostRequest req) {
-        if (userId == null) userId = 1L;
-        //TODO : 이거 왜 1L 들어가지.
+        Users user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(CommunityErrorCode.USER_NOT_FOUND));
 
         Boards board = boardsRepository.findByCode(req.boardCode())
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.BOARD_NOT_FOUND));
@@ -75,7 +80,7 @@ public class PostServiceImpl implements PostService {
             requiredPoints = null;
         }
 
-        Posts post = Posts.create(board, userId, req.title(), req.content(), Boolean.TRUE.equals(req.anonymous()));
+        Posts post = Posts.create(board, user, req.title(), req.content(), Boolean.TRUE.equals(req.anonymous()));
         post.applyAccess(accessType, requiredPoints);
 
         Posts saved = postsRepository.save(post);
@@ -91,12 +96,12 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public void update(Long userId, Long postId, UpdatePostRequest req) {
-        if (userId == null) userId = 1L;
+        if(userId == null) throw new CustomException(CommunityErrorCode.USER_NOT_FOUND);
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
 
-        if (!Objects.equals(post.getUserId(), userId)) {
+        if (!Objects.equals(post.getUser().getUserId(), userId)) {
             throw new CustomException(CommunityErrorCode.POST_FORBIDDEN);
         }
 
@@ -117,13 +122,15 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public void delete(Long userId, Long postId) {
-        if (userId == null) userId = 1L;
+        if (userId == null) throw new CustomException(CommunityErrorCode.USER_NOT_FOUND);
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
 
-        if(!userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN)
-            || !Objects.equals(post.getUserId(), userId)){
+        boolean isAdmin = userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
+        boolean isOwner = Objects.equals(post.getUser().getUserId(), userId);
+
+        if (!(isAdmin || isOwner)) {
             throw new CustomException(CommunityErrorCode.POST_FORBIDDEN);
         } //Admin이거나 작성자면은 스킵
 
@@ -143,7 +150,8 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public ToggleLikeResponse toggleLike(Long userId, Long postId) {
-        if (userId == null) userId = 1L;
+        Users user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(CommunityErrorCode.USER_NOT_FOUND));
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -151,12 +159,12 @@ public class PostServiceImpl implements PostService {
         PostStats stats = getOrCreateStats(post);
 
         boolean liked;
-        if (postLikesRepository.existsByPost_IdAndUserId(postId, userId)) {
-            postLikesRepository.deleteByPost_IdAndUserId(postId, userId);
+        if (postLikesRepository.existsByPost_IdAndUser_UserId(postId, userId)) {
+            postLikesRepository.deleteByPost_IdAndUser_UserId(postId, userId);
             stats.decLike();
             liked = false;
         } else {
-            postLikesRepository.save(PostLikes.of(post, userId));
+            postLikesRepository.save(PostLikes.of(post, user));
             stats.incLike();
             liked = true;
         }
@@ -167,6 +175,8 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public PostDetailResponse getDetail(Long userId, Long postId) {
+        if (userId == null) throw new CustomException(CommunityErrorCode.USER_NOT_FOUND);
+
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
 
@@ -177,8 +187,7 @@ public class PostServiceImpl implements PostService {
         PostStats stats = getOrCreateStats(post);
         stats.incView();
 
-        boolean likedByMe = (userId != null) &&
-                postLikesRepository.existsByPost_IdAndUserId(postId, userId);
+        boolean likedByMe = postLikesRepository.existsByPost_IdAndUser_UserId(postId, userId);
 
         List<Long> tagIds = postTagsRepository.findByPost_Id(postId).stream()
                 .map(pt -> pt.getTag().getId())
@@ -198,9 +207,7 @@ public class PostServiceImpl implements PostService {
                 throw new CustomException(ErrorCode.INTERNAL_ERROR);
             }
 
-            if (userId == null) {
-                accessStatus = ContentAccessStatus.LOGIN_REQUIRED;
-            } else if (userId.equals(post.getUserId())) {
+            if (userId.equals(post.getUser().getUserId())) {
                 accessStatus = ContentAccessStatus.GRANTED;
             } else if (postAccessRepository.existsByPost_IdAndUserId(postId, userId)) {
                 accessStatus = ContentAccessStatus.GRANTED;
@@ -222,7 +229,7 @@ public class PostServiceImpl implements PostService {
                 post.getTitle(),
                 content,
                 post.isAnonymous(),
-                post.getUserId(),
+                post.getUser().getUserId(),
                 stats.getViewCount(),
                 stats.getLikeCount(),
                 likedByMe,
@@ -237,7 +244,7 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public void acceptComment(Long userId, Long postId, Long commentId) {
-        if (userId == null) userId = 1L;
+        if (userId == null) throw new CustomException(CommunityErrorCode.USER_NOT_FOUND);
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -245,7 +252,7 @@ public class PostServiceImpl implements PostService {
         if (post.getBoard().getCode() != BoardCode.QUESTION) {
             throw new CustomException(CommunityErrorCode.ONLY_QUESTION_CAN_ACCEPT);
         }
-        if (!Objects.equals(post.getUserId(), userId)) {
+        if (!Objects.equals(post.getUser().getUserId(), userId)) {
             throw new CustomException(CommunityErrorCode.POST_FORBIDDEN);
         }
 
@@ -258,7 +265,7 @@ public class PostServiceImpl implements PostService {
         if (comment.getStatus() != CommentStatus.PUBLISHED) {
             throw new CustomException(CommunityErrorCode.CANNOT_ACCEPT_UNPUBLISHED_COMMENT);
         }
-        //TODO 댓글 채택시 포인트 제공 로직이 없어요.
+
 
         try {
             acceptedCommentsRepository.save(AcceptedComments.of(post, comment, userId));
@@ -270,6 +277,8 @@ public class PostServiceImpl implements PostService {
 
         Long receiverId = comment.getUserId();
         if (receiverId != null && !Objects.equals(receiverId, userId)) {
+            pointService.earnPointByCommentSelection(receiverId, postId, commentId, reward);
+
             eventPublisher.publishEvent(new CommentAcceptedEvent(receiverId, postId, commentId, userId));
         }
     }
@@ -277,7 +286,8 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public ToggleBookmarkResponse toggleBookmark(Long userId, Long postId) {
-        if (userId == null) userId = 1L;
+        Users user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(CommunityErrorCode.USER_NOT_FOUND));
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -291,7 +301,7 @@ public class PostServiceImpl implements PostService {
             postBookmarksRepository.deleteByPost_IdAndUserId(postId, userId);
             stats.decBookmark();
         } else {
-            postBookmarksRepository.save(PostBookmarks.create(post, userId));
+            postBookmarksRepository.save(PostBookmarks.create(post, user));
             stats.incBookmark();
         }
 
@@ -303,9 +313,8 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public PurchasePostAccessResponse purchasePostAccess(Long userId, Long postId) {
-        if (userId == null) {
-            throw new CustomException(AuthErrorCode.LOGIN_REQUIRED);
-        }
+        Users user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(CommunityErrorCode.USER_NOT_FOUND));
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -324,7 +333,7 @@ public class PostServiceImpl implements PostService {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
-        if (userId.equals(post.getUserId())) {
+        if (userId.equals(post.getUser().getUserId())) {
             int bal = pointService.getBalance(userId);
             return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
         }
@@ -337,7 +346,7 @@ public class PostServiceImpl implements PostService {
         pointService.spendPoint(userId, cost, PointEvent.postAccess(userId, postId));
 
         try {
-            postAccessRepository.save(PostAccess.of(userId, post, cost));
+            postAccessRepository.save(PostAccess.of(user, post, cost));
         } catch (DataIntegrityViolationException ignored) {
         }
 

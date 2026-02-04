@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.community.model.Posts;
 
+import CamNecT.CamNecT_Server.domain.users.model.Users;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -27,8 +28,9 @@ public class PostAccess {
     @Column(name = "post_access_id")
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private Users user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "post_id", nullable = false)
@@ -41,9 +43,9 @@ public class PostAccess {
     @Column(name = "purchased_at", nullable = false, updatable = false)
     private LocalDateTime purchasedAt;
 
-    public static PostAccess of(Long userId, Posts post, int paidPoints) {
+    public static PostAccess of(Users user, Posts post, int paidPoints) {
         PostAccess pa = new PostAccess();
-        pa.userId = userId;
+        pa.user = user;
         pa.post = post;
         pa.paidPoints = paidPoints;
         return pa;
