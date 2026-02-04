@@ -140,9 +140,13 @@ public class ProfileService {
     public ProfileStatusResponse createOnboarding(Long userId, UpdateOnboardingRequest req) {
 
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         requireEmailVerifiedAndNotSuspended(user);
+
+        if (userProfileRepository.existsByUserId(userId)) {
+            throw new CustomException(AuthErrorCode.ONBOARDING_ALREADY_CREATED);
+        }
 
         UserProfile userProfile = UserProfile.builder()
                 .userId(userId)
@@ -157,6 +161,8 @@ public class ProfileService {
                 .build();
 
         userProfileRepository.save(userProfile);
+
+        String bio = (req.bio() != null && !req.bio().isBlank()) ? req.bio().trim() : null;
 
 
         // 2) 프로필 이미지 key 처리 (presign temp -> final 승격)
@@ -174,7 +180,7 @@ public class ProfileService {
             );
         }
 
-        userProfile.updateOnboardingProfile(req.bio(), finalProfileImageKey);
+        userProfile.updateOnboardingProfile(bio, finalProfileImageKey);
 
         // 3) 태그 replace
         List<Long> tagIds = (req.tagIds() == null) ? List.of() : req.tagIds().stream().distinct().toList();
@@ -237,9 +243,11 @@ public class ProfileService {
         requireEmailVerifiedAndNotSuspended(user);
 
         String ct = normalize(req.contentType());
-        if (req.size() == null || req.size() <= 0) {
-            throw new CustomException(StorageErrorCode.STORAGE_EMPTY_FILE);
-        }
+        long maxBytes = 5 * 1024 * 1024L;
+
+        if (req.size() == null || req.size() <= 0) throw new CustomException(StorageErrorCode.STORAGE_EMPTY_FILE);
+        if (req.size() > maxBytes) throw new CustomException(StorageErrorCode.FILE_TOO_LARGE);
+
 
         String keyPrefix = "profile/user-" + userId + "/images";
         return presignEngine.issueUpload(
@@ -247,7 +255,7 @@ public class ProfileService {
                 UploadPurpose.PROFILE_IMAGE,
                 keyPrefix,
                 ct,
-                req.size(),
+                maxBytes,                 // 티켓 size는 상한으로
                 req.originalFilename()
         );
     }

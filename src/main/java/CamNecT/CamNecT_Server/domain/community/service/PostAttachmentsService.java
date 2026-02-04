@@ -10,7 +10,6 @@ import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.StorageErrorCode;
 import CamNecT.CamNecT_Server.global.common.service.GlobalPresignMethods;
 import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadBatchRequest;
-import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadRequest;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadBatchResponse;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadResponse;
 import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
