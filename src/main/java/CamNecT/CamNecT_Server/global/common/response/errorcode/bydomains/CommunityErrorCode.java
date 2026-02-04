@@ -20,6 +20,7 @@ public enum CommunityErrorCode implements BaseErrorCode {
     POST_FORBIDDEN(HttpStatus.FORBIDDEN, 43320, "해당 게시글에 대한 권한이 없습니다."),
 
     // 434xx - 리소스 없음
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, 43401, "유저를 찾을 수 없습니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, 43410, "게시글을 찾을 수 없습니다."),
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 43411, "댓글을 찾을 수 없습니다."),
     PARENT_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 43412, "부모 댓글을 찾을 수 없습니다."),

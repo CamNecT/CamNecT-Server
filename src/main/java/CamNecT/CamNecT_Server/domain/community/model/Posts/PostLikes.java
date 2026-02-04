@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.community.model.Posts;
 
+import CamNecT.CamNecT_Server.domain.users.model.Users;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -31,14 +32,15 @@ public class PostLikes {
     @ToString.Exclude
     private Posts post;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private Users user;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public static PostLikes of(Posts post, Long userId) {
-        return PostLikes.builder().post(post).userId(userId).build();
+    public static PostLikes of(Posts post, Users user) {
+        return PostLikes.builder().post(post).user(user).build();
     }
 }

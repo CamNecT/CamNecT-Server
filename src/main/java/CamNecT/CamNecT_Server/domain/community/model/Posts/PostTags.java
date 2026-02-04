@@ -23,7 +23,6 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-@ToString
 public class PostTags {
 
     @Id
@@ -33,12 +32,10 @@ public class PostTags {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "post_id", nullable = false)
-    @ToString.Exclude
     private Posts post;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "tag_id", nullable = false)
-    @ToString.Exclude
     private Tag tag;
 
     @CreationTimestamp
