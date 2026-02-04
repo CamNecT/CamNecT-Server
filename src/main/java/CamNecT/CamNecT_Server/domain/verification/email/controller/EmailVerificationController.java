@@ -5,7 +5,6 @@ import CamNecT.CamNecT_Server.domain.verification.email.dto.VerifyEmailCodeRespo
 import CamNecT.CamNecT_Server.domain.verification.email.service.EmailVerificationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController

@@ -5,7 +5,6 @@ import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
 import CamNecT.CamNecT_Server.global.jwt.model.TokenType;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -18,7 +17,6 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
-import java.util.Locale;
 
 @Component
 @Getter
