@@ -14,7 +14,7 @@ public class UploadTicketExpiryScheduler {
 
     private final UploadTicketRepository ticketRepo;
 
-    @Scheduled(fixedDelayString = "${app.upload-ticket.expire-job-delay-ms:300000}")
+    @Scheduled(fixedDelayString = "${app.upload-ticket.expire-job-delay-ms:900000}")
     @Transactional
     public void expirePendingTickets() {
         ticketRepo.bulkExpirePending(LocalDateTime.now());
