@@ -86,12 +86,24 @@ public class DocumentVerificationService {
         UploadTicket t = ticketRepo.findByStorageKey(documentKey)
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.FILE_NOT_FOUND));
 
+        String ct = normalize(t.getContentType());
+        if (!StringUtils.hasText(ct)) {
+            throw new CustomException(VerificationErrorCode.UNSUPPORTED_CONTENT_TYPE);
+        }
+
         DocumentVerificationSubmission sub = DocumentVerificationSubmission.builder()
                 .userId(userId)
                 .docType(docType)
                 .status(VerificationStatus.PENDING)
                 .submittedAt(LocalDateTime.now())
                 .build();
+
+        sub.attachFile(
+                documentKey,
+                safeName(t.getOriginalFilename()),
+                ct,
+                t.getSize()
+        );
 
         submissionRepo.save(sub);
 
@@ -113,9 +125,9 @@ public class DocumentVerificationService {
                 t.getSize()
         );
 
-        DocumentVerificationSubmission saved = submissionRepo.save(sub);
+        sub.replaceStorageKey(finalKey);
 
-        return new SubmitDocumentVerificationResponse(saved.getId(), saved.getStatus(), saved.getSubmittedAt());
+        return new SubmitDocumentVerificationResponse(sub.getId(), sub.getStatus(), sub.getSubmittedAt());
     }
 
     @Transactional(readOnly = true)
