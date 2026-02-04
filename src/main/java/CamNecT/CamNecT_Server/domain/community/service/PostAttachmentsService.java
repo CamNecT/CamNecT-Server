@@ -5,22 +5,22 @@ import CamNecT.CamNecT_Server.domain.community.model.Posts.CommunityAttachmentPr
 import CamNecT.CamNecT_Server.domain.community.model.Posts.PostAttachments;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.Posts;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostAttachmentsRepository;
+import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
-import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CommunityErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.StorageErrorCode;
+import CamNecT.CamNecT_Server.global.common.service.GlobalPresignMethods;
+import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadBatchRequest;
 import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadRequest;
+import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadBatchResponse;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadResponse;
 import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
 import CamNecT.CamNecT_Server.global.storage.model.UploadRefType;
 import CamNecT.CamNecT_Server.global.storage.model.UploadTicket;
 import CamNecT.CamNecT_Server.global.storage.repository.UploadTicketRepository;
-import CamNecT.CamNecT_Server.global.storage.service.FileStorage;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
@@ -30,40 +30,61 @@ import java.util.*;
 public class PostAttachmentsService {
 
     private final PostAttachmentsRepository postAttachmentsRepository;
-    private final FileStorage fileStorage;
+    private final UserRepository userRepository;
 
     private final PresignEngine presignEngine;
     private final CommunityAttachmentProps props;
 
     private final UploadTicketRepository ticketRepo;
 
-    @Transactional
-    public PresignUploadResponse presign(Long userId, PresignUploadRequest req) {
-        String ct = normalize(req.contentType());
+    private final GlobalPresignMethods globalPresignMethods;
 
-        if (req.size() <= 0) throw new CustomException(StorageErrorCode.EMPTY_FILE_NOT_ALLOWED);
-        if (req.size() > props.maxFileSizeBytes()) throw new CustomException(StorageErrorCode.FILE_TOO_LARGE);
-        if (!StringUtils.hasText(ct) || !props.allowedContentTypes().contains(ct)) {
-            throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
-        }
+
+    @Transactional
+    public PresignUploadBatchResponse presignBatch(Long userId, PresignUploadBatchRequest req) {
+        List<PresignUploadBatchRequest.Item> items =
+                (req == null || req.items() == null) ? List.of()
+                        : req.items().stream().filter(Objects::nonNull).toList();
+
+        if (items.isEmpty()) throw new CustomException(StorageErrorCode.EMPTY_FILE_NOT_ALLOWED);
+        if (items.size() > props.maxFiles()) throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
+
+        // 동시성 방지: 같은 userId는 presign 발급을 직렬화
+        userRepository.lockUserRow(userId);
 
         long pending = ticketRepo.countByUserIdAndPurposeAndStatus(
                 userId, UploadPurpose.COMMUNITY_POST_ATTACHMENT, UploadTicket.Status.PENDING
         );
-        if (pending >= props.maxFiles()) {
+
+        // “현재 pending + 이번에 발급할 개수”로 제한
+        if (pending + items.size() > props.maxFiles()) {
             throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
         }
 
         String tempPrefix = "community/temp/user-" + userId + "/attachments";
 
-        return presignEngine.issueUpload(
-                userId,
-                UploadPurpose.COMMUNITY_POST_ATTACHMENT,
-                tempPrefix,
-                ct,
-                req.size(),
-                req.originalFilename()
-        );
+        List<PresignUploadResponse> out = new ArrayList<>(items.size());
+
+        for (var item : items) {
+            String ct = globalPresignMethods.normalize(item.contentType());
+
+            if (item.size() <= 0) throw new CustomException(StorageErrorCode.EMPTY_FILE_NOT_ALLOWED);
+            if (item.size() > props.maxFileSizeBytes()) throw new CustomException(StorageErrorCode.FILE_TOO_LARGE);
+            if (!StringUtils.hasText(ct) || !props.allowedContentTypes().contains(ct)) {
+                throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
+            }
+
+            out.add(presignEngine.issueUpload(
+                    userId,
+                    UploadPurpose.COMMUNITY_POST_ATTACHMENT,
+                    tempPrefix,
+                    ct,
+                    item.size(),
+                    item.originalFilename()
+            ));
+        }
+
+        return new PresignUploadBatchResponse(out);
     }
 
 
@@ -188,43 +209,6 @@ public class PostAttachmentsService {
             if (StringUtils.hasText(fk) && !newKeys.contains(fk)) deleteKeys.add(fk);
             if (StringUtils.hasText(tk) && !newKeys.contains(tk)) deleteKeys.add(tk);
         }
-
-        if (deleteKeys.isEmpty()) return;
-
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    for (String key : deleteKeys) {
-                        try { fileStorage.delete(key); } catch (Exception ignored) {}
-                    }
-                }
-            });
-        } else {
-            for (String key : deleteKeys) {
-                try { fileStorage.delete(key); } catch (Exception ignored) {}
-            }
-        }
-    }
-
-    @Transactional(readOnly = true)
-    public List<PostAttachments> findActive(Long postId) {
-        return postAttachmentsRepository.findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(postId);
-    }
-
-    @Transactional(readOnly = true)
-    public PostAttachments findActiveOne(Long postId, Long attachmentId) {
-        return postAttachmentsRepository.findByIdAndPost_IdAndStatusTrue(attachmentId, postId)
-                .orElseThrow(() -> new CustomException(CommunityErrorCode.ATTACHMENT_NOT_FOUND));
-    }
-
-    @Transactional(readOnly = true)
-    public List<PostAttachments> findActiveByPostIds(List<Long> postIds) {
-        if (postIds == null || postIds.isEmpty()) return List.of();
-        return postAttachmentsRepository.findActiveByPostIds(postIds);
-    }
-
-    private String normalize(String ct) {
-        return (ct == null) ? "" : ct.trim().toLowerCase(Locale.ROOT);
+        globalPresignMethods.deleteAfterCommit(deleteKeys);
     }
 }

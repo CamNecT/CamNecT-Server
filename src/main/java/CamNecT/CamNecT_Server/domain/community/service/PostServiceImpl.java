@@ -209,7 +209,7 @@ public class PostServiceImpl implements PostService {
 
             if (userId.equals(post.getUser().getUserId())) {
                 accessStatus = ContentAccessStatus.GRANTED;
-            } else if (postAccessRepository.existsByPost_IdAndUserId(postId, userId)) {
+            } else if (postAccessRepository.existsByPost_IdAndUser_UserId(postId, userId)) {
                 accessStatus = ContentAccessStatus.GRANTED;
             } else {
                 myPoints = pointService.getBalance(userId);
@@ -295,10 +295,10 @@ public class PostServiceImpl implements PostService {
         PostStats stats = postStatsRepository.findByPost_Id(postId)
                 .orElseGet(() -> postStatsRepository.save(PostStats.init(post)));
 
-        boolean exists = postBookmarksRepository.existsByPost_IdAndUserId(postId, userId);
+        boolean exists = postBookmarksRepository.existsByPost_IdAndUser_UserId(postId, userId);
 
         if (exists) {
-            postBookmarksRepository.deleteByPost_IdAndUserId(postId, userId);
+            postBookmarksRepository.deleteByPost_IdAndUser_UserId(postId, userId);
             stats.decBookmark();
         } else {
             postBookmarksRepository.save(PostBookmarks.create(post, user));
@@ -338,7 +338,7 @@ public class PostServiceImpl implements PostService {
             return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
         }
 
-        if (postAccessRepository.existsByPost_IdAndUserId(postId, userId)) {
+        if (postAccessRepository.existsByPost_IdAndUser_UserId(postId, userId)) {
             int bal = pointService.getBalance(userId);
             return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
         }
