@@ -3,13 +3,12 @@ package CamNecT.CamNecT_Server.domain.experience.controller;
 import CamNecT.CamNecT_Server.domain.experience.dto.request.ExperienceRequest;
 import CamNecT.CamNecT_Server.domain.experience.dto.response.ExperienceResponse;
 import CamNecT.CamNecT_Server.domain.experience.service.ExperienceService;
-import CamNecT.CamNecT_Server.domain.users.model.CustomUserDetails;
+import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,9 +27,9 @@ public class ExperienceController {
     )
     @GetMapping
     public ApiResponse<List<ExperienceResponse>> getMyExperiences(
-            @AuthenticationPrincipal CustomUserDetails userDetails
+            @UserId Long userId
     ) {
-        List<ExperienceResponse> response = experienceService.getMyExperience(userDetails.getUserId());
+        List<ExperienceResponse> response = experienceService.getMyExperience(userId);
         return ApiResponse.success(response);
     }
 
@@ -40,10 +39,10 @@ public class ExperienceController {
     )
     @PostMapping
     public ApiResponse<Void> addExperience(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @UserId Long userId,
             @RequestBody @Valid ExperienceRequest request
     ) {
-        experienceService.addExperience(userDetails.getUserId(), request);
+        experienceService.addExperience(userId, request);
         return ApiResponse.success(null);
     }
 
@@ -53,11 +52,11 @@ public class ExperienceController {
     )
     @PatchMapping("/{experienceId}")
     public ApiResponse<Void> updateExperience(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @UserId Long userId,
             @PathVariable Long experienceId,
             @RequestBody @Valid ExperienceRequest request
     ) {
-        experienceService.updateExperience(userDetails.getUserId(), experienceId, request);
+        experienceService.updateExperience(userId, experienceId, request);
         return ApiResponse.success(null);
     }
 
@@ -67,10 +66,10 @@ public class ExperienceController {
     )
     @DeleteMapping("/{experienceId}")
     public ApiResponse<Void> deleteExperience(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @UserId Long userId,
             @PathVariable Long experienceId
     ) {
-        experienceService.deleteExperience(userDetails.getUserId(), experienceId);
+        experienceService.deleteExperience(userId, experienceId);
         return ApiResponse.success(null);
     }
 }
