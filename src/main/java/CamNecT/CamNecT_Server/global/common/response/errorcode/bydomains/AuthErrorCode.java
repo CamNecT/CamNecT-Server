@@ -19,10 +19,11 @@ public enum AuthErrorCode implements BaseErrorCode {
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, 41103, "유효하지 않은 토큰입니다."),
     ACCESS_TOKEN_REQUIRED(HttpStatus.UNAUTHORIZED, 41104, "Access Token이 필요합니다."),
     LOGIN_REQUIRED(HttpStatus.UNAUTHORIZED, 41105, "로그인이 필요합니다."),
-
+    TOKEN_TYPE_NOT_ALLOWED(HttpStatus.UNAUTHORIZED,41106,"토큰타입이 다릅니다."),
     // 413xx - 권한/상태
     EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, 41301, "이메일 인증이 필요합니다."),
     USER_SUSPENDED(HttpStatus.FORBIDDEN, 41302, "정지된 사용자입니다."),
+    USER_ALREADY_EMAIL_VERIFIED(HttpStatus.FORBIDDEN,41303,"이미 인증되었습니다. 로그인으로 넘어가주세요"),
 
     // 414xx - 리소스
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, 41401, "유저를 찾을 수 없습니다."),
