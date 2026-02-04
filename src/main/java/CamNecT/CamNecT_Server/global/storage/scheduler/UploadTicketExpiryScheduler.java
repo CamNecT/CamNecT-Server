@@ -1,4 +1,4 @@
-package CamNecT.CamNecT_Server.global.storage.service;
+package CamNecT.CamNecT_Server.global.storage.scheduler;
 
 import CamNecT.CamNecT_Server.global.storage.repository.UploadTicketRepository;
 import lombok.RequiredArgsConstructor;

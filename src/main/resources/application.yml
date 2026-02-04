@@ -10,6 +10,8 @@ app:
     presign:
       upload-expiration-seconds: 3600   # 1hr
       download-expiration-seconds: 300 # 5분
+  upload-ticket:
+    expire-job-delay-ms: 300000  # 5분
 
   auth:
     email-verification:
