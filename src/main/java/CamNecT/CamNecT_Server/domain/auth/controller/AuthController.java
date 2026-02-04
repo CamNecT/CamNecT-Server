@@ -4,7 +4,6 @@ import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginRequest;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginResponse;
 import CamNecT.CamNecT_Server.domain.auth.dto.signup.*;
 import CamNecT.CamNecT_Server.domain.auth.service.LoginService;
-import CamNecT.CamNecT_Server.domain.auth.service.SignupService;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.domain.verification.email.dto.VerifyEmailCodeResponse;
 import CamNecT.CamNecT_Server.domain.verification.email.service.EmailVerificationService;
