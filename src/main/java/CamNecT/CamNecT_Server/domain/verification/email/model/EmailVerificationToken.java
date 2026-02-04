@@ -24,8 +24,13 @@ public class EmailVerificationToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
+    //send 단계에서 user가 없으므로 email이 기준키
+    @Column(name = "email", nullable = false, length = 255)
+    private String email;
+
+    //verify 단계에서 user 객체 생성 후 주입
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private Users user;
 
     @Column(name = "code_hash", nullable = false, length = 64)
@@ -44,20 +49,26 @@ public class EmailVerificationToken {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt; // 생성일시
 
-    protected EmailVerificationToken(Users user, String codeHash, LocalDateTime expiresAt) {
-        this.user = user;
+    protected EmailVerificationToken(String email, Users user, String codeHash, LocalDateTime expiresAt) {
+        this.email = email;
+        this.user = user; // null 가능
         this.codeHash = codeHash;
         this.expiresAt = expiresAt;
         this.usedAt = null;
         this.attemptCount = 0;
     }
 
-    public static EmailVerificationToken issue(Users user, String rawCode, long expirationMinutes) {
+    public static EmailVerificationToken issueForEmail(String email, String rawCode, long expirationMinutes) {
         return new EmailVerificationToken(
-                user,
+                email,
+                null,
                 EmailTokenUtil.sha256Hex(rawCode),
                 LocalDateTime.now().plusMinutes(expirationMinutes)
         );
+    }
+
+    public void linkUser(Users user) {
+        this.user = user;
     }
 
     public boolean isUsed() { return usedAt != null; }

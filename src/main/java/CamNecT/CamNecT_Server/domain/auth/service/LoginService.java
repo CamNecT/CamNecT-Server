@@ -35,9 +35,9 @@ public class LoginService {
 
     @Transactional
     public LoginResponse login(LoginRequest req) {
+
         Users user = userRepository.findByUsername(req.username())
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
-
 
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
             throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
@@ -63,32 +63,18 @@ public class LoginService {
             );
         }
 
-        // 2) 이메일 미인증
-        if (!user.isEmailVerified() || user.getStatus() == UserStatus.EMAIL_PENDING) {
-            // 토큰 발급하지 않는 방식 권장
-            return new LoginResponse(
-                    null,
-                    null, null,
-                    0L, 0L,
-                    user.getUserId(),
-                    user.getStatus().name(),
-                    user.getRole().name(),
-                    LoginNextStep.EMAIL_REVERIFY
-            );
-        }
-
-        // 3) 최신 증명서 제출 조회
+        // 2) 최신 증명서 제출 조회
         DocumentVerificationSubmission latest = submissionRepo
                 .findTopByUserIdOrderBySubmittedAtDesc(user.getUserId())
                 .orElse(null);
 
-        // 4) 온보딩 완료 여부
+        // 3) 온보딩 완료 여부
         boolean onboardingDone = isOnboardingDone(user.getUserId());
 
-        // 5) nextStep 결정
+        // 4) nextStep 결정
         LoginNextStep nextStep = resolveNext(user, latest, onboardingDone);
 
-        // 6) 토큰 선택
+        // 5) 토큰 선택
         if (nextStep == LoginNextStep.DOCUMENT_REQUIRED || nextStep == LoginNextStep.DOCUMENT_REVIEW_WAITING) {
             String verification = jwtUtil.generateVerificationToken(user.getUserId(), user.getRole());
             return new LoginResponse(
@@ -104,6 +90,7 @@ public class LoginService {
 
         String access = jwtFacade.createAccessToken(user);
         String refresh = jwtFacade.createRefreshToken(user);
+
         return new LoginResponse(
                 "Bearer", access, refresh,
                 jwtUtil.getAccessTokenExpirationMs(),
@@ -125,7 +112,6 @@ public class LoginService {
     }
 
     private LoginNextStep resolveNext(Users user, DocumentVerificationSubmission latest, boolean onboardingDone) {
-
         // ACTIVE면 인증완료/홈은 프론트에서 1회 처리(로컬 저장)로 나누는 걸 추천
         if (user.getStatus() == UserStatus.ACTIVE) {
             return user.isVerificationCompletePending() //처음 인증완료상태면 인증완료화면으로
