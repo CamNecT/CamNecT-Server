@@ -22,10 +22,10 @@ public class PointService {
 
     //채택댓글 포인트 획득
     @Transactional
-    public void earnPointByCommentSelection(Long userId, Long postId, int amount) {
-        changePoint(userId, amount, TransactionType.EARN,
+    public void earnPointByCommentSelection(Long receiverId, Long postId, Long commentId, int amount) {
+        changePoint(receiverId, amount, TransactionType.EARN,
                 new PointEvent(PointSource.COMMENT_SELECTION, postId, null,
-                        "COMMENT_SELECTION:" + userId + ":" + postId));
+                        "COMMENT_SELECTION:" + postId + ":" + commentId));
     }
 
     @Transactional

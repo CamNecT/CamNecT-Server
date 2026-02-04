@@ -36,6 +36,9 @@ app:
         - application/pdf
         - image/jpeg
         - image/png
+  point:
+    reward:
+      comment-selection: 50
 
 
 

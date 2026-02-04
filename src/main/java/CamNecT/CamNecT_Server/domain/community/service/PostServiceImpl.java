@@ -20,11 +20,11 @@ import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
-import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CommunityErrorCode;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -36,6 +36,10 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
+
+    @Value("${app.point.reward.comment-selection:50}")
+    private int reward;
+
 
     private final BoardsRepository boardsRepository;
     private final PostsRepository postsRepository;
@@ -274,6 +278,8 @@ public class PostServiceImpl implements PostService {
 
         Long receiverId = comment.getUserId();
         if (receiverId != null && !Objects.equals(receiverId, userId)) {
+            pointService.earnPointByCommentSelection(receiverId, postId, commentId, reward);
+
             eventPublisher.publishEvent(new CommentAcceptedEvent(receiverId, postId, commentId, userId));
         }
     }

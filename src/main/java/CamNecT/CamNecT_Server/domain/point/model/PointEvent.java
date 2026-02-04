@@ -20,4 +20,10 @@ public record PointEvent(
         String key = "COFFEECHAT_REQUEST:" + userId + ":" + requestId;
         return new PointEvent(PointSource.COFFEECHAT_REQUEST, null, requestId, key);
     }
+
+    public static PointEvent commentSelection(Long receiverId, Long postId, Long commentId) {
+        // 채택은 "postId+commentId" 조합으로 1번만 일어나야 하므로 이 키가 멱등키
+        String key = "COMMENT_SELECTION:" + receiverId + ":" + postId + ":" + commentId;
+        return new PointEvent(PointSource.COMMENT_SELECTION, postId, null, key);
+    }
 }
