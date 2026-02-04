@@ -1,9 +1,5 @@
 package CamNecT.CamNecT_Server.domain.verification.email.controller;
 
-import CamNecT.CamNecT_Server.domain.verification.email.dto.VerifyEmailCodeRequest;
-import CamNecT.CamNecT_Server.domain.verification.email.dto.VerifyEmailCodeResponse;
-import CamNecT.CamNecT_Server.domain.verification.email.service.EmailVerificationService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,10 +8,6 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/verification")
 public class EmailVerificationController {
 
-    private final EmailVerificationService emailVerificationService;
-
-    @PostMapping("/email/verify-code")
-    public VerifyEmailCodeResponse verifyCode(@RequestBody @Valid VerifyEmailCodeRequest req) {
-        return emailVerificationService.verifyEmailCode(req.userId(), req.code());
-    }
+// 현재 이메일 인증관련 service 호출관련, 구현은 EmailVerificationService에 되어있으나 호출은 AuthController 담당입니다.
+// 추후 인증 이메일 발송 확장이 생기면(비밀번호 재발급, 민감정보 수정 등) 그때를 위해서 형식만 남겨둡니다.
 }
