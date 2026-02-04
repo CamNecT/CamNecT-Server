@@ -70,6 +70,10 @@ public class DocumentVerificationSubmission {
         this.uploadedAt = LocalDateTime.now();
     }
 
+    public void replaceStorageKey(String newKey) {
+        this.storageKey = newKey;
+    }
+
     public void cancel() {
         this.status = VerificationStatus.CANCELED;
     }
@@ -87,4 +91,5 @@ public class DocumentVerificationSubmission {
         this.reviewedAt = LocalDateTime.now();
         this.rejectReason = reason;
     }
+
 }
