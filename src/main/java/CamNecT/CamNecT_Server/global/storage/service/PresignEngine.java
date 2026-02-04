@@ -138,7 +138,7 @@ public class PresignEngine {
             throw new CustomException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
         }
 
-        if (head.contentLength() != null && !head.contentLength().equals(t.getSize())) {
+        if (head.contentLength() != null && head.contentLength() > t.getSize()) {
             throw new CustomException(StorageErrorCode.UPLOAD_TICKET_MISMATCHED_OBJECT);
         }
         if (StringUtils.hasText(head.contentType())

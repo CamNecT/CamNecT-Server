@@ -54,19 +54,23 @@ public class DocumentVerificationService {
             throw new CustomException(VerificationErrorCode.UNSUPPORTED_CONTENT_TYPE);
         }
 
-        long pending = ticketRepo.countByUserIdAndPurposeAndStatus(
-                userId, UploadPurpose.VERIFICATION_DOCUMENT, UploadTicket.Status.PENDING
+        ticketRepo.bulkExpirePending(LocalDateTime.now());
+
+        long pending = ticketRepo.countByUserIdAndPurposeAndStatusAndExpiresAtAfter(
+                userId, UploadPurpose.VERIFICATION_DOCUMENT, UploadTicket.Status.PENDING, LocalDateTime.now()
         );
         if (pending >= 1) throw new CustomException(VerificationErrorCode.TOO_MANY_FILES);
 
         String keyPrefix = "verification/user-" + userId + "/documents";
+
+        long sizeLimit = props.maxFileSizeBytes();
 
         return presignEngine.issueUpload(
                 userId,
                 UploadPurpose.VERIFICATION_DOCUMENT,
                 keyPrefix,
                 ct,
-                req.size(),
+                sizeLimit,
                 req.originalFilename()
         );
     }
