@@ -2,7 +2,11 @@ package CamNecT.CamNecT_Server.domain.users.repository;
 
 import CamNecT.CamNecT_Server.domain.users.model.UserRole;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -16,4 +20,8 @@ public interface UserRepository extends JpaRepository<Users, Long> {
     boolean existsByUsername(String username);
     boolean existsByPhoneNum(String phoneNum);
     boolean existsByUserIdAndRole(Long userId, UserRole role);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u.userId from Users u where u.userId = :userId")
+    Long lockUserRow(@Param("userId") Long userId);
 }
