@@ -59,6 +59,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public CreatePostResponse create(Long userId, CreatePostRequest req) {
         if (userId == null) userId = 1L;
+        //TODO : 이거 왜 1L 들어가지.
 
         Boards board = boardsRepository.findByCode(req.boardCode())
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.BOARD_NOT_FOUND));
