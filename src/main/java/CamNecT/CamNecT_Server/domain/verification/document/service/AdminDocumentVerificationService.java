@@ -181,7 +181,7 @@ public class AdminDocumentVerificationService {
 
         if (studentNo == null || yearLevel == null || institutionId == null || majorId == null) {
             // 승인 버튼은 “관리자 입력값 채운 뒤에만 호출”이지만 서버에서도 방어
-            throw new CustomException(VerificationErrorCode.REJECT_REASON_REQUIRED); // 임시. 전용 에러코드 추천
+            throw new CustomException(VerificationErrorCode.APPROVE_FIELDS_REQUIRED); // 임시. 전용 에러코드 추천
         }
 
         UserProfile profile = userProfileRepository.findByUserId(userId)
