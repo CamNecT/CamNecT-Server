@@ -33,7 +33,7 @@ public class LoginService {
     private final UserProfileRepository userProfileRepository;
     private final UserTagMapRepository userTagMapRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(LoginRequest req) {
         Users user = userRepository.findByUsername(req.username())
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
@@ -82,25 +82,28 @@ public class LoginService {
                 .findTopByUserIdOrderBySubmittedAtDesc(user.getUserId())
                 .orElse(null);
 
-//        String docStatus = (latest == null) ? null : latest.getStatus().name();
-//        Long latestSubmissionId = (latest == null) ? null : latest.getId();
-//        String rejectReason = (latest == null) ? null : latest.getRejectReason();
-
         // 4) 온보딩 완료 여부
         boolean onboardingDone = isOnboardingDone(user.getUserId());
 
-        // 5) nextStep 결정 (String -> LoginNextStep)
+        // 5) nextStep 결정
         LoginNextStep nextStep = resolveNext(user, latest, onboardingDone);
 
-        //최초 1회만 학교인증완료상태 보여줌
-        if (nextStep == LoginNextStep.VERIFICATION_COMPLETE && user.isVerificationCompletePending()) {
-            user.clearVerificationCompletePending();
+        // 6) 토큰 선택
+        if (nextStep == LoginNextStep.DOCUMENT_REQUIRED || nextStep == LoginNextStep.DOCUMENT_REVIEW_WAITING) {
+            String verification = jwtUtil.generateVerificationToken(user.getUserId(), user.getRole());
+            return new LoginResponse(
+                    "Bearer", verification, null,
+                    jwtUtil.getVerificationTokenExpirationMs(),
+                    0L,
+                    user.getUserId(),
+                    user.getStatus().name(),
+                    user.getRole().name(),
+                    nextStep
+            );
         }
 
-        // 6) 토큰 발급
         String access = jwtFacade.createAccessToken(user);
         String refresh = jwtFacade.createRefreshToken(user);
-
         return new LoginResponse(
                 "Bearer", access, refresh,
                 jwtUtil.getAccessTokenExpirationMs(),
