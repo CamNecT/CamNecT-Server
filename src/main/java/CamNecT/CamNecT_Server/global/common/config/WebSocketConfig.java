@@ -19,16 +19,20 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/sub", "/queue");    //해당 주소를 구독하고 잇는 클라이언트들에게 메세지 전달
         registry.setApplicationDestinationPrefixes("/pub");       //클라이언트에서 보낸 메세지를 받을 prefix
+        registry.setApplicationDestinationPrefixes("/send");
+        registry.enableSimpleBroker("/room");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws-stomp")   //SockJS 연결 주소
-                .setAllowedOriginPatterns("*")
-                .withSockJS(); //버전 낮은 브라우저에서도 적용 가능
-        registry.addEndpoint("/ws-stomp")   //ws 테스트용
-                .setAllowedOriginPatterns("*");
-        // 주소 : ws://localhost:8080/ws-stomp
+        registry.addEndpoint("/ws-stomp")
+                .setAllowedOriginPatterns(
+                        "https://camnect.site",
+                        "https://www.camnect.site",
+                        "https://camnect-web.vercel.app",
+                        "http://localhost:5173"
+                )
+                .withSockJS();
     }
 
     @Override
