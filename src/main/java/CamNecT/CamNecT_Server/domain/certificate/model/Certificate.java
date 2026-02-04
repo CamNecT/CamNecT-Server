@@ -43,12 +43,12 @@ public class Certificate {
     private String description;
 
 
-    public void updateCertificate(String certificateName, String issuerName, LocalDate acquiredDate, LocalDate expireDate, String credentialUrl, String description) {
+    public void updateCertificate(String certificateName, LocalDate acquiredDate, String credentialUrl) {
         this.certificateName = certificateName;
-        this.issuerName = issuerName;
         this.acquiredDate = acquiredDate;
-        this.expireDate = expireDate;
         this.credentialUrl = credentialUrl;
-        this.description = description;
+//        this.issuerName = issuerName;
+//        this.expireDate = expireDate;
+//        this.description = description;
     }
 }

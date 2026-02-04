@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "experience")
@@ -26,9 +28,6 @@ public class Experience {
     @Column(name = "company_name", nullable = false, length = 100)
     private String companyName; // 회사명
 
-    @Column(name = "major_name", length = 100)
-    private String majorName; // 직무
-
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate; // 취업일
 
@@ -38,22 +37,29 @@ public class Experience {
     @Column(name = "is_current", nullable = false)
     private Boolean isCurrent; // 재직중 여부
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(
+            name = "experience_responsibilities",
+            joinColumns = @JoinColumn(name = "experience_id")
+    )
+    @Column(name = "responsibility_content", columnDefinition = "TEXT")
+    @Builder.Default
+    private List<String> responsibilities = new ArrayList<>();
 
     public void updateExperience(
             String companyName,
-            String majorName,
             LocalDate startDate,
             LocalDate endDate,
             Boolean isCurrent,
-            String description
+            List<String> responsibilities
     ) {
         this.companyName = companyName;
-        this.majorName = majorName;
         this.startDate = startDate;
         this.endDate = endDate;
         this.isCurrent = isCurrent;
-        this.description = description;
+        this.responsibilities.clear();
+        if (responsibilities != null) {
+            this.responsibilities.addAll(responsibilities);
+        }
     }
 }

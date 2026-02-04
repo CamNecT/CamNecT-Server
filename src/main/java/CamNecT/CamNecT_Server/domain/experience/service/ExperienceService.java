@@ -30,11 +30,10 @@ public class ExperienceService {
         Experience experience = Experience.builder()
                 .user(user)
                 .companyName(request.companyName())
-                .majorName(request.majorName())
                 .startDate(request.startDate())
                 .endDate(request.endDate())
                 .isCurrent(request.isCurrent())
-                .description(request.description())
+                .responsibilities(request.responsibilities())
                 .build();
 
         experienceRepository.save(experience);
@@ -58,11 +57,10 @@ public class ExperienceService {
 
         experience.updateExperience(
                 request.companyName(),
-                request.majorName(),
                 request.startDate(),
                 request.endDate(),
                 request.isCurrent(),
-                request.description()
+                request.responsibilities()
         );
     }
 
