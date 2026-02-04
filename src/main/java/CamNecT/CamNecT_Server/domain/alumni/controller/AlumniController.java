@@ -1,6 +1,6 @@
 package CamNecT.CamNecT_Server.domain.alumni.controller;
 
-import CamNecT.CamNecT_Server.domain.alumni.dto.AlumniPreviewResponse;
+import CamNecT.CamNecT_Server.domain.alumni.dto.response.AlumniPreviewResponse;
 import CamNecT.CamNecT_Server.domain.alumni.service.AlumniService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
