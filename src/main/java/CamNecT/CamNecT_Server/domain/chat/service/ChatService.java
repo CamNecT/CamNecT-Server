@@ -17,9 +17,9 @@ import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
-import CamNecT.CamNecT_Server.global.tag.model.Majors;
+import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
-import CamNecT.CamNecT_Server.global.tag.repository.MajorRepository;
+import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -280,7 +280,7 @@ public class ChatService {
 
 
         // 마지막으로 읽은 메시지 ID 추출 (없으면 0L임)
-        Long lastMessageId = unreadMessages.isEmpty() ? 0L : unreadMessages.get(unreadMessages.size() - 1).getId();
+        Long lastMessageId = unreadMessages.isEmpty() ? 0L : unreadMessages.getLast().getId();
 
         ChatReadEvent chatReadEvent = ChatReadEvent.of(
                 roomId,

@@ -16,7 +16,7 @@ public interface PostQueryService {
                               Long cursorId, Long cursorValue, int size);
 
     // 관심태그 기반 추천(게시판 상관없이)
-    PostListResponse getPostsByInterestTag(Long tagId, Long cursorValue, Long cursorId, int size);
+    PostListResponse getPostsByTag(Long tagId, Long cursorValue, Long cursorId, int size);
 
     // 답변대기 질문(QUESTION + rootCommentCount==0)
     PostListResponse getWaitingQuestions(int size);
