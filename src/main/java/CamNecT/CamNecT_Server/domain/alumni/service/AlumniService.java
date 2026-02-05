@@ -24,7 +24,6 @@ public class AlumniService {
 
     private final TagRepository tagRepository;
     private final UserProfileRepository userProfileRepository;
-    private final TagServiceImpl tagService;
     private final AlumniRepository alumniRepository;
     private final PresignEngine presignEngine;
 
