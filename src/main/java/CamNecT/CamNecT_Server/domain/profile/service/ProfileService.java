@@ -149,18 +149,17 @@ public class ProfileService {
         }
 
         UserProfile userProfile = UserProfile.builder()
-                .userId(userId)
                 .user(user)
                 .bio(null)
                 .profileImageUrl(null)
                 .openToCoffeeChat(false)
-                .studentNo("TEMP")
-                .yearLevel(1)
-                .institutionId(1L)
-                .majorId(1L)
+                .studentNo(null)
+                .yearLevel(null)
+                .institutionId(null)
+                .majorId(null)
                 .build();
 
-        userProfileRepository.save(userProfile);
+
 
         String bio = (req.bio() != null && !req.bio().isBlank()) ? req.bio().trim() : null;
 
@@ -179,7 +178,7 @@ public class ProfileService {
                     finalPrefix
             );
         }
-
+        userProfileRepository.save(userProfile);
         userProfile.updateOnboardingProfile(bio, finalProfileImageKey);
 
         // 3) 태그 replace
@@ -292,12 +291,6 @@ public class ProfileService {
 
     private String normalize(String ct) {
         return (ct == null) ? "" : ct.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private String trimToNull(String s) {
-        if (s == null) return null;
-        String t = s.trim();
-        return t.isBlank() ? null : t;
     }
 
 
