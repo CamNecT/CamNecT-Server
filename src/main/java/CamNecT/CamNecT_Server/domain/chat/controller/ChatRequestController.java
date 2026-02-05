@@ -3,6 +3,7 @@ package CamNecT.CamNecT_Server.domain.chat.controller;
 import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestResponseDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestSendDto;
 import CamNecT.CamNecT_Server.domain.chat.service.ChatService;
+import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
@@ -24,11 +25,13 @@ public class ChatRequestController {
      * HTML Form: <form action="/request/send" method="post">
      */
     @PostMapping("/send")
-    public String sendRequest(@ModelAttribute ChatRequestSendDto request,
-                              RedirectAttributes rattr) {
+    public String sendRequest(
+            @UserId Long userId,
+            @ModelAttribute ChatRequestSendDto request,
+            RedirectAttributes rattr) {
         try {
             chatService.sendCoffeeChatRequest(
-                    request.requesterId(),
+                    userId,
                     request.receiverId(),
                     request.tagIds(),
                     request.content()
@@ -39,7 +42,7 @@ public class ChatRequestController {
             rattr.addFlashAttribute("error", "요청 실패: " + e.getMessage());
         }
 
-        return "redirect:/roomList?userId=" + request.requesterId();
+        return "redirect:/roomList?userId=" + userId;
     }
 
     /**
@@ -47,11 +50,13 @@ public class ChatRequestController {
      * HTML Form: <form action="/request/respond" method="post">
      */
     @PostMapping("/respond")
-    public String respondRequest(@ModelAttribute ChatRequestResponseDto response, RedirectAttributes rattr) {
+    public String respondRequest(
+            @UserId Long userId,
+            @ModelAttribute ChatRequestResponseDto response, RedirectAttributes rattr) {
         try {
             chatService.respondToRequest(
                     response.requestId(),
-                    response.userId(),
+                    userId,
                     response.isAccepted()
             );
 
@@ -63,6 +68,6 @@ public class ChatRequestController {
             rattr.addFlashAttribute("error", "처리 실패: " + e.getMessage());
         }
 
-        return "redirect:/roomList?userId=" + response.userId();
+        return "redirect:/roomList?userId=" + userId;
     }
 }

@@ -368,12 +368,12 @@ public class ChatService {
     }*/
 
     @Transactional
-    public void sendMessage(ChatMessageSendRequestDto request) {
+    public void sendMessage(Long senderId, ChatMessageSendRequestDto request) {
 
         ChatRoom room = chatRoomRepository.findById(request.roomId())
                 .orElseThrow(() -> new IllegalArgumentException("채팅방 없음"));
 
-        Users sender = userRepository.findById(request.senderId())
+        Users sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new IllegalArgumentException("보낸이 없음"));
 
         Users receiver = (room.getRequester().getUserId().equals(sender.getUserId()))
@@ -406,10 +406,11 @@ public class ChatService {
                 );
             }
 
-            long unreadCount = chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(room.getId(), receiver.getUserId());
-
-            long totalUnreadCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(receiver.getUserId());
             String lastTime = chat.getCreatedAt().toString();
+
+            // 수신자의 채팅목록 갱신
+            long unreadCount = chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(room.getId(), receiver.getUserId());
+            long totalUnreadCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(receiver.getUserId());
 
             ChatRoomListUpdateDto updateDto = ChatRoomListUpdateDto.builder()
                     .roomId(room.getId())
@@ -422,6 +423,22 @@ public class ChatService {
             messagingTemplate.convertAndSend(
                     "/sub/user/" + receiver.getUserId() + "/roomList",
                     updateDto
+            );
+
+            // 본인 채팅목록 갱신
+            long senderTotalCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(sender.getUserId());
+
+            ChatRoomListUpdateDto senderUpdateDto = ChatRoomListUpdateDto.builder()
+                    .roomId(room.getId())
+                    .lastMessage(chat.getContent())
+                    .unreadCount(0L)
+                    .time(lastTime)
+                    .totalUnreadCount(senderTotalCount)
+                    .build();
+
+            messagingTemplate.convertAndSend(
+                    "/sub/user/" + sender.getUserId() + "/roomList",
+                    senderUpdateDto
             );
         } catch (Exception e) {
             System.err.println("소켓 전송 실패: " + e.getMessage());
