@@ -75,7 +75,7 @@ public class LoginService {
         LoginNextStep nextStep = resolveNext(user, latest, onboardingDone);
 
         // 5) 토큰 선택
-        if (nextStep == LoginNextStep.DOCUMENT_REQUIRED || nextStep == LoginNextStep.DOCUMENT_REVIEW_WAITING) {
+        if (needsVerificationToken(nextStep)) {
             String verification = jwtUtil.generateVerificationToken(user.getUserId(), user.getRole());
             return new LoginResponse(
                     "Bearer", verification, null,
@@ -133,5 +133,11 @@ public class LoginService {
         }
         // 방어적 기본값
         return LoginNextStep.HOME;
+    }
+
+    private boolean needsVerificationToken(LoginNextStep nextStep) {
+        return nextStep == LoginNextStep.ONBOARDING_REQUIRED
+                || nextStep == LoginNextStep.DOCUMENT_REQUIRED
+                || nextStep == LoginNextStep.DOCUMENT_REVIEW_WAITING;
     }
 }

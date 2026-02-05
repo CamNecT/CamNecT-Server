@@ -73,8 +73,7 @@ public class AdminDocumentVerificationService {
         Users u = usersRepository.findById(s.getUserId())
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.USER_NOT_FOUND));
 
-        UserProfile p = userProfileRepository.findByUserId(s.getUserId())
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+        UserProfile p = userProfileRepository.findByUserId(s.getUserId()).orElse(null);
 
         return new AdminDocumentVerificationDetailResponse(
                 s.getId(),
@@ -89,10 +88,10 @@ public class AdminDocumentVerificationService {
                 u.getPhoneNum(),
                 u.getName(),
 
-                p.getStudentNo(),
-                p.getYearLevel(),
-                p.getInstitutionId(),
-                p.getMajorId(),
+                p != null ? p.getStudentNo() : null,
+                p != null ? p.getYearLevel() : null,
+                p != null ? p.getInstitutionId() : null,
+                p != null ? p.getMajorId() : null,
 
                 safeName(s.getOriginalFilename()),
                 normalize(s.getContentType()),

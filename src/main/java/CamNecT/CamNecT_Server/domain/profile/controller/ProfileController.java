@@ -1,7 +1,6 @@
 package CamNecT.CamNecT_Server.domain.profile.controller;
 
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateBioRequest;
-import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateOnboardingRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileTagsRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
@@ -15,7 +14,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Profile", description = "프로필 관련 API")
