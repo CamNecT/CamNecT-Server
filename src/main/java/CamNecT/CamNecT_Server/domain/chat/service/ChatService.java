@@ -242,6 +242,7 @@ public class ChatService {
 
                     String majorName = "전공 미입력";
                     String studentYear = "";
+                    String profileImgUrl = "";
 
                     if (opProfile != null) {
                         studentYear = opProfile.getYearLevel().toString();
@@ -250,12 +251,14 @@ public class ChatService {
                                     .map(Majors::getMajorNameKor)
                                     .orElse("알 수 없는 전공");
                         }
+                        profileImgUrl = opProfile.getProfileImageUrl();
+
                     }
 
                     Long count = unreadCounts.getOrDefault(room.getId(), 0L);
                     String lastMessage = lastMessageMap.getOrDefault(room.getId(), "대화 내용이 없습니다.");
 
-                    return ChatRoomListDetailDto.of(room, me, count, majorName, studentYear, lastMessage);
+                    return ChatRoomListDetailDto.of(room, me, count, majorName, studentYear, lastMessage, profileImgUrl);
                 })
                 .toList();
     }
