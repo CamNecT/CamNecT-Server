@@ -28,7 +28,7 @@ public class InstitutionController {
     )
     @GetMapping
     public ApiResponse<InstitutionListResponse> searchInstitutions(
-            @Parameter(description = "검색할 대학 이름 키워드 (예: 건국 / Konkuk)", required = false)
+            @Parameter(description = "검색할 대학 이름 키워드 (예: 건국 / Konkuk)")
             @RequestParam(required = false) String keyword
     ) {
         if (keyword == null || keyword.isBlank()) {

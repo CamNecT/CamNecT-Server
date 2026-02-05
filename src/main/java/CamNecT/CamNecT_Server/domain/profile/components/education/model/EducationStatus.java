@@ -1,5 +1,8 @@
 package CamNecT.CamNecT_Server.domain.profile.components.education.model;
 
+import lombok.Getter;
+
+@Getter
 public enum EducationStatus {
     ATTENDING("재학"),
     LEAVE_OF_ABSENCE("휴학"),
@@ -13,4 +16,5 @@ public enum EducationStatus {
     EducationStatus(String description) {
         this.description = description;
     }
+
 }

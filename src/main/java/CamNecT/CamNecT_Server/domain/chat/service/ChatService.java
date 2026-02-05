@@ -280,7 +280,7 @@ public class ChatService {
 
 
         // 마지막으로 읽은 메시지 ID 추출 (없으면 0L임)
-        Long lastMessageId = unreadMessages.isEmpty() ? 0L : unreadMessages.get(unreadMessages.size() - 1).getId();
+        Long lastMessageId = unreadMessages.isEmpty() ? 0L : unreadMessages.getLast().getId();
 
         ChatReadEvent chatReadEvent = ChatReadEvent.of(
                 roomId,
