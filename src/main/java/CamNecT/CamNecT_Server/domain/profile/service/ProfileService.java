@@ -85,7 +85,7 @@ public class ProfileService {
                 .toList();
 
         List<ProfileResponse.TagDto> tags = userTagMapRepository.findAllTagsByUserId(profileUserId).stream()
-                .map(t -> new ProfileResponse.TagDto(t.getId(), t.getName(), t.getCategory(), t.getAttribute().getName()))
+                .map(t -> new ProfileResponse.TagDto(t.getId(), t.getName(), t.getCategory()))
                 .toList();
 
         ProfileResponse.ProfileBasicsDto basicProfile = new ProfileResponse.ProfileBasicsDto(

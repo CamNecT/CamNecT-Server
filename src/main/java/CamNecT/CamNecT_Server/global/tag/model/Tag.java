@@ -28,10 +28,6 @@ public class Tag {
     @Column(name = "name", nullable = false, length = 30)
     private String name;
 
-    // ERD: type varchar(30) NULL (현재 용도 불명확 → 일단 보존)
-    @Column(name = "type", length = 30)
-    private String type;
-
     // ERD: category varchar(30) NULL (UI 섹션용: 학업/대외활동/진로/기타 등)
     @Column(name = "category", length = 30)
     private String category;
@@ -44,13 +40,8 @@ public class Tag {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "tag_attribute_id", nullable = false)
-    private TagAttribute attribute;
-
-    public static Tag create(TagAttribute attribute, String name, String category) {
+    public static Tag create(String name, String category) {
         return Tag.builder()
-                .attribute(attribute)
                 .name(name)
                 .category(category)
                 .active(true)

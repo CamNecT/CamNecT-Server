@@ -8,7 +8,6 @@ import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
-import CamNecT.CamNecT_Server.global.tag.service.TagServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +23,6 @@ public class AlumniService {
 
     private final TagRepository tagRepository;
     private final UserProfileRepository userProfileRepository;
-    private final TagServiceImpl tagService;
     private final AlumniRepository alumniRepository;
     private final PresignEngine presignEngine;
 
