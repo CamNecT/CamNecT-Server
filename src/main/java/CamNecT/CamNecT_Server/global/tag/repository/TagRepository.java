@@ -9,9 +9,23 @@ import java.util.List;
 
 public interface TagRepository extends JpaRepository<Tag, Long> {
 
-    @Query("SELECT utm.userId, t FROM UserTagMap utm " +
-            "JOIN Tag t ON utm.tagId = t.id " +
-            "WHERE utm.userId IN :userIds AND t.active = true")
-    List<Object[]> findTagsWithUserIdByUserIdIn(@Param("userIds") List<Long> userIds);
+    @Query("""
+        SELECT t
+        FROM Tag t
+        JOIN FETCH t.category c
+        WHERE c.id IN :categoryIds
+          AND t.active = true
+        ORDER BY c.sortOrder ASC, c.id ASC, t.name ASC, t.id ASC
+    """)
+    List<Tag> findActiveByCategoryIds(@Param("categoryIds") List<Long> categoryIds);
+
+    @Query("""
+        SELECT t.id
+        FROM Tag t
+        WHERE t.id IN :ids
+          AND t.active = true
+    """)
+    List<Long> findExistingActiveIds(@Param("ids") List<Long> ids);
+
 }
 

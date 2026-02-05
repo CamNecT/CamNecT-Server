@@ -1,11 +1,11 @@
 package CamNecT.CamNecT_Server.domain.profile.service;
 
-import CamNecT.CamNecT_Server.domain.certificate.dto.response.CertificateResponse;
-import CamNecT.CamNecT_Server.domain.certificate.repository.CertificateRepository;
-import CamNecT.CamNecT_Server.domain.education.dto.response.EducationResponse;
-import CamNecT.CamNecT_Server.domain.education.repository.EducationRepository;
-import CamNecT.CamNecT_Server.domain.experience.dto.response.ExperienceResponse;
-import CamNecT.CamNecT_Server.domain.experience.repository.ExperienceRepository;
+import CamNecT.CamNecT_Server.domain.profile.components.certificate.dto.response.CertificateResponse;
+import CamNecT.CamNecT_Server.domain.profile.components.certificate.repository.CertificateRepository;
+import CamNecT.CamNecT_Server.domain.profile.components.education.dto.response.EducationResponse;
+import CamNecT.CamNecT_Server.domain.profile.components.education.repository.EducationRepository;
+import CamNecT.CamNecT_Server.domain.profile.components.experience.dto.response.ExperienceResponse;
+import CamNecT.CamNecT_Server.domain.profile.components.experience.repository.ExperienceRepository;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioPreviewResponse;
 import CamNecT.CamNecT_Server.domain.portfolio.repository.PortfolioRepository;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateOnboardingRequest;
@@ -13,6 +13,7 @@ import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileTagsRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileResponse;
+import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileTagDto;
 import CamNecT.CamNecT_Server.domain.users.model.*;
 import CamNecT.CamNecT_Server.domain.users.repository.*;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
@@ -84,8 +85,8 @@ public class ProfileService {
                 .map(CertificateResponse::from)
                 .toList();
 
-        List<ProfileResponse.TagDto> tags = userTagMapRepository.findAllTagsByUserId(profileUserId).stream()
-                .map(t -> new ProfileResponse.TagDto(t.getId(), t.getName(), t.getCategory()))
+        List<ProfileTagDto> tags = userTagMapRepository.findAllTagsByUserId(profileUserId).stream()
+                .map(t -> new ProfileTagDto(t.getId(), t.getName(), t.getCategory().getCode()))
                 .toList();
 
         ProfileResponse.ProfileBasicsDto basicProfile = new ProfileResponse.ProfileBasicsDto(
