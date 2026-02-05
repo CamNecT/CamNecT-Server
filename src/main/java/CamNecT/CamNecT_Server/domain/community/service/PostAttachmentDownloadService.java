@@ -1,6 +1,5 @@
 package CamNecT.CamNecT_Server.domain.community.service;
 
-import CamNecT.CamNecT_Server.domain.community.model.*;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.PostAttachments;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.Posts;
 import CamNecT.CamNecT_Server.domain.community.model.enums.ContentAccessStatus;
@@ -92,7 +91,7 @@ public class PostAttachmentDownloadService {
 
         if (userId == null) return ContentAccessStatus.LOGIN_REQUIRED;
         if (Objects.equals(userId, post.getUser().getUserId())) return ContentAccessStatus.GRANTED;
-        if (postAccessRepository.existsByPost_IdAndUserId(postId, userId)) return ContentAccessStatus.GRANTED;
+        if (postAccessRepository.existsByPost_IdAndUser_UserId(postId, userId)) return ContentAccessStatus.GRANTED;
 
         int myPoints = pointService.getBalance(userId);
         return (myPoints >= requiredPoints)

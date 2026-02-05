@@ -1,6 +1,6 @@
 package CamNecT.CamNecT_Server.domain.auth.service;
 
-import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginNextStep;
+import CamNecT.CamNecT_Server.domain.auth.dto.LoginNextStep;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginRequest;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginResponse;
 import CamNecT.CamNecT_Server.domain.users.model.UserRole;
@@ -75,7 +75,7 @@ public class LoginService {
         LoginNextStep nextStep = resolveNext(user, latest, onboardingDone);
 
         // 5) 토큰 선택
-        if (nextStep == LoginNextStep.DOCUMENT_REQUIRED || nextStep == LoginNextStep.DOCUMENT_REVIEW_WAITING) {
+        if (needsVerificationToken(nextStep)) {
             String verification = jwtUtil.generateVerificationToken(user.getUserId(), user.getRole());
             return new LoginResponse(
                     "Bearer", verification, null,
@@ -114,9 +114,11 @@ public class LoginService {
     private LoginNextStep resolveNext(Users user, DocumentVerificationSubmission latest, boolean onboardingDone) {
         // ACTIVE면 인증완료/홈은 프론트에서 1회 처리(로컬 저장)로 나누는 걸 추천
         if (user.getStatus() == UserStatus.ACTIVE) {
-            return user.isVerificationCompletePending() //처음 인증완료상태면 인증완료화면으로
-                    ? LoginNextStep.VERIFICATION_COMPLETE
-                    : LoginNextStep.HOME;
+            if (user.isVerificationCompletePending()) {
+                user.clearVerificationCompletePending();
+                return LoginNextStep.VERIFICATION_COMPLETE;
+            }
+            return LoginNextStep.HOME;
         }
 
         // ADMIN_PENDING 흐름
@@ -131,5 +133,11 @@ public class LoginService {
         }
         // 방어적 기본값
         return LoginNextStep.HOME;
+    }
+
+    private boolean needsVerificationToken(LoginNextStep nextStep) {
+        return nextStep == LoginNextStep.ONBOARDING_REQUIRED
+                || nextStep == LoginNextStep.DOCUMENT_REQUIRED
+                || nextStep == LoginNextStep.DOCUMENT_REVIEW_WAITING;
     }
 }

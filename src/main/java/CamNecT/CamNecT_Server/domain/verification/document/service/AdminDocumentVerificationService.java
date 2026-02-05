@@ -73,8 +73,7 @@ public class AdminDocumentVerificationService {
         Users u = usersRepository.findById(s.getUserId())
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.USER_NOT_FOUND));
 
-        UserProfile p = userProfileRepository.findByUserId(s.getUserId())
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+        UserProfile p = userProfileRepository.findByUserId(s.getUserId()).orElse(null);
 
         return new AdminDocumentVerificationDetailResponse(
                 s.getId(),
@@ -181,13 +180,12 @@ public class AdminDocumentVerificationService {
 
         if (studentNo == null || yearLevel == null || institutionId == null || majorId == null) {
             // 승인 버튼은 “관리자 입력값 채운 뒤에만 호출”이지만 서버에서도 방어
-            throw new CustomException(VerificationErrorCode.REJECT_REASON_REQUIRED); // 임시. 전용 에러코드 추천
+            throw new CustomException(VerificationErrorCode.APPROVE_FIELDS_REQUIRED); // 임시. 전용 에러코드 추천
         }
 
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
-        // UserProfile에 메서드 하나 추가해서 여기에 반영하는게 제일 깔끔
         profile.applyVerifiedInfo(studentNo, yearLevel, institutionId, majorId);
     }
 

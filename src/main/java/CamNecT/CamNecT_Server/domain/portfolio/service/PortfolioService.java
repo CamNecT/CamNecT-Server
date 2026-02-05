@@ -12,17 +12,15 @@ import CamNecT.CamNecT_Server.domain.portfolio.repository.PortfolioAssetReposito
 import CamNecT.CamNecT_Server.domain.portfolio.repository.PortfolioRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
+import CamNecT.CamNecT_Server.global.common.service.GlobalPresignMethods;
 import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
 import CamNecT.CamNecT_Server.global.storage.model.UploadRefType;
 import CamNecT.CamNecT_Server.global.storage.model.UploadTicket;
 import CamNecT.CamNecT_Server.global.storage.repository.UploadTicketRepository;
-import CamNecT.CamNecT_Server.global.storage.service.FileStorage;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
@@ -39,7 +37,8 @@ public class PortfolioService {
 
     private final PresignEngine presignEngine;
     private final UploadTicketRepository ticketRepo;
-    private final FileStorage fileStorage;
+
+    private final GlobalPresignMethods globalPresignMethods;
 
     public PortfolioResponse<List<PortfolioPreviewResponse>> portfolioPreview(Long userId, Long portfolioUserId) {
         List<PortfolioPreviewResponse> rows = portfolioRepository.findPreviewsByUserId(userId);
@@ -218,7 +217,7 @@ public class PortfolioService {
                 PortfolioAsset existing = currentByKey.get(k);
                 if (existing != null) {
                     existing.updateSortOrder(order++);
-                    keepKeys.add(k);
+                    keepKeys.add(existing.getFileUrl());
                     continue;
                 }
 
@@ -254,7 +253,7 @@ public class PortfolioService {
             });
 
         }
-        registerAfterCommitDelete(deleteAfterCommit);
+        globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
 
         return new PortfolioPreviewResponse(
                 project.getPortfolioId(),
@@ -293,6 +292,7 @@ public class PortfolioService {
         }
     }
 
+    @Transactional
     public void delete(Long userId, Long portfolioId) {
         PortfolioProject project = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
@@ -313,7 +313,7 @@ public class PortfolioService {
 
         portfolioRepository.delete(project);
 
-        registerAfterCommitDelete(deleteAfterCommit);
+        globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
     }
 
     private String presignOrNull(String key, String filename, String contentType) {
@@ -322,31 +322,6 @@ public class PortfolioService {
             return presignEngine.presignDownload(key, filename, contentType).downloadUrl();
         } catch (Exception e) {
             return null;
-        }
-    }
-
-    private void registerAfterCommitDelete(Set<String> keys) {
-        if (keys == null || keys.isEmpty()) return;
-
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    for (String key : keys) {
-                        try {
-                            fileStorage.delete(key);
-                        } catch (Exception ignored) {
-                        }
-                    }
-                }
-            });
-        } else {
-            for (String key : keys) {
-                try {
-                    fileStorage.delete(key);
-                } catch (Exception ignored) {
-                }
-            }
         }
     }
 

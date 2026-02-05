@@ -10,9 +10,9 @@ import CamNecT.CamNecT_Server.domain.community.service.PostQueryService.*;
 import CamNecT.CamNecT_Server.domain.community.service.PostService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
-import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadRequest;
+import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadBatchRequest;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignDownloadResponse;
-import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadResponse;
+import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadBatchResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -132,11 +132,11 @@ public class PostController {
 
     @Operation(summary = "첨부파일 업로드용 Presigned URL 발급", description = "게시글에 포함될 파일을 S3에 업로드하기 위한 URL을 발급받습니다.")
     @PostMapping("/uploads/presign")
-    public ApiResponse<PresignUploadResponse> presignAttachmentUpload(
+    public ApiResponse<PresignUploadBatchResponse> presignAttachmentUpload(
             @UserId Long userId,
-            @RequestBody @Valid PresignUploadRequest req
+            @RequestBody @Valid PresignUploadBatchRequest req
     ) {
-        return ApiResponse.success(postAttachmentsService.presign(userId, req));
+        return ApiResponse.success(postAttachmentsService.presignBatch(userId, req));
     }
 
     @Operation(summary = "첨부파일 다운로드 URL 발급", description = "게시글의 첨부파일을 다운로드하기 위한 임시 URL을 발급받습니다.")

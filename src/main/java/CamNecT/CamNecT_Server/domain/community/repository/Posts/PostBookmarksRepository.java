@@ -6,10 +6,10 @@ import org.springframework.data.jpa.repository.Modifying;
 
 public interface PostBookmarksRepository extends JpaRepository<PostBookmarks, Long> {
 
-    boolean existsByPost_IdAndUserId(Long postId, Long userId);
+    boolean existsByPost_IdAndUser_UserId(Long postId, Long userId);
 
     @Modifying
-    void deleteByPost_IdAndUserId(Long postId, Long userId);
+    void deleteByPost_IdAndUser_UserId(Long postId, Long userId);
 
     long countByPost_Id(Long postId);
 }

@@ -104,7 +104,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     }
 
     @Override
-    public PostListResponse getPostsByInterestTag(Long tagId, Long cursorValue, Long cursorId, int size) {
+    public PostListResponse getPostsByTag(Long tagId, Long cursorValue, Long cursorId, int size) {
         int limit = Math.min(Math.max(size, 1), 50);
 
         Slice<Posts> slice = postsRepository.findFeedRecommended(
