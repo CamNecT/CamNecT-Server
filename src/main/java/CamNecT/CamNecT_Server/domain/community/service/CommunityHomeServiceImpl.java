@@ -16,21 +16,21 @@ public class CommunityHomeServiceImpl implements CommunityHomeService {
     private final PostQueryService postQueryService;
 
     @Override
-    public CommunityHomeResponse getHome(Long interestTagId) {
-        var recommended = (interestTagId == null)
+    public CommunityHomeResponse getHome(Long tagId) {
+        var recommended = (tagId == null)
                 ? PostQueryServiceImpl_empty()
-                : postQueryService.getPostsByInterestTag(interestTagId, null, null,10);
+                : postQueryService.getPostsByTag(tagId, null, null,10);
 
         var waiting = postQueryService.getWaitingQuestions(3);
 
         return new CommunityHomeResponse(
-                interestTagId,
+                tagId,
                 recommended.items(),
                 waiting.items()
         );
     }
 
-    // interestTagId 없을 때는 비워두기
+    // tagId 없을 때는 비워두기
     private static PostListResponse PostQueryServiceImpl_empty() {
         return PostListResponse.of(List.of(), false, null);
     }
