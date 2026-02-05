@@ -50,19 +50,6 @@ public class ProfileController {
         return ApiResponse.success(response);
     }
 
-    @Operation(
-            summary = "온보딩 정보 등록",
-            description = "회원가입 후 초기 프로필 설정(온보딩) 정보를 저장합니다."
-    )
-    @PostMapping("/onboarding")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<ProfileStatusResponse> createOnboarding(
-            @UserId Long userId,
-            @RequestBody @Valid UpdateOnboardingRequest req
-    ) {
-        ProfileStatusResponse response = profileService.createOnboarding(userId, req);
-        return ApiResponse.success(response);
-    }
 
     @Operation(
             summary = "프로필 태그 수정",
