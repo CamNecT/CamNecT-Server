@@ -5,10 +5,9 @@ import CamNecT.CamNecT_Server.domain.alumni.dto.UserProfileDto;
 import CamNecT.CamNecT_Server.domain.alumni.repository.AlumniRepository;
 import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
+import CamNecT.CamNecT_Server.domain.users.repository.UserTagMapRepository;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
-import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
-import CamNecT.CamNecT_Server.global.tag.service.TagServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,9 +21,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AlumniService {
 
-    private final TagRepository tagRepository;
+    private final UserTagMapRepository userTagMapRepository;
     private final UserProfileRepository userProfileRepository;
-    private final TagServiceImpl tagService;
     private final AlumniRepository alumniRepository;
     private final PresignEngine presignEngine;
 
@@ -42,7 +40,7 @@ public class AlumniService {
                 .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
 
         // 3. 태그 정보 조회 및 Map 변환 (통합 로직)
-        List<Object[]> tagResults = tagRepository.findTagsWithUserIdByUserIdIn(targetIds);
+        List<Object[]> tagResults = userTagMapRepository.findTagsWithUserIdByUserIdIn(targetIds);
         Map<Long, List<Tag>> tagMap = tagResults.stream()
                 .collect(Collectors.groupingBy(
                         row -> (Long) row[0], // userId

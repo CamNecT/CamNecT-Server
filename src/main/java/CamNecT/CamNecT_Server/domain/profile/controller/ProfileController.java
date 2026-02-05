@@ -1,7 +1,6 @@
 package CamNecT.CamNecT_Server.domain.profile.controller;
 
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateBioRequest;
-import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateOnboardingRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileTagsRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
@@ -15,7 +14,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Profile", description = "프로필 관련 API")
@@ -50,19 +48,6 @@ public class ProfileController {
         return ApiResponse.success(response);
     }
 
-    @Operation(
-            summary = "온보딩 정보 등록",
-            description = "회원가입 후 초기 프로필 설정(온보딩) 정보를 저장합니다."
-    )
-    @PostMapping("/onboarding")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<ProfileStatusResponse> createOnboarding(
-            @UserId Long userId,
-            @RequestBody @Valid UpdateOnboardingRequest req
-    ) {
-        ProfileStatusResponse response = profileService.createOnboarding(userId, req);
-        return ApiResponse.success(response);
-    }
 
     @Operation(
             summary = "프로필 태그 수정",

@@ -11,14 +11,22 @@ import java.util.List;
 
 public interface UserTagMapRepository extends JpaRepository<UserTagMap, Long> {
 
+    @Query("SELECT utm.userId, t FROM UserTagMap utm " +
+            "JOIN Tag t ON utm.tagId = t.id " +
+            "WHERE utm.userId IN :userIds AND t.active = true")
+    List<Object[]> findTagsWithUserIdByUserIdIn(@Param("userIds") List<Long> userIds);
+
     @Modifying
     @Query("DELETE FROM UserTagMap utm WHERE utm.userId = :userId")
     void deleteAllByUserId(@Param("userId") Long userId);
 
-    @Query("SELECT t FROM Tag t " +
-            "JOIN FETCH t.attribute ta " + // fetch join으로 프록시가 아닌 실제 객체를 채움
-            "JOIN UserTagMap utm ON t.id = utm.tagId " +
-            "WHERE utm.userId = :userId")
+    @Query("""
+    SELECT t
+    FROM Tag t
+    JOIN FETCH t.category c
+    JOIN UserTagMap utm ON t.id = utm.tagId
+    WHERE utm.userId = :userId
+""")
     List<Tag> findAllTagsByUserId(@Param("userId") Long userId);
 
     //유저들의 모든 태그 매핑 정보를 한번에 가져오기

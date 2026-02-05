@@ -73,8 +73,7 @@ public class AdminDocumentVerificationService {
         Users u = usersRepository.findById(s.getUserId())
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.USER_NOT_FOUND));
 
-        UserProfile p = userProfileRepository.findByUserId(s.getUserId())
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+        UserProfile p = userProfileRepository.findByUserId(s.getUserId()).orElse(null);
 
         return new AdminDocumentVerificationDetailResponse(
                 s.getId(),
@@ -187,7 +186,6 @@ public class AdminDocumentVerificationService {
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
-        // UserProfile에 메서드 하나 추가해서 여기에 반영하는게 제일 깔끔
         profile.applyVerifiedInfo(studentNo, yearLevel, institutionId, majorId);
     }
 

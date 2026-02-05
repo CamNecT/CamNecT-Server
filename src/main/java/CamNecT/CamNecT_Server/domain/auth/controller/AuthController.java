@@ -4,9 +4,13 @@ import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginRequest;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginResponse;
 import CamNecT.CamNecT_Server.domain.auth.dto.signup.*;
 import CamNecT.CamNecT_Server.domain.auth.service.LoginService;
+import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateOnboardingRequest;
+import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
+import CamNecT.CamNecT_Server.domain.profile.service.ProfileService;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.domain.verification.email.dto.VerifyEmailCodeResponse;
 import CamNecT.CamNecT_Server.domain.verification.email.service.EmailVerificationService;
+import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -27,6 +31,7 @@ public class AuthController {
     private final LoginService loginService;
     private final UserRepository userRepository;
     private final EmailVerificationService emailVerificationService;
+    private final ProfileService profileService;
 
     @Operation(
             summary = "로그인",
@@ -99,5 +104,20 @@ public class AuthController {
     @ResponseStatus(HttpStatus.OK)
     public VerifySignupEmailResponse verifySignupEmail(@RequestBody @Valid VerifySignupEmailRequest req) {
         return emailVerificationService.verifySignupAndCreateUser(req);
+    }
+
+
+    @Operation(
+            summary = "온보딩 정보 등록",
+            description = "회원가입 후 초기 프로필 설정(온보딩) 정보를 저장합니다."
+    )
+    @PostMapping("/onboarding")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CamNecT.CamNecT_Server.global.common.response.ApiResponse<ProfileStatusResponse> createOnboarding(
+            @UserId Long userId,
+            @RequestBody @Valid UpdateOnboardingRequest req
+    ) {
+        ProfileStatusResponse response = profileService.createOnboarding(userId, req);
+        return CamNecT.CamNecT_Server.global.common.response.ApiResponse.success(response);
     }
 }

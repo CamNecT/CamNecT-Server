@@ -1,11 +1,11 @@
 package CamNecT.CamNecT_Server.domain.profile.service;
 
-import CamNecT.CamNecT_Server.domain.certificate.dto.response.CertificateResponse;
-import CamNecT.CamNecT_Server.domain.certificate.repository.CertificateRepository;
-import CamNecT.CamNecT_Server.domain.education.dto.response.EducationResponse;
-import CamNecT.CamNecT_Server.domain.education.repository.EducationRepository;
-import CamNecT.CamNecT_Server.domain.experience.dto.response.ExperienceResponse;
-import CamNecT.CamNecT_Server.domain.experience.repository.ExperienceRepository;
+import CamNecT.CamNecT_Server.domain.profile.components.certificate.dto.response.CertificateResponse;
+import CamNecT.CamNecT_Server.domain.profile.components.certificate.repository.CertificateRepository;
+import CamNecT.CamNecT_Server.domain.profile.components.education.dto.response.EducationResponse;
+import CamNecT.CamNecT_Server.domain.profile.components.education.repository.EducationRepository;
+import CamNecT.CamNecT_Server.domain.profile.components.experience.dto.response.ExperienceResponse;
+import CamNecT.CamNecT_Server.domain.profile.components.experience.repository.ExperienceRepository;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioPreviewResponse;
 import CamNecT.CamNecT_Server.domain.portfolio.repository.PortfolioRepository;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateOnboardingRequest;
@@ -13,6 +13,7 @@ import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileTagsRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileResponse;
+import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileTagDto;
 import CamNecT.CamNecT_Server.domain.users.model.*;
 import CamNecT.CamNecT_Server.domain.users.repository.*;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
@@ -84,8 +85,8 @@ public class ProfileService {
                 .map(CertificateResponse::from)
                 .toList();
 
-        List<ProfileResponse.TagDto> tags = userTagMapRepository.findAllTagsByUserId(profileUserId).stream()
-                .map(t -> new ProfileResponse.TagDto(t.getId(), t.getName(), t.getCategory(), t.getAttribute().getName()))
+        List<ProfileTagDto> tags = userTagMapRepository.findAllTagsByUserId(profileUserId).stream()
+                .map(t -> new ProfileTagDto(t.getId(), t.getName(), t.getCategory().getCode()))
                 .toList();
 
         ProfileResponse.ProfileBasicsDto basicProfile = new ProfileResponse.ProfileBasicsDto(
@@ -148,50 +149,34 @@ public class ProfileService {
             throw new CustomException(AuthErrorCode.ONBOARDING_ALREADY_CREATED);
         }
 
-        UserProfile userProfile = UserProfile.builder()
-                .userId(userId)
-                .user(user)
-                .bio(null)
-                .profileImageUrl(null)
-                .openToCoffeeChat(false)
-                .studentNo("TEMP")
-                .yearLevel(1)
-                .institutionId(1L)
-                .majorId(1L)
-                .build();
+        // 1) bio 정리
+        String bio = trimToNull(req.bio());
 
-        userProfileRepository.save(userProfile);
-
-        String bio = (req.bio() != null && !req.bio().isBlank()) ? req.bio().trim() : null;
-
-
-        // 2) 프로필 이미지 key 처리 (presign temp -> final 승격)
-        String finalProfileImageKey = null;
-        if (req.profileImageKey() != null && !req.profileImageKey().isBlank()) {
-
-            String finalPrefix = "profile/user-" + userId + "/images"; // final 위치(원하는 대로)
-            finalProfileImageKey = presignEngine.consume(
-                    userId,
-                    UploadPurpose.PROFILE_IMAGE,
-                    UploadRefType.USER_PROFILE,
-                    userId, // refId는 userId로 두면 깔끔
-                    req.profileImageKey(), // tempKey
-                    finalPrefix
-            );
-        }
-
-        userProfile.updateOnboardingProfile(bio, finalProfileImageKey);
-
-        // 3) 태그 replace
+        // 2) tagIds 정리 + 검증(활성 태그만)
         List<Long> tagIds = (req.tagIds() == null) ? List.of() : req.tagIds().stream().distinct().toList();
 
         if (!tagIds.isEmpty()) {
-            var tags = tagRepository.findAllById(tagIds);
-            if (tags.size() != tagIds.size()) {
+            List<Long> exist = tagRepository.findExistingActiveIds(tagIds);
+            if (exist.size() != tagIds.size()) {
                 throw new CustomException(UserErrorCode.INVALID_TAG_IDS);
             }
         }
 
+        // 3) UserProfile row 먼저 생성/저장 (값은 전부 null 허용)
+        UserProfile userProfile = UserProfile.builder()
+                .user(user)
+                .bio(null)
+                .profileImageUrl(null)
+                .openToCoffeeChat(false)
+                .studentNo(null)
+                .yearLevel(null)
+                .institutionId(null)
+                .majorId(null)
+                .build();
+
+        userProfileRepository.save(userProfile);
+
+        // 4) 태그 replace (온보딩에서 비어도 OK)
         userTagMapRepository.deleteAllByUserId(userId);
 
         if (!tagIds.isEmpty()) {
@@ -201,6 +186,22 @@ public class ProfileService {
                             .toList()
             );
         }
+
+        // 5) 마지막에 consume + 프로필 업데이트 (고아 파일 최소화)
+        String finalProfileImageKey = null;
+        if (StringUtils.hasText(req.profileImageKey())) {
+            String finalPrefix = "profile/user-" + userId + "/images";
+            finalProfileImageKey = presignEngine.consume(
+                    userId,
+                    UploadPurpose.PROFILE_IMAGE,
+                    UploadRefType.USER_PROFILE,
+                    userId,
+                    req.profileImageKey(),
+                    finalPrefix
+            );
+        }
+
+        userProfile.updateOnboardingProfile(bio, finalProfileImageKey);
 
         return new ProfileStatusResponse(user.getStatus());
     }
