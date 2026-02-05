@@ -16,10 +16,12 @@ public class ChatRoomListDetailDto {
     private String opponentStudentYear;
     private String lastMessage;
 
+    private String lastMessageTime;
+
     private Long unreadCount; // 방별 안읽은 수
 
     public static ChatRoomListDetailDto of(ChatRoom room, Users me, Long count,
-                                           String major, String studentYear, String lastMessage) {
+                                           String major, String studentYear, String lastMessage, String profileImgUrl) {
 
         Users opponent = room.getRequester().getUserId().equals(me.getUserId())
                 ? room.getReceiver() : room.getRequester();
@@ -27,11 +29,12 @@ public class ChatRoomListDetailDto {
         return ChatRoomListDetailDto.builder()
                 .roomId(room.getId())
                 .opponentName(opponent.getName())
-//                 .opponentProfileImg(opponent.getProfileImage())
+                .opponentProfileImgUrl(profileImgUrl)
 
                 .opponentMajor(major)
                 .opponentStudentYear(studentYear)
                 .lastMessage(lastMessage)
+                .lastMessageTime(room.getUpdatedAt().toString())
 
                 .unreadCount(count)
                 .build();

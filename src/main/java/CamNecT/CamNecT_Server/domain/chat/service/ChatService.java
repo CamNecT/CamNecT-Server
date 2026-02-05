@@ -17,6 +17,9 @@ import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
+import CamNecT.CamNecT_Server.global.common.exception.CustomException;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
@@ -50,15 +53,30 @@ public class ChatService {
      */
     @Transactional
     public Long sendCoffeeChatRequest(Long requesterId, Long receiverId, List<Long> tagIds, String content) {
+        if (requesterId.equals(receiverId)) {
+            throw new CustomException(CoffeeChatErrorCode.SELF_REQUEST_NOT_ALLOWED);
+        }
+
+        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
+                requesterId, receiverId, ChatRequest.RequestStatus.WAITING)) {
+            throw new CustomException(CoffeeChatErrorCode.DUPLICATE_REQUEST);
+        }
+
+        // todo: (선택) 이미 수락해서 채팅하고 있는(ACCEPTED) 상태면 요청 못하게 막아야 하는가?
+/*         if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
+                requesterId, receiverId, ChatRequest.RequestStatus.ACCEPTED)) {
+            throw new CustomException(CoffeeChatErrorCode.CHATROOM_ALREADY_EXISTS);
+         }*/
+
         Users requester = userRepository.findById(requesterId)
-                .orElseThrow(() -> new IllegalArgumentException("요청자 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUESTER_NOT_FOUND));
         Users receiver = userRepository.findById(receiverId)
-                .orElseThrow(() -> new IllegalArgumentException("수신자 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.RECEIVER_NOT_FOUND));
 
         List<Tag> tags = tagRepository.findAllById(tagIds);
 
         if (tags.size() != tagIds.size()) {
-            throw new IllegalArgumentException("존재하지 않는 태그가 포함되어 있습니다.");
+            throw new CustomException(CoffeeChatErrorCode.TAG_NOT_FOUND);
         }
 
         ChatRequest request = ChatRequest.builder()
@@ -79,11 +97,11 @@ public class ChatService {
     @Transactional
     public void respondToRequest(Long requestId, Long userId, boolean isAccepted) {
         ChatRequest request = chatRequestRepository.findById(requestId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 요청이 존재하지 않습니다."));
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUEST_NOT_FOUND));
 
         // 본인 요청인지 검증
         if (!request.getReceiver().getUserId().equals(userId)) {
-            throw new IllegalStateException("본인의 요청만 처리할 수 있습니다.");
+            throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
         }
 
         if (isAccepted) {
@@ -102,52 +120,13 @@ public class ChatService {
         chatRoomRepository.save(chatRoom);
     }
 
-    /*
-      3. 채팅 메시지 보내기
-      채팅방 Id랑 Sender(보내는 사람) ID만 있으면 됨. 시간 갱신도 해줌.
-     */
-/*    @Transactional
-    public Chat sendMessage(Long roomId, Long senderId, String content) {
-        ChatRoom room = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("채팅방이 존재하지 않습니다."));
-        Users sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자 정보가 없습니다."));
-
-        Users receiver = room.getRequester().getUserId().equals(senderId) ? room.getReceiver() : room.getRequester();
-
-        Chat chat = Chat.createChat(room, sender, receiver, content);
-        Chat savedChat = chatRepository.save(chat);
-
-        room.updateLastMessageTime();
-
-        return savedChat;
-    }*/
-
-    /*
-      4. 채팅 내역 불러오기 (+ 읽음 처리도 같이)
-      방에 입장하는 순간 실행됨
-     */
-/*    @Transactional
-    public List<Chat> getChatHistory(Long roomId, Long userId) {
-        ChatRoom room = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("채팅방이 존재하지 않습니다."));
-
-        List<Chat> chatHistory = chatRepository.findAllByRoomId(roomId);
-
-        chatRepository.bulkReadMessages(roomId, userId);
-
-        return chatHistory;
-    }*/
-
     @Transactional
     public List<ChatMessageResponseDto> getChatHistory(Long roomId, Long userId) {
         ChatRoom room = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("채팅방이 존재하지 않습니다."));
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
         Users opponent = (room.getRequester().getUserId().equals(userId)) ? room.getReceiver() : room.getRequester();
 
-//        chatRepository.bulkReadMessages(roomId, userId);
-//        System.out.println("bulkRead 함");
         markAllAsRead(roomId, opponent);
 
         List<Chat> chatHistory = chatRepository.findAllByRoomId(roomId);
@@ -157,27 +136,11 @@ public class ChatService {
                 .toList();
     }
 
-/*
-    @Transactional
-    public ChatRoom getRoomWithDetails(Long roomId, Long userId) {
-        ChatRoom room = chatRoomRepository.findById(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("방이 없어요"));
-
-        room.getRequester().getName();
-        room.getReceiver().getName();
-
-        room.getRequest().getRequestInterests().forEach(Tag::getName);
-
-        this.getChatHistory(roomId, userId);
-
-        return room;
-    }
-*/
 
     @Transactional
     public ChatRoomWithDetailDto getRoomWithDetails(Long roomId, Long userId) {
         ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId)
-                .orElseThrow(() -> new IllegalArgumentException("방이 없어요"));
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
         Users me = (room.getRequester().getUserId().equals(userId)) ? room.getRequester() : room.getReceiver();
         Users opponent = (room.getRequester().getUserId().equals(userId)) ? room.getReceiver() : room.getRequester();
@@ -200,7 +163,7 @@ public class ChatService {
 
     public List<ChatRoomListDetailDto> getChatRoomList(Long userId) {
         Users me = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         List<ChatRoom> myRooms = chatRoomRepository.findAllByUserIdWithBasicInfo(userId);
 
@@ -219,7 +182,7 @@ public class ChatService {
 
         Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(opponentIds)
                 .stream()
-                .collect(Collectors.toMap(UserProfile::getUserId, p -> p)); // Key: userId, Value: Profile
+                .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
 
         // 안 읽은 개수 조회
         Map<Long, Long> unreadCounts = chatRepository.countUnreadMessagesByRooms(myRooms, userId)
@@ -242,6 +205,7 @@ public class ChatService {
 
                     String majorName = "전공 미입력";
                     String studentYear = "";
+                    String profileImgUrl = "";
 
                     if (opProfile != null) {
                         studentYear = opProfile.getYearLevel().toString();
@@ -250,12 +214,14 @@ public class ChatService {
                                     .map(Majors::getMajorNameKor)
                                     .orElse("알 수 없는 전공");
                         }
+                        profileImgUrl = opProfile.getProfileImageUrl();
+
                     }
 
                     Long count = unreadCounts.getOrDefault(room.getId(), 0L);
                     String lastMessage = lastMessageMap.getOrDefault(room.getId(), "대화 내용이 없습니다.");
 
-                    return ChatRoomListDetailDto.of(room, me, count, majorName, studentYear, lastMessage);
+                    return ChatRoomListDetailDto.of(room, me, count, majorName, studentYear, lastMessage, profileImgUrl);
                 })
                 .toList();
     }
@@ -295,86 +261,14 @@ public class ChatService {
         );
     }
 
-
-    /* unread count 조회 (채팅방 리스트용)
-
-    @Transactional(readOnly = true)
-    public long getUnreadCount(Long roomId, Long userId) {
-        return chatRepository.countUnread(roomId, userId);
-    }*/
-
-
-    /* public void sendMessage(ChatMessageResponseDto dto) {
-
-        ChatRoom room = chatRoomRepository.findById(dto.getRoomId())
-                .orElseThrow(() -> new IllegalArgumentException("채팅방 없음"));
-
-        Users sender = userRepository.findById(dto.getSenderId())
-                .orElseThrow(() -> new IllegalArgumentException("보낸이 없음"));
-
-        Users receiver = userRepository.findById(dto.getReceiverId())
-                .orElseThrow(() -> new IllegalArgumentException("받는이 없음"));
-
-        boolean receiverPresent =
-                presenceService.isPresent(room.getId(), receiver.getUserId());
-
-        Chat chat = Chat.createChat(
-                room,
-                sender,
-                receiver,
-                dto.getMessage()
-        );
-        if (receiverPresent) {
-            System.out.println("읽음처리");
-            chat.markAsRead();
-        }
-
-        chatRepository.save(chat);
-
-        room.updateLastMessageTime();
-
-        ChatMessageResponseDto response = ChatMessageResponseDto.builder()
-                .messageId(chat.getId())
-                .roomId(room.getId())
-
-                .senderId(sender.getUserId())
-                .sender(sender.getName())
-
-                .receiverId(receiver.getUserId())
-                .receiver(receiver.getName())
-
-                .message(chat.getContent())
-                .read(chat.isRead())
-
-                .readAt(chat.getReadAt() != null ? chat.getReadAt().toString() : null)
-                .sendDate(chat.getCreatedAt().toString())
-                .build();
-
-        try {
-            // 메세지 전송
-            messagingTemplate.convertAndSend("/sub/chat/room/" + room.getId(), response);
-
-            // 읽음 즉시 반영 이벤트
-            if (receiverPresent) {
-                messagingTemplate.convertAndSendToUser(
-                        sender.getUserId().toString(),
-                        "/queue/read",
-                        ReadEvent.of(room.getId(), chat.getId(), chat.getReadAt().toString())
-                );
-            }
-        } catch (Exception e) {
-            System.err.println("소켓 전송 실패: " + e.getMessage());
-        }
-    }*/
-
     @Transactional
-    public void sendMessage(ChatMessageSendRequestDto request) {
+    public void sendMessage(Long senderId, ChatMessageSendRequestDto request) {
 
         ChatRoom room = chatRoomRepository.findById(request.roomId())
-                .orElseThrow(() -> new IllegalArgumentException("채팅방 없음"));
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
-        Users sender = userRepository.findById(request.senderId())
-                .orElseThrow(() -> new IllegalArgumentException("보낸이 없음"));
+        Users sender = userRepository.findById(senderId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         Users receiver = (room.getRequester().getUserId().equals(sender.getUserId()))
                 ? room.getReceiver()
@@ -406,10 +300,11 @@ public class ChatService {
                 );
             }
 
-            long unreadCount = chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(room.getId(), receiver.getUserId());
-
-            long totalUnreadCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(receiver.getUserId());
             String lastTime = chat.getCreatedAt().toString();
+
+            // 수신자의 채팅목록 갱신
+            long unreadCount = chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(room.getId(), receiver.getUserId());
+            long totalUnreadCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(receiver.getUserId());
 
             ChatRoomListUpdateDto updateDto = ChatRoomListUpdateDto.builder()
                     .roomId(room.getId())
@@ -422,6 +317,22 @@ public class ChatService {
             messagingTemplate.convertAndSend(
                     "/sub/user/" + receiver.getUserId() + "/roomList",
                     updateDto
+            );
+
+            // 본인 채팅목록 갱신
+            long senderTotalCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(sender.getUserId());
+
+            ChatRoomListUpdateDto senderUpdateDto = ChatRoomListUpdateDto.builder()
+                    .roomId(room.getId())
+                    .lastMessage(chat.getContent())
+                    .unreadCount(0L)
+                    .time(lastTime)
+                    .totalUnreadCount(senderTotalCount)
+                    .build();
+
+            messagingTemplate.convertAndSend(
+                    "/sub/user/" + sender.getUserId() + "/roomList",
+                    senderUpdateDto
             );
         } catch (Exception e) {
             System.err.println("소켓 전송 실패: " + e.getMessage());
