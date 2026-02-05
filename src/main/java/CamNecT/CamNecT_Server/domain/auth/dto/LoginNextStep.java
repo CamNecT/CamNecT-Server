@@ -1,4 +1,4 @@
-package CamNecT.CamNecT_Server.domain.auth.dto.login;
+package CamNecT.CamNecT_Server.domain.auth.dto;
 
 public enum LoginNextStep {
     HOME, //정상 로그인

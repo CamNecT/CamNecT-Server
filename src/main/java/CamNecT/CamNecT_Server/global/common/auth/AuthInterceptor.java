@@ -65,6 +65,8 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     private boolean isAllowedForVerificationToken(String uri) {
         return uri.equals("/api/verification/documents")
-                || uri.startsWith("/api/verification/documents/");
+                || uri.startsWith("/api/verification/documents/")
+                || uri.equals("/api/profile/onboarding")
+                || uri.startsWith("/api/profile/");
     }
 }

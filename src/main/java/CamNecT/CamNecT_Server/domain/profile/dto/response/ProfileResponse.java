@@ -4,7 +4,6 @@ import CamNecT.CamNecT_Server.domain.certificate.dto.response.CertificateRespons
 import CamNecT.CamNecT_Server.domain.education.dto.response.EducationResponse;
 import CamNecT.CamNecT_Server.domain.experience.dto.response.ExperienceResponse;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioPreviewResponse;
-import CamNecT.CamNecT_Server.global.tag.model.TagAttributeName;
 
 import java.util.List;
 
@@ -34,8 +33,7 @@ public record ProfileResponse(
     public record TagDto(
             Long id,
             String name,
-            String category,
-            TagAttributeName attribute
+            String category
     ) {}
 }
 

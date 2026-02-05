@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "UserProfile")
+@Table(name = "user_profile")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -46,16 +46,16 @@ public class UserProfile {
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
 
-    @Column(name = "student_no", nullable = false, length = 20)
+    @Column(name = "student_no", length = 20) // nullable=true 기본
     private String studentNo;
 
-    @Column(name = "year_level", nullable = false)
+    @Column(name = "year_level")
     private Integer yearLevel;
 
-    @Column(name = "institution_id", nullable = false)
+    @Column(name = "institution_id")
     private Long institutionId;
 
-    @Column(name = "major_id", nullable = false)
+    @Column(name = "major_id")
     private Long majorId;
 
     public void updateOnboardingProfile(String bio, String profileImageKey) {

@@ -16,7 +16,6 @@ public interface UserTagMapRepository extends JpaRepository<UserTagMap, Long> {
     void deleteAllByUserId(@Param("userId") Long userId);
 
     @Query("SELECT t FROM Tag t " +
-            "JOIN FETCH t.attribute ta " + // fetch join으로 프록시가 아닌 실제 객체를 채움
             "JOIN UserTagMap utm ON t.id = utm.tagId " +
             "WHERE utm.userId = :userId")
     List<Tag> findAllTagsByUserId(@Param("userId") Long userId);
