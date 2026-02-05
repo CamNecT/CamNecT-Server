@@ -91,7 +91,7 @@ public class PostAttachmentDownloadService {
         }
 
         if (userId == null) return ContentAccessStatus.LOGIN_REQUIRED;
-        if (Objects.equals(userId, post.getUserId())) return ContentAccessStatus.GRANTED;
+        if (Objects.equals(userId, post.getUser().getUserId())) return ContentAccessStatus.GRANTED;
         if (postAccessRepository.existsByPost_IdAndUserId(postId, userId)) return ContentAccessStatus.GRANTED;
 
         int myPoints = pointService.getBalance(userId);

@@ -13,7 +13,7 @@ public enum StorageErrorCode implements BaseErrorCode {
     STORAGE_EMPTY_FILE(HttpStatus.BAD_REQUEST, 49001, "업로드할 파일이 없습니다."),
     STORAGE_PREFIX_REQUIRED(HttpStatus.BAD_REQUEST, 49002, "저장 prefix가 필요합니다."),
     STORAGE_KEY_REQUIRED(HttpStatus.BAD_REQUEST, 49003, "storageKey가 필요합니다."),
-    STORAGE_INVALID_PREFIX(HttpStatus.BAD_REQUEST, 49010, "storage prefix가 옳지 않습니다."),
+    STORAGE_INVALID_PREFIX(HttpStatus.BAD_REQUEST, 49008, "storage prefix가 옳지 않습니다."),
 
     UNSUPPORTED_CONTENT_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, 49004, "허용되지 않은 Content-Type 입니다."),
     FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, 49005, "파일 용량이 제한을 초과했습니다."),

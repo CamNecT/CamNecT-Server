@@ -11,6 +11,8 @@ import org.springframework.messaging.support.ChannelInterceptor;
 @RequiredArgsConstructor
 public class StompHandler implements ChannelInterceptor {
 
+    // todo: heartbeat 관련 설정 추가하기
+
 //    private final JwtProvider jwtProvider;
 
     @Override

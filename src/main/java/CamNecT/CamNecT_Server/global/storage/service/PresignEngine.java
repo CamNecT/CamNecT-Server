@@ -57,6 +57,14 @@ public class PresignEngine {
                                              String contentType,
                                              long size,
                                              String originalFilename) {
+        LocalDateTime now = LocalDateTime.now();
+
+        ticketRepo.bulkExpirePendingByUserPurpose(userId, purpose, now);
+
+        long active = ticketRepo.countByUserIdAndPurposeAndStatusAndExpiresAtAfter(
+                userId, purpose, UploadTicket.Status.PENDING, now
+        );
+        if (active >= 1) throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
 
 
         String ct = normalize(contentType);
@@ -122,8 +130,14 @@ public class PresignEngine {
 
         if (!Objects.equals(t.getUserId(), userId)) throw new CustomException(StorageErrorCode.UPLOAD_TICKET_FORBIDDEN);
         if (t.getPurpose() != purpose) throw new CustomException(StorageErrorCode.UPLOAD_TICKET_FORBIDDEN);
-        if (!t.isUsable(LocalDateTime.now())) throw new CustomException(StorageErrorCode.UPLOAD_TICKET_EXPIRED_OR_USED);
         if (finalKeyPrefix.startsWith("temp/")) throw new CustomException(StorageErrorCode.STORAGE_INVALID_PREFIX);
+        if (!t.isUsable(LocalDateTime.now())) {
+            // 만료면 DB도 EXPIRED로 바꿔서 정합성 맞추기
+            if (t.getStatus() == UploadTicket.Status.PENDING && t.getExpiresAt().isBefore(LocalDateTime.now())) {
+                t.markExpired();
+            }
+            throw new CustomException(StorageErrorCode.UPLOAD_TICKET_EXPIRED_OR_USED);
+        }
 
         HeadObjectResponse head;
         try {
@@ -138,7 +152,7 @@ public class PresignEngine {
             throw new CustomException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
         }
 
-        if (head.contentLength() != null && !head.contentLength().equals(t.getSize())) {
+        if (head.contentLength() != null && head.contentLength() > t.getSize()) {
             throw new CustomException(StorageErrorCode.UPLOAD_TICKET_MISMATCHED_OBJECT);
         }
         if (StringUtils.hasText(head.contentType())

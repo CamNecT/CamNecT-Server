@@ -74,15 +74,6 @@ public class Users {
 
 
 
-
-    public void changePasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
-    }
-
-    public void markEmailVerified() {
-        this.emailVerified = true;
-    }
-
     public void changeStatus(UserStatus newStatus) {
         this.status = newStatus;
     }
