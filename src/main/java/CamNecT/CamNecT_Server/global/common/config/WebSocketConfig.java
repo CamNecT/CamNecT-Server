@@ -17,10 +17,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/sub", "/queue");    //해당 주소를 구독하고 잇는 클라이언트들에게 메세지 전달
-        registry.setApplicationDestinationPrefixes("/pub");       //클라이언트에서 보낸 메세지를 받을 prefix
-        registry.setApplicationDestinationPrefixes("/send");
-        registry.enableSimpleBroker("/room");
+        registry.enableSimpleBroker("/sub", "/queue", "/room");    //해당 주소를 구독하고 잇는 클라이언트들에게 메세지 전달
+        registry.setApplicationDestinationPrefixes("/pub", "/send");       //클라이언트에서 보낸 메세지를 받을 prefix
     }
 
     @Override
@@ -33,6 +31,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         "http://localhost:5173"
                 )
                 .withSockJS();
+
+/*        registry.addEndpoint("/ws-stomp")
+                .setAllowedOriginPatterns("*");*/
     }
 
     @Override
