@@ -69,6 +69,13 @@ public class UserProfile {
         }
     }
 
+    public void updateBio(String bio) {
+        if (bio != null) {
+            String b = bio.trim();
+            this.bio = b.isBlank() ? null : b;
+        }
+    }
+
     public void applyVerifiedInfo(String studentNo, Integer yearLevel, Long institutionId, Long majorId) {
         this.studentNo = studentNo;
         this.yearLevel = yearLevel;
