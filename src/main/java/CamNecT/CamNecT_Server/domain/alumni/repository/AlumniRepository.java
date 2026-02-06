@@ -7,7 +7,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-public interface AlumniRepository extends JpaRepository<Users, Long> {
+public interface AlumniRepository extends JpaRepository<Users, Long>, AlumniRepositoryCustom {
 
     @Query(value = """
         SELECT u.user_id FROM Users u
