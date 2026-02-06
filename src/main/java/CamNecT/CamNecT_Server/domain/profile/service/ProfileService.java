@@ -11,6 +11,7 @@ import CamNecT.CamNecT_Server.domain.portfolio.repository.PortfolioRepository;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateOnboardingRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileTagsRequest;
+import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileSettingsResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileTagDto;
@@ -302,4 +303,20 @@ public class ProfileService {
     }
 
 
+    public ProfileSettingsResponse getMySettings(Long userId) {
+        Users user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+        UserProfile userProfile = userProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+
+        String profileImageUrl = downloadUrlIssuer.issueDisplayUrl(userProfile.getProfileImageUrl());
+
+        return new ProfileSettingsResponse(
+                user.getUserId(),
+                user.getName(),
+                profileImageUrl,
+                user.getPhoneNum(),
+                user.getEmail()
+        );
+    }
 }

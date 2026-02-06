@@ -3,6 +3,7 @@ package CamNecT.CamNecT_Server.domain.profile.controller;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateBioRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileTagsRequest;
+import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileSettingsResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileResponse;
 import CamNecT.CamNecT_Server.domain.profile.service.ProfileService;
@@ -84,6 +85,17 @@ public class ProfileController {
                                            @RequestBody UpdatePrivacyRequest request) {
         profileService.updatePrivacy(userId, request);
         return ApiResponse.success(null);
+    }
+
+    @Operation(
+            summary = "마이페이지 - 환경설정",
+            description = "본인의 이름, 프로필 사진, 전화번호, 이메일을 반환합니다."
+    )
+    @GetMapping("/me/settings")
+    public ApiResponse<ProfileSettingsResponse> getMySettings(@UserId Long userId) {
+        ProfileSettingsResponse response = profileService.getMySettings(userId);
+
+        return ApiResponse.success(response);
     }
 
 }
