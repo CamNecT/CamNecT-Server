@@ -2,6 +2,7 @@ package CamNecT.CamNecT_Server.domain.community.repository.Comments;
 
 import CamNecT.CamNecT_Server.domain.community.model.Comments.CommentLikes;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -28,4 +29,8 @@ public interface CommentLikesRepository extends JpaRepository<CommentLikes, Long
     group by cl.comment.id
 """)
     List<LikeCountRow> countByCommentIds(@Param("commentIds") Collection<Long> commentIds);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from CommentLikes cl where cl.comment.post.id = :postId")
+    void deleteByPostId(@Param("postId") Long postId);
 }

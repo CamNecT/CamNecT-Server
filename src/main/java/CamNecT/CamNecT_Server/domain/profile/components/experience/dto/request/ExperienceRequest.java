@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.util.List;
 
 public record ExperienceRequest(
-        Long userId,
         String companyName,
         @NotNull(message = "시작일은 필수입니다.")
         LocalDate startDate,
