@@ -130,7 +130,14 @@ public class PostController {
         return ApiResponse.success(postService.purchasePostAccess(userId, postId));
     }
 
-    @Operation(summary = "첨부파일 업로드용 Presigned URL 발급", description = "게시글에 포함될 파일을 S3에 업로드하기 위한 URL을 발급받습니다.")
+    @Operation(
+            summary = "첨부파일 업로드용 Presigned URL 발급",
+            description = """
+    게시글에 포함될 파일을 S3에 업로드하기 위한 Presigned URL을 발급합니다.
+    - 업로드는 temp 경로로 수행됩니다.
+    - 게시글 저장 시 consume되어 최종 경로로 이동됩니다.
+  """
+    )
     @PostMapping("/uploads/presign")
     public ApiResponse<PresignUploadBatchResponse> presignAttachmentUpload(
             @UserId Long userId,

@@ -60,9 +60,9 @@ public class PostAttachmentsService {
             throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
         }
 
-        String tempPrefix = "community/temp/user-" + userId + "/attachments";
+        String prefix = "community/user-" + userId + "/attachments";
 
-        List<PresignUploadResponse> out = new ArrayList<>(items.size());
+        List<PresignEngine.IssueItem> issueItems = new ArrayList<>(items.size());
 
         for (var item : items) {
             String ct = globalPresignMethods.normalize(item.contentType());
@@ -73,15 +73,15 @@ public class PostAttachmentsService {
                 throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
             }
 
-            out.add(presignEngine.issueUpload(
-                    userId,
-                    UploadPurpose.COMMUNITY_POST_ATTACHMENT,
-                    tempPrefix,
-                    ct,
-                    item.size(),
-                    item.originalFilename()
-            ));
+            issueItems.add(new PresignEngine.IssueItem(ct, item.size(), item.originalFilename()));
         }
+        List<PresignUploadResponse> out = presignEngine.issueUploadBatch(
+                userId,
+                UploadPurpose.COMMUNITY_POST_ATTACHMENT,
+                prefix,
+                issueItems,
+                props.maxFiles()
+        );
 
         return new PresignUploadBatchResponse(out);
     }

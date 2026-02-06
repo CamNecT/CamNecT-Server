@@ -14,6 +14,7 @@ import CamNecT.CamNecT_Server.domain.community.repository.Comments.CommentsRepos
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostStatsRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostsRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CommunityErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -34,7 +35,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     @Override
     public CreateCommentResponse create(Long userId, Long postId, CreateCommentRequest req) {
-        if (userId == null) userId = 1L;
+        if (userId == null) throw new CustomException(AuthErrorCode.USER_NOT_FOUND);
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -76,7 +77,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     @Override
     public void update(Long userId, Long commentId, UpdateCommentRequest req) {
-        if (userId == null) userId = 1L;
+        if (userId == null) throw new CustomException(AuthErrorCode.USER_NOT_FOUND);
 
         Comments comment = commentsRepository.findById(commentId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
@@ -92,7 +93,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     @Override
     public void delete(Long userId, Long commentId) {
-        if (userId == null) userId = 1L;
+        if (userId == null) throw new CustomException(AuthErrorCode.USER_NOT_FOUND);
 
         Comments comment = commentsRepository.findById(commentId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
@@ -119,7 +120,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     @Override
     public ToggleCommentLikeResponse toggleLike(Long userId, Long commentId) {
-        if (userId == null) userId = 1L;
+        if (userId == null) throw new CustomException(AuthErrorCode.USER_NOT_FOUND);
 
         Comments comment = commentsRepository.findById(commentId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));

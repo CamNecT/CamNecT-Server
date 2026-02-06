@@ -32,8 +32,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 )
                 .withSockJS();
 
-/*        registry.addEndpoint("/ws-stomp")
-                .setAllowedOriginPatterns("*");*/
+        registry.addEndpoint("/ws-stomp")
+                .setAllowedOriginPatterns(
+                        "https://camnect.site",
+                        "https://www.camnect.site",
+                        "https://camnect-web.vercel.app",
+                        "http://localhost:5173"
+                );
     }
 
     @Override

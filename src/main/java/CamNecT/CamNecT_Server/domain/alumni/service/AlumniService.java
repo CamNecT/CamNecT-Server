@@ -29,9 +29,8 @@ public class AlumniService {
     @Transactional(readOnly = true)
     public List<AlumniPreviewResponse> searchAlumni(Long userId, String name, List<Long> tagIdList) {
 
-        // 1. 조건에 맞는 유저 ID 목록 조회
-        int tagCount = (tagIdList == null) ? 0 : tagIdList.size();
-        List<Long> targetIds = alumniRepository.findAlumniIdsByConditions(userId, name, tagIdList, tagCount);
+        // 1. 조건에 맞는 유저 ID 목록 조회 (QueryDSL 동적 쿼리 사용)
+        List<Long> targetIds = alumniRepository.findAlumniIdsByConditions(userId, name, tagIdList);
 
         if (targetIds.isEmpty()) return List.of();
 
