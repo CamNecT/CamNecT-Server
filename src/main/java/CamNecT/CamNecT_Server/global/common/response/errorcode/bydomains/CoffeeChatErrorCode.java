@@ -13,6 +13,7 @@ public enum CoffeeChatErrorCode implements BaseErrorCode {
     SELF_REQUEST_NOT_ALLOWED(HttpStatus.BAD_REQUEST, 48001, "자기 자신에게는 요청을 보낼 수 없습니다."),
     REQUEST_ALREADY_PROCESSED(HttpStatus.BAD_REQUEST, 48002, "이미 수락하거나 거절된 요청입니다."),
     INVALID_CHAT_CONTENT(HttpStatus.BAD_REQUEST, 48003, "메시지 내용은 비어있을 수 없습니다."),
+    RECEIVER_COFFEECHAT_DISABLED(HttpStatus.BAD_REQUEST, 48004, "상대방이 커피챗 요청을 받지 않는 상태입니다."),
 
     // 483xx - 권한 없음 (Forbidden)
     REQUEST_ACCESS_DENIED(HttpStatus.FORBIDDEN, 48301, "본인의 요청만 처리(수락/거절)할 수 있습니다."),

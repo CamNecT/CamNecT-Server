@@ -3,6 +3,7 @@ package CamNecT.CamNecT_Server.domain.profile.controller;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateBioRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileTagsRequest;
+import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileSettingsResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileResponse;
 import CamNecT.CamNecT_Server.domain.profile.service.ProfileService;
@@ -32,6 +33,16 @@ public class ProfileController {
     public ApiResponse<ProfileResponse> getUserProfile(@UserId Long loginUserId,
                                                        @PathVariable Long profileUserId) {
         ProfileResponse response = profileService.getUserProfile(loginUserId, profileUserId);
+        return ApiResponse.success(response);
+    }
+
+    @Operation(
+            summary = "마이페이지 조회",
+            description = "로그인한 사용자의 마이페이지를 조회합니다."
+    )
+    @GetMapping("/me")
+    public ApiResponse<ProfileResponse> getUserProfile(@UserId Long loginUserId) {
+        ProfileResponse response = profileService.getUserProfile(loginUserId, loginUserId);
         return ApiResponse.success(response);
     }
 
@@ -84,6 +95,17 @@ public class ProfileController {
                                            @RequestBody UpdatePrivacyRequest request) {
         profileService.updatePrivacy(userId, request);
         return ApiResponse.success(null);
+    }
+
+    @Operation(
+            summary = "마이페이지 - 환경설정",
+            description = "본인의 이름, 프로필 사진, 전화번호, 이메일을 반환합니다."
+    )
+    @GetMapping("/me/settings")
+    public ApiResponse<ProfileSettingsResponse> getMySettings(@UserId Long userId) {
+        ProfileSettingsResponse response = profileService.getMySettings(userId);
+
+        return ApiResponse.success(response);
     }
 
 }
