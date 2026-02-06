@@ -132,7 +132,7 @@ public class ProfileService {
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
-        userProfile.updateOnboardingProfile(bio, null);
+        userProfile.updateBio(bio);
 
         return new ProfileStatusResponse(userProfile.getUser().getStatus());
     }
