@@ -60,7 +60,7 @@ public class PostAttachmentsService {
             throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
         }
 
-        String tempPrefix = "community/temp/user-" + userId + "/attachments";
+        String prefix = "community/user-" + userId + "/attachments";
 
         List<PresignEngine.IssueItem> issueItems = new ArrayList<>(items.size());
 
@@ -78,7 +78,7 @@ public class PostAttachmentsService {
         List<PresignUploadResponse> out = presignEngine.issueUploadBatch(
                 userId,
                 UploadPurpose.COMMUNITY_POST_ATTACHMENT,
-                tempPrefix,
+                prefix,
                 issueItems,
                 props.maxFiles()
         );

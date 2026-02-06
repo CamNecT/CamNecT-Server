@@ -51,62 +51,22 @@ public class PresignEngine {
 
 
     @Transactional
-    public PresignUploadResponse issueUpload(Long userId,
-                                             UploadPurpose purpose,
-                                             String keyPrefix,
-                                             String contentType,
-                                             long size,
-                                             String originalFilename) {
-        LocalDateTime now = LocalDateTime.now();
-
-        ticketRepo.bulkExpirePendingByUserPurpose(userId, purpose, now);
-
-        long active = ticketRepo.countByUserIdAndPurposeAndStatusAndExpiresAtAfter(
-                userId, purpose, UploadTicket.Status.PENDING, now
+    public PresignUploadResponse issueUpload(
+            Long userId,
+            UploadPurpose purpose,
+            String keyPrefix,
+            String contentType,
+            long size,
+            String originalFilename
+    ) {
+        List<PresignUploadResponse> res = issueUploadBatch(
+                userId,
+                purpose,
+                keyPrefix,
+                List.of(new IssueItem(contentType, size, originalFilename)),
+                1 // 단건 허용 개수
         );
-        if (active >= 1) throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
-
-
-        String ct = normalize(contentType);
-        String ext = EXT_BY_CONTENT_TYPE.getOrDefault(ct, "");
-
-        String tempPrefix = toTempPrefix(keyPrefix); // 첫 업로드는 무조건 temp로 강제
-
-        String key = buildKey(tempPrefix, UUID.randomUUID() + ext);
-        LocalDateTime expiresAt = LocalDateTime.now().plusSeconds(presignProps.uploadExpirationSeconds());
-
-        UploadTicket ticket = UploadTicket.builder()
-                .userId(userId)
-                .purpose(purpose)
-                .status(UploadTicket.Status.PENDING)
-                .storageKey(key)
-                .originalFilename(safeName(originalFilename))
-                .contentType(ct)
-                .size(size)
-                .expiresAt(expiresAt)
-                .build();
-
-        ticketRepo.save(ticket);
-
-        PutObjectRequest putReq = PutObjectRequest.builder()
-                .bucket(s3Props.bucket())
-                .key(key)
-                .contentType(ct)
-                .build();
-
-        PutObjectPresignRequest presignReq = PutObjectPresignRequest.builder()
-                .signatureDuration(Duration.ofSeconds(presignProps.uploadExpirationSeconds()))
-                .putObjectRequest(putReq)
-                .build();
-
-        String url = presigner.presignPutObject(presignReq).url().toString();
-
-        return new PresignUploadResponse(
-                key,
-                url,
-                expiresAt,
-                Map.of("Content-Type", ct)
-        );
+        return res.getFirst();
     }
 
     /**
@@ -118,7 +78,7 @@ public class PresignEngine {
     public List<PresignUploadResponse> issueUploadBatch(
             Long userId,
             UploadPurpose purpose,
-            String keyPrefix,               // ★ temp 없는 prefix를 권장
+            String keyPrefix,               //temp 없는 prefix로
             List<IssueItem> items,
             int maxPendingLimit
     ) {
