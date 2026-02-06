@@ -62,9 +62,10 @@ public class ExternalActivity {
     @Column(nullable = false, length = 20)
     private ActivityStatus status = ActivityStatus.OPEN;
 
+    @Builder.Default
     @CreatedDate
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(columnDefinition = "TEXT")
     private String context;
