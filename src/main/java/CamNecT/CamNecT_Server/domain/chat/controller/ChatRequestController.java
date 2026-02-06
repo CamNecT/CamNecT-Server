@@ -3,66 +3,51 @@ package CamNecT.CamNecT_Server.domain.chat.controller;
 import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestResponseDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestSendDto;
 import CamNecT.CamNecT_Server.domain.chat.service.ChatService;
+import CamNecT.CamNecT_Server.global.common.auth.UserId;
+import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
-@Controller
+@RestController
 @RequiredArgsConstructor
-@RequestMapping("/request")
+@RequestMapping("/api/request")
+@Tag(name = "Chat Request", description = "커피챗 요청/응답 API")
 public class ChatRequestController {
 
     private final ChatService chatService;
 
-    /**
-     * [커피챗 요청 보내기]
-     * HTML Form: <form action="/request/send" method="post">
-     */
+    @Operation(summary = "커피챗 요청 보내기", description = "상대방에게 커피챗 요청을 보냅니다.")
     @PostMapping("/send")
-    public String sendRequest(@ModelAttribute ChatRequestSendDto request,
-                              RedirectAttributes rattr) {
-        try {
-            chatService.sendCoffeeChatRequest(
-                    request.requesterId(),
-                    request.receiverId(),
-                    request.tagIds(),
-                    request.content()
-            );
-            rattr.addFlashAttribute("message", "커피챗 요청을 성공적으로 보냈습니다.");
-        } catch (Exception e) {
-            log.error("요청 전송 실패", e);
-            rattr.addFlashAttribute("error", "요청 실패: " + e.getMessage());
-        }
+    public ApiResponse<Void> sendRequest(
+            @UserId Long userId,
+            @RequestBody ChatRequestSendDto request
+    ) {
+        chatService.sendCoffeeChatRequest(
+                userId,
+                request.receiverId(),
+                request.tagIds(),
+                request.content()
+        );
 
-        return "redirect:/roomList?userId=" + request.requesterId();
+        return ApiResponse.success(null);
     }
 
-    /**
-     * [요청 수락/거절 처리]
-     * HTML Form: <form action="/request/respond" method="post">
-     */
+    @Operation(summary = "커피챗 요청 수락/거절", description = "받은 커피챗 요청을 수락하거나 거절합니다. 수락 시 채팅방이 생성됩니다.")
     @PostMapping("/respond")
-    public String respondRequest(@ModelAttribute ChatRequestResponseDto response, RedirectAttributes rattr) {
-        try {
-            chatService.respondToRequest(
-                    response.requestId(),
-                    response.userId(),
-                    response.isAccepted()
-            );
+    public ApiResponse<Void> respondRequest(
+            @UserId Long userId,
+            @RequestBody ChatRequestResponseDto response
+    ) {
+        chatService.respondToRequest(
+                response.requestId(),
+                userId,
+                response.isAccepted()
+        );
 
-            String msg = response.isAccepted() ? "요청을 수락하여 채팅방이 생성되었습니다." : "요청을 거절했습니다.";
-            rattr.addFlashAttribute("message", msg);
-
-        } catch (Exception e) {
-            log.error("응답 처리 실패", e);
-            rattr.addFlashAttribute("error", "처리 실패: " + e.getMessage());
-        }
-
-        return "redirect:/roomList?userId=" + response.userId();
+        return ApiResponse.success(null);
     }
 }

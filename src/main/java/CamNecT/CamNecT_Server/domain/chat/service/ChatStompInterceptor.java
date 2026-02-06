@@ -1,123 +1,58 @@
 package CamNecT.CamNecT_Server.domain.chat.service;
 
-import CamNecT.CamNecT_Server.domain.users.model.Users;
-import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
+import CamNecT.CamNecT_Server.global.common.exception.CustomException;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
+import CamNecT.CamNecT_Server.global.jwt.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.stereotype.Component;
-/*
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class ChatStompInterceptor implements ChannelInterceptor {
 
-    private final ChatPresenceService presenceService;
-    private final ChatService chatService;
-    private final UserRepository userRepository;
+    private final JwtUtil jwtUtil;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
+        StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
-        StompCommand command = accessor.getCommand();
-        System.out.println("📨 COMMAND = " + accessor.getCommand());
+        if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
 
-        if (command == null) {
-            return message;
-        }
+            String token = extractBearer(accessor);
 
-        */
-/* =========================
- * 1️⃣ CONNECT
- * ========================= *//*
+            try {
+                jwtUtil.validateOrThrow(token);
 
-        if (command == StompCommand.CONNECT) {
-            String userIdHeader = accessor.getFirstNativeHeader("userId");
+                Long userId = jwtUtil.getUserId(token);
+                accessor.getSessionAttributes().put("userId", userId);
 
-            if (userIdHeader != null) {
-                accessor.getSessionAttributes().put("userId", userIdHeader);
-                System.out.println("🔐 CONNECT userId=" + userIdHeader);
+                log.info("소켓 연결 성공: userId = {}", userId);
+
+            } catch (CustomException e) {
+                // 토큰 검증 실패 시 소켓 연결 거부
+                log.error("소켓 인증 실패: {}", e.getMessage());
+                throw new CustomException(AuthErrorCode.INVALID_TOKEN);
             }
-
-            return message;
-        }
-
-        */
-/* =========================
- * 2️⃣ SUBSCRIBE
- * ========================= *//*
-
-        if (command == StompCommand.SUBSCRIBE) {
-            String destination = accessor.getDestination();
-
-            if (destination != null && destination.startsWith("/sub/chat/room/")) {
-
-                Object userIdObj = accessor.getSessionAttributes().get("userId");
-                if (userIdObj == null) {
-                    return message;
-                }
-
-                Long userId = Long.valueOf(userIdObj.toString());
-                Long roomId = extractRoomId(destination);
-
-                // presence 등록
-                presenceService.enter(roomId, userId);
-                System.out.println("👤 SUBSCRIBE userId=" + userId + ", roomId=" + roomId);
-
-                // 읽음 처리
-                Users user = userRepository.getReferenceById(userId);
-                chatService.markAllAsRead(roomId, user);
-            }
-
-            return message;
-        }
-
-        */
-/* =========================
- * 3️⃣ DISCONNECT
- * ========================= *//*
-
-        if (command == StompCommand.DISCONNECT) {
-
-            Object userIdObj = accessor.getSessionAttributes().get("userId");
-            if (userIdObj != null) {
-                Long userId = Long.valueOf(userIdObj.toString());
-                presenceService.leaveAll(userId);
-                System.out.println("❌ DISCONNECT userId=" + userId);
-            }
-
-            return message;
         }
 
         return message;
     }
 
-    private Long extractRoomId(String destination) {
-        return Long.parseLong(destination.substring(destination.lastIndexOf("/") + 1));
-    }
-}*/
+    private String extractBearer(StompHeaderAccessor accessor) {
+        String rawToken = accessor.getFirstNativeHeader("Authorization");
 
-@Component
-@RequiredArgsConstructor
-public class ChatStompInterceptor implements ChannelInterceptor {
-
-    @Override
-    public Message<?> preSend(Message<?> message, MessageChannel channel) {
-        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
-        StompCommand command = accessor.getCommand();
-
-        if (command == StompCommand.CONNECT) {
-            String userIdHeader = accessor.getFirstNativeHeader("userId");
-            if (userIdHeader != null) {
-                accessor.getSessionAttributes().put("userId", userIdHeader);
-            }
+        if (rawToken == null || !rawToken.startsWith("Bearer ")) {
+            throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
         }
 
-        // SUBSCRIBE, DISCONNECT 등등은 여기서 처리하지 않고 통과시킴
-        return message;
+        return rawToken.substring(7);
     }
 }

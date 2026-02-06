@@ -17,7 +17,7 @@ import java.util.List;
 @Tag(name = "Alumni", description = "동문 탐색 및 조회 관련 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/Alumni")
+@RequestMapping("/api/alumni")
 public class AlumniController {
 
     private final AlumniService alumniService;

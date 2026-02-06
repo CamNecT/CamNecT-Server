@@ -1,16 +1,16 @@
 package CamNecT.CamNecT_Server.domain.chat.service;
 
-import CamNecT.CamNecT_Server.domain.chat.service.ChatService;
-import CamNecT.CamNecT_Server.domain.chat.service.ChatPresenceService;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class WebSocketEventListener {
@@ -32,30 +32,34 @@ public class WebSocketEventListener {
             Long roomId = extractRoomId(destination);
 
             presenceService.enter(roomId, userId);
-            System.out.println("👤 SUBSCRIBE(Listener) userId=" + userId + ", roomId=" + roomId);
+            log.info("👤 SUBSCRIBE (입장): userId={}, roomId={}", userId, roomId);
 
-            Users user = userRepository.getReferenceById(userId);
-            chatService.markAllAsRead(roomId, user);
+            try {
+                Users user = userRepository.getReferenceById(userId);
+                chatService.markAllAsRead(roomId, user);
+            } catch (Exception e) {
+                log.error("읽음 처리 중 오류 발생: {}", e.getMessage());
+            }
         }
     }
 
     @EventListener
     public void handleSessionDisconnectEvent(SessionDisconnectEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
-        Object userIdObj = accessor.getSessionAttributes().get("userId");
+        Long userId = (Long) accessor.getSessionAttributes().get("userId");
 
-        if (userIdObj != null) {
-            Long userId = Long.valueOf(userIdObj.toString());
+        if (userId != null) {
             presenceService.leaveAll(userId);
-            System.out.println("❌ DISCONNECT(Listener) userId=" + userId);
+            log.info("❌ DISCONNECT (퇴장): userId={}", userId);
         }
     }
 
     private Long extractRoomId(String destination) {
         try {
             return Long.parseLong(destination.substring(destination.lastIndexOf("/") + 1));
-        } catch (NumberFormatException e) {
-            return 0L;
+        } catch (NumberFormatException | NullPointerException e) {
+            log.error("Room ID 추출 실패: destination={}", destination);
+            return null;
         }
     }
 }
