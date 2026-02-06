@@ -11,6 +11,7 @@ import CamNecT.CamNecT_Server.domain.community.model.Posts.*;
 import CamNecT.CamNecT_Server.domain.community.model.enums.*;
 import CamNecT.CamNecT_Server.domain.community.repository.*;
 import CamNecT.CamNecT_Server.domain.community.repository.Comments.AcceptedCommentsRepository;
+import CamNecT.CamNecT_Server.domain.community.repository.Comments.CommentLikesRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Comments.CommentsRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.*;
 import CamNecT.CamNecT_Server.domain.point.model.PointEvent;
@@ -51,6 +52,7 @@ public class PostServiceImpl implements PostService {
     private final PostLikesRepository postLikesRepository;
     private final AcceptedCommentsRepository acceptedCommentsRepository;
     private final CommentsRepository commentsRepository;
+    private final CommentLikesRepository commentLikesRepository;
 
     private final PostBookmarksRepository postBookmarksRepository;
     private final PostAccessRepository postAccessRepository;
@@ -138,13 +140,26 @@ public class PostServiceImpl implements PostService {
                 && acceptedCommentsRepository.existsByPost_Id(postId)) {
             throw new CustomException(CommunityErrorCode.CANNOT_DELETE_ACCEPTED_QUESTION);
         }
+        // 1) 댓글 좋아요 -> 댓글 하드 삭제 (FK 안전)
+        commentLikesRepository.deleteByPostId(postId);
+        commentsRepository.deleteByPostId(postId);
 
-        post.deleteSoft();
+        // 2) 게시글 좋아요/북마크/구매권한 정리
+        postLikesRepository.deleteByPostId(postId);
+        postBookmarksRepository.deleteByPostId(postId);
+        postAccessRepository.deleteByPostId(postId);
+        postStatsRepository.deleteByPostId(postId);
 
-        postAttachmentsService.purgeAllByPostId(postId);
 
+        // 3) 태그/채택 정리
         postTagsRepository.deleteByPost_Id(postId);
         acceptedCommentsRepository.deleteByPost_Id(postId);
+
+        // 4) 첨부 정리 (S3 after-commit 삭제 포함)
+        postAttachmentsService.purgeAllByPostId(postId);
+
+        // 5) 마지막: 게시글 soft delete
+        post.deleteSoft();
     }
 
     @Transactional
@@ -313,6 +328,8 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public PurchasePostAccessResponse purchasePostAccess(Long userId, Long postId) {
+        userRepository.lockUserRow(userId);
+
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.USER_NOT_FOUND));
 
