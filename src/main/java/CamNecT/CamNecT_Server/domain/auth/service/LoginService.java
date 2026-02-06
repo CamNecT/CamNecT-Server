@@ -91,6 +91,7 @@ public class LoginService {
         String access = jwtFacade.createAccessToken(user);
         String refresh = jwtFacade.createRefreshToken(user);
 
+        //TODO : 인증완료화면에서 이름,학과,학번,대학 4가지 return해줘야됨 -> response를 손보기? 첫 로그인한정 api 추가?
         return new LoginResponse(
                 "Bearer", access, refresh,
                 jwtUtil.getAccessTokenExpirationMs(),
