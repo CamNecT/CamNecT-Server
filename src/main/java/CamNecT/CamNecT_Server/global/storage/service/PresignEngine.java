@@ -26,10 +26,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -49,6 +46,9 @@ public class PresignEngine {
             "image/png", ".png",
             "image/webp", ".webp"
     );
+
+    public record IssueItem(String contentType, long size, String originalFilename) {}
+
 
     @Transactional
     public PresignUploadResponse issueUpload(Long userId,
@@ -107,6 +107,81 @@ public class PresignEngine {
                 expiresAt,
                 Map.of("Content-Type", ct)
         );
+    }
+
+    /**
+     * 다건 presign 발급 전용
+     * - purpose 기준 PENDING 티켓을 "요청 개수만큼" 허용
+     * - maxPendingLimit(예: props.maxFiles)로 (현재 pending + 요청개수) 제한
+     */
+    @Transactional
+    public List<PresignUploadResponse> issueUploadBatch(
+            Long userId,
+            UploadPurpose purpose,
+            String keyPrefix,               // ★ temp 없는 prefix를 권장
+            List<IssueItem> items,
+            int maxPendingLimit
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+
+        // 만료된 pending 정리
+        ticketRepo.bulkExpirePendingByUserPurpose(userId, purpose, now);
+
+        long active = ticketRepo.countByUserIdAndPurposeAndStatusAndExpiresAtAfter(
+                userId, purpose, UploadTicket.Status.PENDING, now
+        );
+
+        if (active + items.size() > maxPendingLimit) {
+            throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
+        }
+
+        String tempPrefix = toTempPrefix(keyPrefix);
+        LocalDateTime expiresAt = now.plusSeconds(presignProps.uploadExpirationSeconds());
+
+        List<UploadTicket> tickets = new ArrayList<>(items.size());
+        List<PresignUploadResponse> out = new ArrayList<>(items.size());
+
+        for (IssueItem item : items) {
+            String ct = normalize(item.contentType());
+            String ext = EXT_BY_CONTENT_TYPE.getOrDefault(ct, "");
+            String key = buildKey(tempPrefix, UUID.randomUUID() + ext);
+
+            UploadTicket ticket = UploadTicket.builder()
+                    .userId(userId)
+                    .purpose(purpose)
+                    .status(UploadTicket.Status.PENDING)
+                    .storageKey(key)
+                    .originalFilename(safeName(item.originalFilename()))
+                    .contentType(ct)
+                    .size(item.size())
+                    .expiresAt(expiresAt)
+                    .build();
+
+            tickets.add(ticket);
+
+            PutObjectRequest putReq = PutObjectRequest.builder()
+                    .bucket(s3Props.bucket())
+                    .key(key)
+                    .contentType(ct)
+                    .build();
+
+            PutObjectPresignRequest presignReq = PutObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofSeconds(presignProps.uploadExpirationSeconds()))
+                    .putObjectRequest(putReq)
+                    .build();
+
+            String url = presigner.presignPutObject(presignReq).url().toString();
+
+            out.add(new PresignUploadResponse(
+                    key,
+                    url,
+                    expiresAt,
+                    Map.of("Content-Type", ct)
+            ));
+        }
+
+        ticketRepo.saveAll(tickets);
+        return out;
     }
 
     /**

@@ -4,6 +4,9 @@ import CamNecT.CamNecT_Server.domain.community.model.Comments.Comments;
 import CamNecT.CamNecT_Server.domain.community.model.enums.CommentStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -25,11 +28,12 @@ public interface CommentsRepository extends JpaRepository<Comments, Long> {
     // 여러 postId의 댓글 수 집계가 필요할 때(나중에 피드용)
     long countByPost_IdAndStatus(Long postId, CommentStatus status);
 
-    // 삭제/정리용
-    void deleteByPost_Id(Long postId);
-
     // postIds 묶어서 가져오기(피드에서 댓글 미리보기 같은 것 할 때)
     List<Comments> findByPost_IdInAndStatus(Collection<Long> postIds, CommentStatus status);
 
+    // 게시글 삭제 시: 댓글 하드 삭제
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from Comments c where c.post.id = :postId")
+    int deleteByPostId(@Param("postId") Long postId);
 
 }
