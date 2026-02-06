@@ -68,6 +68,12 @@ public class ChatService {
             throw new CustomException(CoffeeChatErrorCode.CHATROOM_ALREADY_EXISTS);
          }*/
 
+        boolean isOpen = userProfileRepository.existsByUserIdAndOpenToCoffeeChatTrue(receiverId);
+        if (!isOpen) {
+            throw new CustomException(CoffeeChatErrorCode.RECEIVER_COFFEECHAT_DISABLED);
+        }
+
+
         Users requester = userRepository.findById(requesterId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUESTER_NOT_FOUND));
         Users receiver = userRepository.findById(receiverId)

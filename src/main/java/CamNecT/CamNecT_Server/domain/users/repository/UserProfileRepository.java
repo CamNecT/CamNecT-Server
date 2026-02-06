@@ -40,4 +40,6 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
         )
     """)
     Slice<UserProfile> findByAllTagIds(List<Long> tagIds, Long tagCount, Pageable pageable);
+
+    boolean existsByUserIdAndOpenToCoffeeChatTrue(Long userId);
 }
