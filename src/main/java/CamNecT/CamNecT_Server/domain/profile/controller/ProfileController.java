@@ -37,6 +37,16 @@ public class ProfileController {
     }
 
     @Operation(
+            summary = "마이페이지 조회",
+            description = "로그인한 사용자의 마이페이지를 조회합니다."
+    )
+    @GetMapping("/me")
+    public ApiResponse<ProfileResponse> getUserProfile(@UserId Long loginUserId) {
+        ProfileResponse response = profileService.getUserProfile(loginUserId, loginUserId);
+        return ApiResponse.success(response);
+    }
+
+    @Operation(
             summary = "프로필 이미지 업로드 URL 생성",
             description = "프로필 이미지를 업로드하기 위한 S3 URL을 생성합니다."
     )
