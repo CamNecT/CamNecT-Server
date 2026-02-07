@@ -3,6 +3,7 @@ package CamNecT.CamNecT_Server.domain.activity.model.external_activity;
 import CamNecT.CamNecT_Server.domain.activity.dto.request.ActivityRequest;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityCategory;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityStatus;
+import CamNecT.CamNecT_Server.domain.users.model.Users;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -34,8 +35,9 @@ public class ExternalActivity {
     @Column(length = 100)
     private String organizer;
 
-    @JoinColumn(name = "user_id")
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private Users user;
 
     @Column(length = 50)
     private String region;
@@ -44,7 +46,7 @@ public class ExternalActivity {
     private String targetDescription;
 
     @Column(length = 500)
-    private String thumbnailUrl;
+    private String thumbnailKey;
 
     @Column
     private LocalDate applyStartDate;
@@ -70,8 +72,8 @@ public class ExternalActivity {
     @Column(columnDefinition = "TEXT")
     private String context;
 
-    public void updateThumbnail(String thumbnailUrl) {
-        this.thumbnailUrl = thumbnailUrl;
+    public void updateThumbnail(String thumbnailKey) {
+        this.thumbnailKey = thumbnailKey;
     }
 
     public void update(ActivityRequest request) {

@@ -19,8 +19,9 @@ public class ExternalActivityAttachment {
     @Column(name = "attachment_id")
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "activity_id", nullable = false)
-    private Long externalActivity;
+    private ExternalActivity externalActivity;
 
     @Column(name = "file_url", nullable = false, length = 500)
     private String fileUrl;
