@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.community.service;
 
+import CamNecT.CamNecT_Server.domain.community.dto.AuthorDto;
 import CamNecT.CamNecT_Server.domain.community.dto.request.CreatePostRequest;
 import CamNecT.CamNecT_Server.domain.community.dto.request.UpdatePostRequest;
 import CamNecT.CamNecT_Server.domain.community.dto.response.*;
@@ -61,6 +62,8 @@ public class PostServiceImpl implements PostService {
     private final PointService pointService;
 
     private final ApplicationEventPublisher eventPublisher;
+
+    private final AuthorAssembler  authorAssembler;
 
     @Transactional
     @Override
@@ -238,13 +241,16 @@ public class PostServiceImpl implements PostService {
 
         String content = (accessStatus == ContentAccessStatus.GRANTED) ? post.getContent() : null;
 
+        AuthorDto author = authorAssembler
+                .buildAuthorMap(List.of(post.getUser().getUserId()))
+                .get(post.getUser().getUserId());
+
         return new PostDetailResponse(
                 post.getId(),
                 post.getBoard().getCode(),
                 post.getTitle(),
                 content,
                 post.isAnonymous(),
-                post.getUser().getUserId(),
                 stats.getViewCount(),
                 stats.getLikeCount(),
                 likedByMe,
@@ -252,7 +258,8 @@ public class PostServiceImpl implements PostService {
                 tagIds,
                 accessStatus,
                 requiredPoints,
-                myPoints
+                myPoints,
+                author
         );
     }
 
@@ -325,7 +332,7 @@ public class PostServiceImpl implements PostService {
         return new ToggleBookmarkResponse(postId, !exists, stats.getBookmarkCount());
     }
 
-    //TODO : 구매안해도 default가 열람가능으로
+
     @Transactional
     @Override
     public PurchasePostAccessResponse purchasePostAccess(Long userId, Long postId) {

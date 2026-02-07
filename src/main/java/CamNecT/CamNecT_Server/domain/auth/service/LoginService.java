@@ -12,7 +12,6 @@ import CamNecT.CamNecT_Server.domain.users.model.UserStatus;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
-import CamNecT.CamNecT_Server.domain.users.repository.UserTagMapRepository;
 import CamNecT.CamNecT_Server.domain.verification.document.model.DocumentVerificationSubmission;
 import CamNecT.CamNecT_Server.domain.verification.document.repository.DocumentVerificationSubmissionRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;

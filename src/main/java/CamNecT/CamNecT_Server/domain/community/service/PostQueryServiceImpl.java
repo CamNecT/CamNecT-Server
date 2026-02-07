@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.community.service;
 
+import CamNecT.CamNecT_Server.domain.community.dto.AuthorDto;
 import CamNecT.CamNecT_Server.domain.community.dto.response.PostListResponse;
 import CamNecT.CamNecT_Server.domain.community.dto.response.PostSummaryResponse;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.PostAttachments;
@@ -36,6 +37,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     private final PostTagsRepository postTagsRepository;
     private final AcceptedCommentsRepository acceptedCommentsRepository;
     private final PublicUrlIssuer  publicUrlIssuer;
+    private final AuthorAssembler  authorAssembler;
 
     @Override
     public PostListResponse getPosts(Tab tab, Sort sort, Long tagId, String keyword,
@@ -170,6 +172,14 @@ public class PostQueryServiceImpl implements PostQueryService {
         }
         List<PostSummaryResponse> items = new ArrayList<>(posts.size());
 
+        List<Long> authorIds = posts.stream()
+                .map(p -> p.getUser().getUserId())
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<Long, AuthorDto> authorMap = authorAssembler.buildAuthorMap(authorIds);
+
         for (Posts p : posts) {
             PostStats ps = statsMap.get(p.getId());
 
@@ -183,6 +193,8 @@ public class PostQueryServiceImpl implements PostQueryService {
             String thumbKey = thumbKeyMap.get(p.getId()); // fileKey or thumbnailKey
             String thumbUrl = publicUrlIssuer.issuePublicUrl(thumbKey);
 
+            AuthorDto author = authorMap.get(p.getUser().getUserId());
+
             items.add(new PostSummaryResponse(
                     p.getId(),
                     p.getBoard().getCode(),
@@ -195,6 +207,7 @@ public class PostQueryServiceImpl implements PostQueryService {
                     bookmarkCount,
                     acceptedPostIds.contains(p.getId()),
                     tagsMap.getOrDefault(p.getId(), List.of()),
+                    author,
                     thumbUrl,
                     p.getAccessType()
             ));

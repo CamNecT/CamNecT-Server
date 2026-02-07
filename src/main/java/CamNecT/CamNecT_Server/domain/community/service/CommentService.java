@@ -1,6 +1,7 @@
 package CamNecT.CamNecT_Server.domain.community.service;
 
 
+import CamNecT.CamNecT_Server.domain.community.dto.AuthorDto;
 import CamNecT.CamNecT_Server.domain.community.dto.request.CreateCommentRequest;
 import CamNecT.CamNecT_Server.domain.community.dto.request.UpdateCommentRequest;
 import CamNecT.CamNecT_Server.domain.community.dto.response.CreateCommentResponse;
@@ -25,6 +26,7 @@ public interface CommentService {
             Long userId,
             Long parentCommentId,
             String content,
-            long likeCount
+            long likeCount,
+            AuthorDto author
     ) {}
 }
