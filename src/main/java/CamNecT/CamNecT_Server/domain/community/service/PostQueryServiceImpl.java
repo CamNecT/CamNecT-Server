@@ -2,18 +2,22 @@ package CamNecT.CamNecT_Server.domain.community.service;
 
 import CamNecT.CamNecT_Server.domain.community.dto.response.PostListResponse;
 import CamNecT.CamNecT_Server.domain.community.dto.response.PostSummaryResponse;
+import CamNecT.CamNecT_Server.domain.community.model.Posts.PostAttachments;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.PostStats;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.PostTags;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.Posts;
 import CamNecT.CamNecT_Server.domain.community.model.enums.BoardCode;
 import CamNecT.CamNecT_Server.domain.community.model.enums.PostStatus;
 import CamNecT.CamNecT_Server.domain.community.repository.Comments.AcceptedCommentsRepository;
+import CamNecT.CamNecT_Server.domain.community.repository.Comments.CommentsRepository;
+import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostAttachmentsRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostStatsRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostTagsRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostsRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CommunityErrorCode;
+import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
@@ -29,8 +33,10 @@ public class PostQueryServiceImpl implements PostQueryService {
 
     private final PostsRepository postsRepository;
     private final PostStatsRepository postStatsRepository;
+    private final PostAttachmentsRepository postAttachmentsRepository;
     private final PostTagsRepository postTagsRepository;
     private final AcceptedCommentsRepository acceptedCommentsRepository;
+    private final PublicUrlIssuer  publicUrlIssuer;
 
     @Override
     public PostListResponse getPosts(Tab tab, Sort sort, Long tagId, String keyword,
@@ -154,7 +160,17 @@ public class PostQueryServiceImpl implements PostQueryService {
         // accepted bulk
         Set<Long> acceptedPostIds = new HashSet<>(acceptedCommentsRepository.findAcceptedPostIds(postIds));
 
+        // thumbnail bulk (sortOrder=0)
+        Map<Long, String> thumbKeyMap = new HashMap<>();
+        for (PostAttachments a : postAttachmentsRepository.findThumbCandidates(postIds)) {
+            Long pid = a.getPost().getId();
+            // 같은 post에 여러 개가 와도 첫 번째만 채택
+            thumbKeyMap.putIfAbsent(pid,
+                    (hasText(a.getThumbnailKey()) ? a.getThumbnailKey() : a.getFileKey())
+            );
+        }
         List<PostSummaryResponse> items = new ArrayList<>(posts.size());
+
         for (Posts p : posts) {
             PostStats ps = statsMap.get(p.getId());
 
@@ -164,6 +180,9 @@ public class PostQueryServiceImpl implements PostQueryService {
             long bookmarkCount = ps == null ? 0 : ps.getBookmarkCount();
 
             String preview = makePreview(p.getContent(), MAX_CONTENT);
+
+            String thumbKey = thumbKeyMap.get(p.getId()); // fileKey or thumbnailKey
+            String thumbUrl = publicUrlIssuer.issuePublicUrl(thumbKey);
 
             items.add(new PostSummaryResponse(
                     p.getId(),
@@ -177,7 +196,7 @@ public class PostQueryServiceImpl implements PostQueryService {
                     bookmarkCount,
                     acceptedPostIds.contains(p.getId()),
                     tagsMap.getOrDefault(p.getId(), List.of()),
-                    null, // thumbnailUrl: 첨부 썸네일 필요해지면 PostAttachmentsRepository로 보강
+                    thumbUrl,
                     p.getAccessType()
             ));
         }
@@ -214,5 +233,9 @@ public class PostQueryServiceImpl implements PostQueryService {
             case INFO -> BoardCode.INFO;
             case QUESTION -> BoardCode.QUESTION;
         };
+    }
+
+    private static boolean hasText(String s) {
+        return s != null && !s.isBlank();
     }
 }
