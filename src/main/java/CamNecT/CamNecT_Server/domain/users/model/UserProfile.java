@@ -46,10 +46,10 @@ public class UserProfile {
     @Column(name = "profile_image_url", length = 500)
     private String profileImageUrl;
 
-    @Column(name = "student_no", length = 20) // nullable=true 기본
+    @Column(name = "student_no", length = 20) //학번
     private String studentNo;
 
-    @Column(name = "year_level")
+    @Column(name = "year_level") //학년
     private Integer yearLevel;
 
     @Column(name = "institution_id")
@@ -76,9 +76,9 @@ public class UserProfile {
         }
     }
 
-    public void applyVerifiedInfo(String studentNo, Integer yearLevel, Long institutionId, Long majorId) {
+    public void applyVerifiedInfo(String studentName, String studentNo, Long institutionId, Long majorId) {
+        this.user.updateName(studentName);
         this.studentNo = studentNo;
-        this.yearLevel = yearLevel;
         this.institutionId = institutionId;
         this.majorId = majorId;
     }

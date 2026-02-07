@@ -78,6 +78,12 @@ public class Users {
         this.status = newStatus;
     }
 
+    public void updateName(String name) {
+        if (name == null) return;
+        String n = name.trim();
+        if (!n.isBlank()) this.name = n;
+    }
+
 
     //로그인시 User상태위한 메서드들
     public void markVerificationCompletePending() { this.verificationCompletePending = true; }
