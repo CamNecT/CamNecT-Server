@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,17 +14,6 @@ public interface PostAttachmentsRepository extends JpaRepository<PostAttachments
 
     // 상세: 첨부 전체(active만)
     List<PostAttachments> findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(Long postId);
-
-    // 목록 썸네일 1개(active만, 가장 먼저 저장된 첨부)
-    Optional<PostAttachments> findTop1ByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(Long postId);
-
-    // 피드: 여러 postId 첨부 한번에(active만)
-    @Query("""
-           select a from PostAttachments a
-           where a.post.id in :postIds and a.status = true
-           order by a.post.id asc, a.sortOrder asc, a.id asc
-           """)
-    List<PostAttachments> findActiveByPostIds(@Param("postIds") List<Long> postIds);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
@@ -35,5 +25,16 @@ public interface PostAttachmentsRepository extends JpaRepository<PostAttachments
     void softDeleteByPostId(@Param("postId") Long postId);
 
     Optional<PostAttachments> findByIdAndPost_IdAndStatusTrue(Long id, Long postId);
+
+    @Query("""
+        select a
+        from PostAttachments a
+        where a.status = true
+        and a.post.id in :postIds
+        and a.sortOrder = 0
+        order by a.post.id asc, a.id asc
+        """)
+    List<PostAttachments> findThumbCandidates(@Param("postIds") Collection<Long> postIds);
+
 }
 

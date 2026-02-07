@@ -81,12 +81,4 @@ public class PostAttachments {
     public boolean isActive() {
         return status;
     }
-
-    public void deleteSoft() {
-        this.status = false;
-    }
-
-    public String thumbnailOrFile() {
-        return (thumbnailKey != null && !thumbnailKey.isBlank()) ? thumbnailKey : fileKey;
-    }
 }
