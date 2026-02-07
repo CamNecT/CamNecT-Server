@@ -40,7 +40,7 @@ app:
     reward:
       comment-selection: 50
   cdn:
-    base-url: https://camnect.site
+    base-url: https://cdn.camnect.site
 
 
 
