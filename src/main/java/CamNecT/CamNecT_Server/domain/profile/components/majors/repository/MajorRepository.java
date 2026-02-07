@@ -21,7 +21,10 @@ public interface MajorRepository extends JpaRepository<Majors, Long> {
             Long institutionId
     );
 
-    @Query("select m.majorNameKor from Majors m where m.majorId = :id")
+    @Query("select m.majorNameKor from Majors m where m.majorId = :ids")
     Optional<String> findNameKorById(@Param("id") Long id);
+
+    @Query("select m.majorId, m.majorNameKor from Majors m where m.majorId in :ids")
+    List<Object[]> findNameKorByIdIn(@Param("ids") List<Long> ids);
 
 }

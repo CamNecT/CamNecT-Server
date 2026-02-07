@@ -2,6 +2,7 @@ package CamNecT.CamNecT_Server.domain.community.controller;
 
 import CamNecT.CamNecT_Server.domain.community.dto.response.CommunityHomeResponse;
 import CamNecT.CamNecT_Server.domain.community.service.CommunityHomeService;
+import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,9 +25,7 @@ public class CommunityHomeController {
             description = "커뮤니티 홈에서 보여줄 인기글, 최신글 등을 통합 조회합니다. 특정 태그(tagId)를 전달하면 해당 태그 위주의 맞춤형 데이터를 반환합니다."
     )
     @GetMapping("/home")
-    public ApiResponse<CommunityHomeResponse> home(
-            @RequestParam(required = false) Long tagId
-    ) {
-        return ApiResponse.success(communityHomeService.getHome(tagId));
+    public ApiResponse<CommunityHomeResponse> home(@UserId Long userId) {
+        return ApiResponse.success(communityHomeService.getHome(userId));
     }
 }
