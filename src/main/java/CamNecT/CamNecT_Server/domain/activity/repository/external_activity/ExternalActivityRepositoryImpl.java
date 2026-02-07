@@ -144,8 +144,8 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
             return externalActivity.applyStartDate.desc();
         }
 
-        switch (sortType.toUpperCase()) {
-            case "RECOMMEND":
+        return switch (sortType.toUpperCase()) {
+            case "RECOMMEND" -> {
                 NumberExpression<Long> matchCount = Expressions.asNumber(
                         JPAExpressions.select(userTagMap.count())
                                 .from(userTagMap)
@@ -153,31 +153,27 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                                 .where(userTagMap.userId.eq(userId)
                                         .and(externalActivityTag.activityId.eq(externalActivity.activityId)))
                 );
-                return matchCount.desc();
-
-            case "DEADLINE":
-                return externalActivity.applyEndDate.asc();
-
-            case "BOOKMARK":
+                yield matchCount.desc();
+            }
+            case "DEADLINE" -> externalActivity.applyEndDate.asc();
+            case "BOOKMARK" -> {
                 NumberExpression<Long> bookmarkCount = Expressions.asNumber(
                         JPAExpressions.select(externalActivityBookmark.count())
                                 .from(externalActivityBookmark)
                                 .where(externalActivityBookmark.activityId.eq(externalActivity.activityId))
                 );
-                return bookmarkCount.desc();
-
-            case "RECRUIT":
+                yield bookmarkCount.desc();
+            }
+            case "RECRUIT" -> {
                 NumberExpression<Long> recruitCount = Expressions.asNumber(
                         JPAExpressions.select(teamRecruitment.count())
                                 .from(teamRecruitment)
                                 .where(teamRecruitment.activityId.eq(externalActivity.activityId))
                 );
-                return recruitCount.desc();
-
-            case "LATEST":
-            default:
-                return externalActivity.applyStartDate.desc();
-        }
+                yield recruitCount.desc();
+            }
+            default -> externalActivity.applyStartDate.desc();
+        };
     }
 
     @Override
