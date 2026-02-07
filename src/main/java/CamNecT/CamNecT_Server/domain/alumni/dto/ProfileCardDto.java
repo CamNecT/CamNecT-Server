@@ -15,7 +15,7 @@ public record ProfileCardDto(
         return ProfileCardDto.builder()
                 .bio(profile.getBio())
                 .openToCoffeeChat(profile.getOpenToCoffeeChat())
-                .profileImageUrl(profile.getProfileImageUrl())
+                .profileImageUrl(profile.getProfileImageKey())
                 .studentNo(profile.getStudentNo())
                 .majorId(profile.getMajorId())
                 .build();

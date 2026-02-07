@@ -22,6 +22,7 @@ import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
+import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
@@ -51,6 +52,7 @@ public class ChatService {
     private final TagRepository tagRepository;
     private final UserProfileRepository userProfileRepository;
     private final MajorRepository majorRepository;
+    private final PublicUrlIssuer  publicUrlIssuer;
 
     /*
       1. 커피챗 요청 보내기
@@ -225,7 +227,7 @@ public class ChatService {
                                     .map(Majors::getMajorNameKor)
                                     .orElse("알 수 없는 전공");
                         }
-                        profileImgUrl = opProfile.getProfileImageUrl();
+                        profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
 
                     }
 

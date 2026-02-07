@@ -65,7 +65,7 @@ public class ProfileService {
         UserProfile userProfile = userProfileRepository.findByUserId(profileUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 
-        String profileImageUrl = publicUrlIssuer.issuePublicUrl(userProfile.getProfileImageUrl());
+        String profileImageUrl = publicUrlIssuer.issuePublicUrl(userProfile.getProfileImageKey());
 
         boolean isOwner = (loginUserId != null) && loginUserId.equals(profileUserId);
         boolean showFollower = isOwner || Boolean.TRUE.equals(userProfile.getIsFollowerVisible());
@@ -272,7 +272,7 @@ public class ProfileService {
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
-        String oldKey = profile.getProfileImageUrl();
+        String oldKey = profile.getProfileImageKey();
 
         String newFinalKey = null;
         if (StringUtils.hasText(req.profileImageKey())) {
@@ -317,7 +317,7 @@ public class ProfileService {
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 
-        String profileImageUrl = publicUrlIssuer.issuePublicUrl(userProfile.getProfileImageUrl());
+        String profileImageUrl = publicUrlIssuer.issuePublicUrl(userProfile.getProfileImageKey());
 
         return new ProfileSettingsResponse(
                 user.getUserId(),

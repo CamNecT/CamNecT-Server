@@ -58,7 +58,7 @@ public class AlumniService {
                     // UserProfile 엔티티 → DTO 변환 + 프로필 이미지 presigned URL 적용
                     UserProfileDto profileDto = UserProfileDto.from(profile)
                             .withProfileImageUrl(
-                                    presignOrNull(profile.getProfileImageUrl(), "profile-image", "image/jpeg")
+                                    presignOrNull(profile.getProfileImageKey(), "profile-image", "image/jpeg")
                             );
 
                     return new AlumniPreviewResponse(

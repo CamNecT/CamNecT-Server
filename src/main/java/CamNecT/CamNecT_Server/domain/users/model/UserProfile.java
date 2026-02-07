@@ -43,8 +43,8 @@ public class UserProfile {
     @Builder.Default
     private Boolean isCertificateVisible = true;
 
-    @Column(name = "profile_image_url", length = 500)
-    private String profileImageUrl;
+    @Column(name = "profile_image_key", length = 500)
+    private String profileImageKey;
 
     @Column(name = "student_no", length = 20) //학번
     private String studentNo;
@@ -73,7 +73,7 @@ public class UserProfile {
     public void updateProfileImageKey(String profileImageKey) {
         if (profileImageKey != null) {
             String u = profileImageKey.trim();
-            this.profileImageUrl = u.isBlank() ? null : u;
+            this.profileImageKey = u.isBlank() ? null : u;
         }
     }
 

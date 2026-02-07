@@ -106,7 +106,7 @@ public class LoginService {
         // “소개/사진/태그”가 모두 필요하다는 요구 기준으로 엄격하게 체크
         return userProfileRepository.findByUserId(userId)
                 .map(p -> org.springframework.util.StringUtils.hasText(p.getBio())
-                        && org.springframework.util.StringUtils.hasText(p.getProfileImageUrl())
+                        && org.springframework.util.StringUtils.hasText(p.getProfileImageKey())
                         && userTagMapRepository.countByUserId(userId) > 0
                 )
                 .orElse(false);
