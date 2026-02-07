@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -76,7 +77,7 @@ public class LoginService {
                 .orElse(null);
 
         // 3) 온보딩 완료 여부
-        boolean onboardingDone = isOnboardingDone(user.getUserId());
+        boolean onboardingDone = userProfileRepository.existsByUserId(user.getUserId());
 
         // 4) nextStep 결정
         LoginNextStep nextStep = resolveNext(user, latest, onboardingDone);
@@ -108,16 +109,6 @@ public class LoginService {
                 user.getRole().name(),
                 nextStep
         );
-    }
-
-    private boolean isOnboardingDone(Long userId) {
-        // “소개/사진/태그”가 모두 필요하다는 요구 기준으로 엄격하게 체크
-        return userProfileRepository.findByUserId(userId)
-                .map(p -> org.springframework.util.StringUtils.hasText(p.getBio())
-                        && org.springframework.util.StringUtils.hasText(p.getProfileImageKey())
-                        && userTagMapRepository.countByUserId(userId) > 0
-                )
-                .orElse(false);
     }
 
     public VerificationCompleteResponse getVerificationCompleteInfo(Long userId) {
