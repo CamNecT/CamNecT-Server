@@ -3,6 +3,10 @@ package CamNecT.CamNecT_Server.domain.auth.service;
 import CamNecT.CamNecT_Server.domain.auth.dto.LoginNextStep;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginRequest;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginResponse;
+import CamNecT.CamNecT_Server.domain.auth.dto.login.VerificationCompleteResponse;
+import CamNecT.CamNecT_Server.domain.profile.components.institutions.repository.InstitutionRepository;
+import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
+import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.UserRole;
 import CamNecT.CamNecT_Server.domain.users.model.UserStatus;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
@@ -13,6 +17,7 @@ import CamNecT.CamNecT_Server.domain.verification.document.model.DocumentVerific
 import CamNecT.CamNecT_Server.domain.verification.document.repository.DocumentVerificationSubmissionRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.CamNecT_Server.global.jwt.JwtFacade;
 import CamNecT.CamNecT_Server.global.jwt.JwtUtil;
 
@@ -32,6 +37,8 @@ public class LoginService {
     private final DocumentVerificationSubmissionRepository submissionRepo;
     private final UserProfileRepository userProfileRepository;
     private final UserTagMapRepository userTagMapRepository;
+    private final InstitutionRepository institutionRepository;
+    private final MajorRepository majorRepository;
 
     @Transactional
     public LoginResponse login(LoginRequest req) {
@@ -111,6 +118,27 @@ public class LoginService {
                         && userTagMapRepository.countByUserId(userId) > 0
                 )
                 .orElse(false);
+    }
+
+    public VerificationCompleteResponse getVerificationCompleteInfo(Long userId) {
+        Users u = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+
+        UserProfile p = userProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+
+        String instName = (p.getInstitutionId() == null) ? null
+                : institutionRepository.findNameKorById(p.getInstitutionId()).orElse(null);
+
+        String majorName = (p.getMajorId() == null) ? null
+                : majorRepository.findNameKorById(p.getMajorId()).orElse(null);
+
+        return new VerificationCompleteResponse(
+                u.getName(),
+                p.getStudentNo(),
+                instName,
+                majorName
+        );
     }
 
     private LoginNextStep resolveNext(Users user, DocumentVerificationSubmission latest, boolean onboardingDone) {
