@@ -26,9 +26,9 @@ import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadRequest;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadResponse;
 import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
 import CamNecT.CamNecT_Server.global.storage.model.UploadRefType;
-import CamNecT.CamNecT_Server.global.storage.service.DownloadUrlIssuer;
 import CamNecT.CamNecT_Server.global.storage.service.FileStorage;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
+import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -55,7 +55,7 @@ public class ProfileService {
     private final TagRepository tagRepository;
     private final PresignEngine presignEngine;
     private final FileStorage fileStorage;
-    private final DownloadUrlIssuer downloadUrlIssuer;
+    private final PublicUrlIssuer publicUrlIssuer;
 
     @Transactional(readOnly = true)
     public ProfileResponse getUserProfile(Long loginUserId, Long profileUserId) {
@@ -65,7 +65,7 @@ public class ProfileService {
         UserProfile userProfile = userProfileRepository.findByUserId(profileUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 
-        String profileImageUrl = downloadUrlIssuer.issueDisplayUrl(userProfile.getProfileImageUrl());
+        String profileImageUrl = publicUrlIssuer.issuePublicUrl(userProfile.getProfileImageUrl());
 
         boolean isOwner = (loginUserId != null) && loginUserId.equals(profileUserId);
         boolean showFollower = isOwner || Boolean.TRUE.equals(userProfile.getIsFollowerVisible());
@@ -117,7 +117,7 @@ public class ProfileService {
 
     @Transactional
     public void updatePrivacy(Long userId, UpdatePrivacyRequest request) {
-        UserProfile profile = userProfileRepository.findById(userId)
+        UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
         profile.updatePrivacySettings(
@@ -309,7 +309,7 @@ public class ProfileService {
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 
-        String profileImageUrl = downloadUrlIssuer.issueDisplayUrl(userProfile.getProfileImageUrl());
+        String profileImageUrl = publicUrlIssuer.issuePublicUrl(userProfile.getProfileImageUrl());
 
         return new ProfileSettingsResponse(
                 user.getUserId(),
