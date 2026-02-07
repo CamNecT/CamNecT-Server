@@ -39,6 +39,8 @@ app:
   point:
     reward:
       comment-selection: 50
+  cdn:
+    base-url: https://camnect.site
 
 
 
