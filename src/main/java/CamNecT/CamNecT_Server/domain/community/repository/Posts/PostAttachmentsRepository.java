@@ -15,14 +15,6 @@ public interface PostAttachmentsRepository extends JpaRepository<PostAttachments
     // 상세: 첨부 전체(active만)
     List<PostAttachments> findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(Long postId);
 
-    // 피드: 여러 postId 첨부 한번에(active만)
-    @Query("""
-           select a from PostAttachments a
-           where a.post.id in :postIds and a.status = true
-           order by a.post.id asc, a.sortOrder asc, a.id asc
-           """)
-    List<PostAttachments> findActiveByPostIds(@Param("postIds") List<Long> postIds);
-
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
            update PostAttachments a

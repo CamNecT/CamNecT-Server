@@ -9,7 +9,6 @@ import CamNecT.CamNecT_Server.domain.community.model.Posts.Posts;
 import CamNecT.CamNecT_Server.domain.community.model.enums.BoardCode;
 import CamNecT.CamNecT_Server.domain.community.model.enums.PostStatus;
 import CamNecT.CamNecT_Server.domain.community.repository.Comments.AcceptedCommentsRepository;
-import CamNecT.CamNecT_Server.domain.community.repository.Comments.CommentsRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostAttachmentsRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostStatsRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostTagsRepository;
