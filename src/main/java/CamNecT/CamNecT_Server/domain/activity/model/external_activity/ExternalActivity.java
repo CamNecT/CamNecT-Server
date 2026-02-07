@@ -6,11 +6,13 @@ import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 @Table(name = "external_activities")
 @Getter
 @Builder
@@ -60,9 +62,10 @@ public class ExternalActivity {
     @Column(nullable = false, length = 20)
     private ActivityStatus status = ActivityStatus.OPEN;
 
+    @Builder.Default
     @CreatedDate
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(columnDefinition = "TEXT")
     private String context;
