@@ -167,7 +167,7 @@ public class ProfileService {
         UserProfile userProfile = UserProfile.builder()
                 .user(user)
                 .bio(null)
-                .profileImageUrl(null)
+                .profileImageKey(null)
                 .openToCoffeeChat(false)
                 .studentNo(null)
                 .yearLevel(null)
