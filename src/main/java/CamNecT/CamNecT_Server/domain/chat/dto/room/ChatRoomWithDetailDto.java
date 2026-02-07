@@ -50,7 +50,7 @@ public class ChatRoomWithDetailDto {
 
                 .opponentMajor(majorName)
                 .opponentStudentYear(opProfile != null ? opProfile.getYearLevel().toString() : "")
-                .opponentProfileImg(opProfile != null ? opProfile.getProfileImageUrl() : "/images/default.png")
+                .opponentProfileImg(opProfile != null ? opProfile.getProfileImageKey() : "/images/default.png")
 
                 .requestTags(room.getTags().stream()
                         .map(Tag::getName)

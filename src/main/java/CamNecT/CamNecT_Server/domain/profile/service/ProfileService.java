@@ -10,6 +10,7 @@ import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioPreviewResp
 import CamNecT.CamNecT_Server.domain.portfolio.repository.PortfolioRepository;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateOnboardingRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
+import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileImageRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileTagsRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileSettingsResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
@@ -22,23 +23,22 @@ import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.StorageErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
+import CamNecT.CamNecT_Server.global.common.service.GlobalPresignMethods;
 import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadRequest;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadResponse;
 import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
 import CamNecT.CamNecT_Server.global.storage.model.UploadRefType;
-import CamNecT.CamNecT_Server.global.storage.service.DownloadUrlIssuer;
-import CamNecT.CamNecT_Server.global.storage.service.FileStorage;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
+import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
-import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -54,8 +54,8 @@ public class ProfileService {
     private final EducationRepository educationRepository;
     private final TagRepository tagRepository;
     private final PresignEngine presignEngine;
-    private final FileStorage fileStorage;
-    private final DownloadUrlIssuer downloadUrlIssuer;
+    private final PublicUrlIssuer publicUrlIssuer;
+    private final GlobalPresignMethods globalPresignMethods;
 
     @Transactional(readOnly = true)
     public ProfileResponse getUserProfile(Long loginUserId, Long profileUserId) {
@@ -65,7 +65,7 @@ public class ProfileService {
         UserProfile userProfile = userProfileRepository.findByUserId(profileUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 
-        String profileImageUrl = downloadUrlIssuer.issueDisplayUrl(userProfile.getProfileImageUrl());
+        String profileImageUrl = publicUrlIssuer.issuePublicUrl(userProfile.getProfileImageKey());
 
         boolean isOwner = (loginUserId != null) && loginUserId.equals(profileUserId);
         boolean showFollower = isOwner || Boolean.TRUE.equals(userProfile.getIsFollowerVisible());
@@ -117,7 +117,7 @@ public class ProfileService {
 
     @Transactional
     public void updatePrivacy(Long userId, UpdatePrivacyRequest request) {
-        UserProfile profile = userProfileRepository.findById(userId)
+        UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
         profile.updatePrivacySettings(
@@ -167,7 +167,7 @@ public class ProfileService {
         UserProfile userProfile = UserProfile.builder()
                 .user(user)
                 .bio(null)
-                .profileImageUrl(null)
+                .profileImageKey(null)
                 .openToCoffeeChat(false)
                 .studentNo(null)
                 .yearLevel(null)
@@ -244,7 +244,7 @@ public class ProfileService {
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
         requireEmailVerifiedAndNotSuspended(user);
 
-        String ct = normalize(req.contentType());
+        String ct = globalPresignMethods.normalize(req.contentType());
         long maxBytes = 5 * 1024 * 1024L;
 
         if (req.size() == null || req.size() <= 0) throw new CustomException(StorageErrorCode.STORAGE_EMPTY_FILE);
@@ -262,6 +262,39 @@ public class ProfileService {
         );
     }
 
+    @Transactional
+    public void updateMyProfileImage(Long userId, UpdateProfileImageRequest req) {
+
+        Users user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+        requireEmailVerifiedAndNotSuspended(user);
+
+        UserProfile profile = userProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+
+        String oldKey = profile.getProfileImageKey();
+
+        String newFinalKey = null;
+        if (StringUtils.hasText(req.profileImageKey())) {
+            String finalPrefix = "profile/user-" + userId + "/images";
+            newFinalKey = presignEngine.consume(
+                    userId,
+                    UploadPurpose.PROFILE_IMAGE,
+                    UploadRefType.USER_PROFILE,
+                    userId,
+                    req.profileImageKey(),
+                    finalPrefix
+            );
+        }
+
+        profile.updateProfileImageKey(newFinalKey); // setter/메서드로 반영
+
+        // 기존 이미지 정리(새 키와 다를 때만)
+        if (StringUtils.hasText(oldKey) && !Objects.equals(oldKey, newFinalKey)) {
+            globalPresignMethods.deleteAfterCommit(Set.of(oldKey));
+        }
+    }
+
     private void requireEmailVerifiedAndNotSuspended(Users user) {
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new CustomException(UserErrorCode.USER_SUSPENDED);
@@ -269,31 +302,6 @@ public class ProfileService {
         if (user.getStatus() == UserStatus.EMAIL_PENDING) {
             throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
         }
-    }
-
-    private void deleteAfterCommit(String storageKey) {
-        if (!StringUtils.hasText(storageKey)) return;
-
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    try {
-                        fileStorage.delete(storageKey);
-                    } catch (Exception ignored) {
-                    }
-                }
-            });
-        } else {
-            try {
-                fileStorage.delete(storageKey);
-            } catch (Exception ignored) {
-            }
-        }
-    }
-
-    private String normalize(String ct) {
-        return (ct == null) ? "" : ct.trim().toLowerCase(Locale.ROOT);
     }
 
     private String trimToNull(String s) {
@@ -309,7 +317,7 @@ public class ProfileService {
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 
-        String profileImageUrl = downloadUrlIssuer.issueDisplayUrl(userProfile.getProfileImageUrl());
+        String profileImageUrl = publicUrlIssuer.issuePublicUrl(userProfile.getProfileImageKey());
 
         return new ProfileSettingsResponse(
                 user.getUserId(),

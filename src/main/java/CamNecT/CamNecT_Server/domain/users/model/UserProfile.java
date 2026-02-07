@@ -43,13 +43,13 @@ public class UserProfile {
     @Builder.Default
     private Boolean isCertificateVisible = true;
 
-    @Column(name = "profile_image_url", length = 500)
-    private String profileImageUrl;
+    @Column(name = "profile_image_key", length = 500)
+    private String profileImageKey;
 
-    @Column(name = "student_no", length = 20) // nullable=true 기본
+    @Column(name = "student_no", length = 20) //학번
     private String studentNo;
 
-    @Column(name = "year_level")
+    @Column(name = "year_level") //학년
     private Integer yearLevel;
 
     @Column(name = "institution_id")
@@ -59,14 +59,8 @@ public class UserProfile {
     private Long majorId;
 
     public void updateOnboardingProfile(String bio, String profileImageKey) {
-        if (bio != null) {
-            String b = bio.trim();
-            this.bio = b.isBlank() ? null : b;
-        }
-        if (profileImageKey != null) {
-            String u = profileImageKey.trim();
-            this.profileImageUrl = u.isBlank() ? null : u;
-        }
+        updateBio(bio);
+        updateProfileImageKey(profileImageKey);
     }
 
     public void updateBio(String bio) {
@@ -76,9 +70,16 @@ public class UserProfile {
         }
     }
 
-    public void applyVerifiedInfo(String studentNo, Integer yearLevel, Long institutionId, Long majorId) {
+    public void updateProfileImageKey(String profileImageKey) {
+        if (profileImageKey != null) {
+            String u = profileImageKey.trim();
+            this.profileImageKey = u.isBlank() ? null : u;
+        }
+    }
+
+    public void applyVerifiedInfo(String studentName, String studentNo, Long institutionId, Long majorId) {
+        this.user.updateName(studentName);
         this.studentNo = studentNo;
-        this.yearLevel = yearLevel;
         this.institutionId = institutionId;
         this.majorId = majorId;
     }

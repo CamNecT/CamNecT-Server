@@ -7,8 +7,8 @@ public record AdminReviewDocumentVerificationRequest(
         String reason,
 
         // 승인 시 관리자 입력값(승인 요청일 때만 필수 처리)
+        String studentName,
         String studentNo,
-        Integer yearLevel,
         Long institutionId,
         Long majorId
 ) {

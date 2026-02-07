@@ -24,7 +24,7 @@ public class Users {
     @Column(name = "username", nullable = false, unique = true, length = 50)
     private String username;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
     @Column(name = "name", nullable = false, length = 100)
@@ -34,7 +34,7 @@ public class Users {
     @Column(name = "phone_num", length = 20, unique = true)
     private String phoneNum;
 
-    @Column(name = "email", length = 255, unique = true)
+    @Column(name = "email", unique = true)
     private String email;
 
     @Builder.Default //약관 동의1
@@ -76,6 +76,12 @@ public class Users {
 
     public void changeStatus(UserStatus newStatus) {
         this.status = newStatus;
+    }
+
+    public void updateName(String name) {
+        if (name == null) return;
+        String n = name.trim();
+        if (!n.isBlank()) this.name = n;
     }
 
 
