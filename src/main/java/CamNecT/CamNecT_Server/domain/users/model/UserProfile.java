@@ -59,20 +59,21 @@ public class UserProfile {
     private Long majorId;
 
     public void updateOnboardingProfile(String bio, String profileImageKey) {
-        if (bio != null) {
-            String b = bio.trim();
-            this.bio = b.isBlank() ? null : b;
-        }
-        if (profileImageKey != null) {
-            String u = profileImageKey.trim();
-            this.profileImageUrl = u.isBlank() ? null : u;
-        }
+        updateBio(bio);
+        updateProfileImageKey(profileImageKey);
     }
 
     public void updateBio(String bio) {
         if (bio != null) {
             String b = bio.trim();
             this.bio = b.isBlank() ? null : b;
+        }
+    }
+
+    public void updateProfileImageKey(String profileImageKey) {
+        if (profileImageKey != null) {
+            String u = profileImageKey.trim();
+            this.profileImageUrl = u.isBlank() ? null : u;
         }
     }
 
