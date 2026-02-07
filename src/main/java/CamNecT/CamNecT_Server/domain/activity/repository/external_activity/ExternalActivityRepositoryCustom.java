@@ -16,4 +16,7 @@ public interface ExternalActivityRepositoryCustom {
             String sortType,
             Pageable pageable
     );
+
+    // 홈: 북마크 많은 EXTERNAL activityId 상위 N(+1)개
+    List<Long> findTopIdsByBookmark(ActivityCategory category, int limitPlusOne);
 }

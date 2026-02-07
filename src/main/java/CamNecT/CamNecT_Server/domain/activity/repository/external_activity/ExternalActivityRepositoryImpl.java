@@ -2,7 +2,10 @@ package CamNecT.CamNecT_Server.domain.activity.repository.external_activity;
 
 import CamNecT.CamNecT_Server.domain.activity.dto.response.ActivityPreviewResponse;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityCategory;
+import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityStatus;
 import CamNecT.CamNecT_Server.domain.activity.model.external_activity.ExternalActivity;
+import CamNecT.CamNecT_Server.domain.activity.model.external_activity.QExternalActivity;
+import CamNecT.CamNecT_Server.domain.activity.model.external_activity.QExternalActivityBookmark;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -175,5 +178,27 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
             default:
                 return externalActivity.applyStartDate.desc();
         }
+    }
+
+    @Override
+    public List<Long> findTopIdsByBookmark(ActivityCategory category, int limitPlusOne) {
+        QExternalActivity ea = QExternalActivity.externalActivity;
+        QExternalActivityBookmark b = QExternalActivityBookmark.externalActivityBookmark;
+
+        return queryFactory
+                .select(ea.activityId)
+                .from(ea)
+                .leftJoin(b).on(b.activityId.eq(ea.activityId))
+                .where(
+                        category != null ? ea.category.eq(category) : null,
+                        ea.status.eq(ActivityStatus.OPEN) // 홈은 OPEN만 추천 (원치 않으면 제거)
+                )
+                .groupBy(ea.activityId)
+                .orderBy(
+                        b.id.count().desc(),
+                        ea.createdAt.desc()
+                )
+                .limit(limitPlusOne)
+                .fetch();
     }
 }

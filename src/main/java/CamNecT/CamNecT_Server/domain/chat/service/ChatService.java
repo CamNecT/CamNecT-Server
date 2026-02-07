@@ -13,6 +13,7 @@ import CamNecT.CamNecT_Server.domain.chat.model.ChatRoom;
 import CamNecT.CamNecT_Server.domain.chat.repository.ChatRepository;
 import CamNecT.CamNecT_Server.domain.chat.repository.ChatRequestRepository;
 import CamNecT.CamNecT_Server.domain.chat.repository.ChatRoomRepository;
+import CamNecT.CamNecT_Server.domain.home.dto.HomeResponse;
 import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
@@ -25,13 +26,18 @@ import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 
@@ -343,6 +349,69 @@ public class ChatService {
         } catch (Exception e) {
             System.err.println("소켓 전송 실패: " + e.getMessage());
         }
+    }
+
+    @Transactional(readOnly = true)
+    public HomeResponse.CoffeeChatSection getHomeInbox(Long userId, int limit) {
+
+        long pendingCount = chatRequestRepository.countByReceiver_UserIdAndStatus(
+                userId, ChatRequest.RequestStatus.WAITING
+        );
+        if (pendingCount == 0) return HomeResponse.CoffeeChatSection.empty();
+
+        List<ChatRequest> latest = chatRequestRepository.findLatestReceivedRequests(
+                userId,
+                ChatRequest.RequestStatus.WAITING,
+                PageRequest.of(0, limit)
+        );
+        if (latest.isEmpty()) {
+            return new HomeResponse.CoffeeChatSection(pendingCount, List.of());
+        }
+
+        List<Long> senderIds = latest.stream()
+                .map(cr -> cr.getRequester().getUserId())
+                .distinct()
+                .toList();
+
+        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(senderIds).stream()
+                .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
+
+        Set<Long> majorIds = profileMap.values().stream()
+                .map(UserProfile::getMajorId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, String> majorNameMap = majorIds.isEmpty()
+                ? Map.of()
+                : majorRepository.findAllById(majorIds).stream()
+                .collect(Collectors.toMap(Majors::getMajorId, Majors::getMajorNameKor));
+
+        List<HomeResponse.CoffeeChatSection.CoffeeChatPreview> previews = latest.stream()
+                .map(cr -> {
+                    Users sender = cr.getRequester();
+                    UserProfile p = profileMap.get(sender.getUserId());
+
+                    String majorName = null;
+                    String studentNo = null;
+
+                    if (p != null) {
+                        if (p.getMajorId() != null) {
+                            majorName = majorNameMap.get(p.getMajorId()); // 없으면 null
+                        }
+                        studentNo = (StringUtils.hasText(p.getStudentNo()) ? p.getStudentNo() : null);
+                    }
+
+                    return new HomeResponse.CoffeeChatSection.CoffeeChatPreview(
+                            cr.getId(),
+                            sender.getUserId(),
+                            sender.getName(),
+                            majorName,
+                            studentNo
+                    );
+                })
+                .toList();
+
+        return new HomeResponse.CoffeeChatSection(pendingCount, previews);
     }
 
 
