@@ -1,6 +1,7 @@
 package CamNecT.CamNecT_Server.domain.chat.repository;
 
 import CamNecT.CamNecT_Server.domain.chat.model.ChatRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -35,5 +36,21 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
 
     // 중복 신청 방지
     boolean existsByRequester_UserIdAndReceiver_UserIdAndStatus(Long requesterId, Long receiverId, ChatRequest.RequestStatus status);
+
+    long countByReceiver_UserIdAndStatus(Long userId, ChatRequest.RequestStatus status);
+
+    @Query("""
+        select cr
+        from ChatRequest cr
+        join fetch cr.requester r
+        where cr.receiver.userId = :userId
+          and cr.status = :status
+        order by cr.createdAt desc
+    """)
+    List<ChatRequest> findLatestReceivedRequests(
+            @Param("userId") Long userId,
+            @Param("status") ChatRequest.RequestStatus status,
+            Pageable pageable
+    );
 }
 

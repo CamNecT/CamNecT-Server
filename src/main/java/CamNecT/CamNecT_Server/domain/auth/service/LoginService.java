@@ -91,6 +91,7 @@ public class LoginService {
         String access = jwtFacade.createAccessToken(user);
         String refresh = jwtFacade.createRefreshToken(user);
 
+        //TODO : 인증완료화면에서 이름,학과,학번,대학 4가지 return해줘야됨 -> response를 손보기? 첫 로그인한정 api 추가?
         return new LoginResponse(
                 "Bearer", access, refresh,
                 jwtUtil.getAccessTokenExpirationMs(),
@@ -101,11 +102,12 @@ public class LoginService {
                 nextStep
         );
     }
+
     private boolean isOnboardingDone(Long userId) {
         // “소개/사진/태그”가 모두 필요하다는 요구 기준으로 엄격하게 체크
         return userProfileRepository.findByUserId(userId)
                 .map(p -> org.springframework.util.StringUtils.hasText(p.getBio())
-                        && org.springframework.util.StringUtils.hasText(p.getProfileImageUrl())
+                        && org.springframework.util.StringUtils.hasText(p.getProfileImageKey())
                         && userTagMapRepository.countByUserId(userId) > 0
                 )
                 .orElse(false);
@@ -140,4 +142,8 @@ public class LoginService {
                 || nextStep == LoginNextStep.DOCUMENT_REQUIRED
                 || nextStep == LoginNextStep.DOCUMENT_REVIEW_WAITING;
     }
+
+    public void logout(Long loginUserId) {
+        /* stateless access-token only 구조: 서버에서 할 일 없음
+                                            (추후 필요하면 푸시토큰 해제, 디바이스 세션 정리 등을 여기서 처리) */}
 }

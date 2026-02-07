@@ -173,12 +173,12 @@ public class AdminDocumentVerificationService {
 
     private void applyProfileInfoForApprove(Long userId, AdminReviewDocumentVerificationRequest req) {
 
+        String studentName = trimToNull(req.studentName());
         String studentNo = trimToNull(req.studentNo());
-        Integer yearLevel = req.yearLevel();
         Long institutionId = req.institutionId();
         Long majorId = req.majorId();
 
-        if (studentNo == null || yearLevel == null || institutionId == null || majorId == null) {
+        if (studentNo == null || studentName == null || institutionId == null || majorId == null) {
             // 승인 버튼은 “관리자 입력값 채운 뒤에만 호출”이지만 서버에서도 방어
             throw new CustomException(VerificationErrorCode.APPROVE_FIELDS_REQUIRED); // 임시. 전용 에러코드 추천
         }
@@ -186,7 +186,7 @@ public class AdminDocumentVerificationService {
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
-        profile.applyVerifiedInfo(studentNo, yearLevel, institutionId, majorId);
+        profile.applyVerifiedInfo(studentName, studentNo, institutionId, majorId);
     }
 
     private String safeName(String name) {

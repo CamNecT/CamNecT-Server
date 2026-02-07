@@ -51,6 +51,8 @@ public class AuthController {
         return loginService.login(req);
     }
 
+
+
     @Operation(summary = "아이디 중복확인", description = "사용 가능하면 true, 이미 사용 중이면 false")
     @GetMapping("/{username}/available")
     public boolean isUsernameAvailable(@PathVariable String username) {
@@ -119,5 +121,19 @@ public class AuthController {
     ) {
         ProfileStatusResponse response = profileService.createOnboarding(userId, req);
         return CamNecT.CamNecT_Server.global.common.response.ApiResponse.success(response);
+    }
+
+
+    @Operation(
+            summary = "로그아웃",
+            description = "클라이언트에서 access token을 삭제합니다. 서버는 별도 세션/리프레시 토큰을 관리하지 않으므로 200 OK만 반환합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "로그아웃 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 실패(토큰 누락/만료 등)", content = @Content)
+    })
+    @PostMapping("/logout")
+    public void logout(@UserId Long loginUserId) {
+        loginService.logout(loginUserId);
     }
 }

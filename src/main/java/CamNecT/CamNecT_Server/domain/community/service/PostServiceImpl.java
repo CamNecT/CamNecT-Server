@@ -325,6 +325,7 @@ public class PostServiceImpl implements PostService {
         return new ToggleBookmarkResponse(postId, !exists, stats.getBookmarkCount());
     }
 
+    //TODO : 구매안해도 default가 열람가능으로
     @Transactional
     @Override
     public PurchasePostAccessResponse purchasePostAccess(Long userId, Long postId) {
@@ -341,7 +342,7 @@ public class PostServiceImpl implements PostService {
         }
 
         if (post.getAccessType() != PostAccessType.POINT_REQUIRED) {
-            int bal = pointService.getBalance(userId);
+            int bal = pointService.getBalance(user.getUserId());
             return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
         }
 
@@ -351,12 +352,12 @@ public class PostServiceImpl implements PostService {
         }
 
         if (userId.equals(post.getUser().getUserId())) {
-            int bal = pointService.getBalance(userId);
+            int bal = pointService.getBalance(user.getUserId());
             return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
         }
 
         if (postAccessRepository.existsByPost_IdAndUser_UserId(postId, userId)) {
-            int bal = pointService.getBalance(userId);
+            int bal = pointService.getBalance(user.getUserId());
             return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
         }
 
