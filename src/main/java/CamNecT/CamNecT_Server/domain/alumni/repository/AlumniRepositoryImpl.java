@@ -43,7 +43,7 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
                         // 나와 공통 태그 개수를 계산하는 서브쿼리를 OrderSpecifier로 래핑
                         new OrderSpecifier<>(Order.DESC,
                                 Expressions.numberTemplate(Long.class,
-                                        "(select count(*) from user_tag_map where user_id = {0} and tag_id in (select tag_id from user_tag_map where user_id = {1}))",
+                                        "(select count(*) from UserTagMap where user_id = {0} and tag_id in (select tag_id from user_tag_map where user_id = {1}))",
                                         user.userId, myId
                                 )
                         ),
