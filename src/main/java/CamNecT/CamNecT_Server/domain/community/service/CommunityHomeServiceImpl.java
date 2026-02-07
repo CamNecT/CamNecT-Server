@@ -6,7 +6,6 @@ import CamNecT.CamNecT_Server.domain.users.repository.UserTagMapRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
-import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +19,6 @@ public class CommunityHomeServiceImpl implements CommunityHomeService {
 
     private final PostQueryService postQueryService;
     private final UserTagMapRepository userTagMapRepository; // 유저-태그 매핑
-    private final TagRepository tagRepository;               // 태그 이름 조회용(선택)
 
     @Override
     public CommunityHomeResponse getHome(Long userId) {

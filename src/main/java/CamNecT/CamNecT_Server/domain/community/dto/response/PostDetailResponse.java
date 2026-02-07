@@ -20,4 +20,5 @@ public record PostDetailResponse(
         ContentAccessStatus accessStatus,
         Integer requiredPoints,
         Integer myPoints
+        //TODO 사용자 프로필이 나온다.
 ) {}

@@ -36,7 +36,6 @@ public class LoginService {
     private final JwtFacade jwtFacade;
     private final DocumentVerificationSubmissionRepository submissionRepo;
     private final UserProfileRepository userProfileRepository;
-    private final UserTagMapRepository userTagMapRepository;
     private final InstitutionRepository institutionRepository;
     private final MajorRepository majorRepository;
 
