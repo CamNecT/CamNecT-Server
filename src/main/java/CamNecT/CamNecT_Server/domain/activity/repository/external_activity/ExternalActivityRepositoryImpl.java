@@ -72,20 +72,20 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                         activity -> activity
                 ));
 
-        // 4. 태그 일괄 조회 (N+1 해결)
+        // 4. 태그 이름 일괄 조회 (N+1 해결)
         List<Tuple> tagTuples = queryFactory
-                .select(externalActivityTag.activityId, tag)
+                .select(externalActivityTag.activityId, tag.name)  // tag 대신 tag.name만 선택
                 .from(externalActivityTag)
                 .join(tag).on(externalActivityTag.tagId.eq(tag.id))
                 .where(externalActivityTag.activityId.in(activityIds))
                 .fetch();
 
-        // 5. activityId별로 태그 그룹핑
-        Map<Long, List<CamNecT.CamNecT_Server.global.tag.model.Tag>> tagMap = tagTuples.stream()
+        // 5. activityId별로 태그 이름 그룹핑
+        Map<Long, List<String>> tagMap = tagTuples.stream()
                 .collect(Collectors.groupingBy(
                         tuple -> tuple.get(externalActivityTag.activityId),
                         Collectors.mapping(
-                                tuple -> tuple.get(tag),
+                                tuple -> tuple.get(tag.name),  // tag.name으로 변경
                                 Collectors.toList()
                         )
                 ));
@@ -94,8 +94,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
         List<ActivityPreviewResponse> content = activityIds.stream()
                 .map(id -> {
                     ExternalActivity activity = activityMap.get(id);
-                    List<CamNecT.CamNecT_Server.global.tag.model.Tag> tags =
-                            tagMap.getOrDefault(id, Collections.emptyList());
+                    List<String> tags = tagMap.getOrDefault(id, Collections.emptyList());  // List<String>
 
                     return new ActivityPreviewResponse(
                             activity.getActivityId(),
