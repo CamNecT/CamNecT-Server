@@ -149,7 +149,7 @@ public class PostController {
         return ApiResponse.success(postAttachmentsService.presignAttachmentsBatch(userId, req));
     }
 
-    @Operation(summary = "첨부파일 다운로드 URL 발급", description = "게시글의 첨부파일을 다운로드하기 위한 임시 URL을 발급받습니다.")
+    @Operation(summary = "첨부파일 다운로드 URL 발급(보험)", description = "게시글의 첨부파일을 다운로드하기 위한 임시 URL을 발급받습니다.(getDetail()에서 첨부파일 발급 실패시 호출)")
     @GetMapping("/{postId}/attachments/{attachmentId}/download-url")
     public ApiResponse<PresignDownloadResponse> downloadUrl(
             @UserId Long userId,
