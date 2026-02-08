@@ -1,6 +1,6 @@
 package CamNecT.CamNecT_Server.domain.chat.controller;
 
-import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestResponseDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestAcceptDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestSendDto;
 import CamNecT.CamNecT_Server.domain.chat.service.ChatService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
@@ -40,7 +40,7 @@ public class ChatRequestController {
     @PostMapping("/respond")
     public ApiResponse<Void> respondRequest(
             @UserId Long userId,
-            @RequestBody ChatRequestResponseDto response
+            @RequestBody ChatRequestAcceptDto response
     ) {
         chatService.respondToRequest(
                 response.requestId(),
