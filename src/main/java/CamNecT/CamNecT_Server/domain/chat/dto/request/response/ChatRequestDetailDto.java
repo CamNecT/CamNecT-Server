@@ -43,7 +43,8 @@ public record ChatRequestDetailDto(
                 .opponentStudentYear(opProfile != null ? opProfile.getYearLevel().toString() : "")
                 .opponentProfileImg(profileImgUrl)
                 .opponentTags(opTagNames)
-
+                
+                .requestId(request.getId())
                 .requestType(request.getType().name())
                 .requestTags(request.getRequestInterests().stream()
                         .map(Tag::getName)
