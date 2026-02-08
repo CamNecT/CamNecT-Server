@@ -22,7 +22,8 @@ public record ChatRequestDetailDto(
         Long requestId,
         String requestType,
         List<String> requestTags,
-        String requestContent
+        String requestContent,
+        String createdAt
 ) {
 
     public static ChatRequestDetailDto from(Users me,
@@ -48,6 +49,7 @@ public record ChatRequestDetailDto(
                         .map(Tag::getName)
                         .toList())
                 .requestContent(request.getContent())
+                .createdAt(request.getCreatedAt().toString())
                 .build();
     }
 }

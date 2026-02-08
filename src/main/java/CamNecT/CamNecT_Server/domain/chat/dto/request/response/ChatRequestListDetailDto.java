@@ -16,7 +16,8 @@ public record ChatRequestListDetailDto(
 
         Long requestId,
         String requestType,
-        String requestContent
+        String requestContent,
+        String createdAt
 ) {
     public static ChatRequestListDetailDto from(Users opponent,
                                                 UserProfile opProfile,
@@ -33,6 +34,7 @@ public record ChatRequestListDetailDto(
 
                 .requestType(request.getType().name())
                 .requestContent(request.getContent())
+                .createdAt(request.getCreatedAt().toString())
                 .build();
     }
 }
