@@ -2,6 +2,7 @@ package CamNecT.CamNecT_Server.domain.profile.controller;
 
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateBioRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
+import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileImageRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileTagsRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileSettingsResponse;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.ProfileStatusResponse;
@@ -37,16 +38,6 @@ public class ProfileController {
     }
 
     @Operation(
-            summary = "마이페이지 조회",
-            description = "로그인한 사용자의 마이페이지를 조회합니다."
-    )
-    @GetMapping("/me")
-    public ApiResponse<ProfileResponse> getUserProfile(@UserId Long loginUserId) {
-        ProfileResponse response = profileService.getUserProfile(loginUserId, loginUserId);
-        return ApiResponse.success(response);
-    }
-
-    @Operation(
             summary = "프로필 이미지 업로드 URL 생성",
             description = "프로필 이미지를 업로드하기 위한 S3 URL을 생성합니다."
     )
@@ -58,7 +49,6 @@ public class ProfileController {
         PresignUploadResponse response = profileService.presignProfileImageUpload(userId, req);
         return ApiResponse.success(response);
     }
-
 
     @Operation(
             summary = "프로필 태그 수정",
@@ -72,6 +62,26 @@ public class ProfileController {
         ProfileStatusResponse response = profileService.updateProfileTags(userId, req);
         return ApiResponse.success(response);
     }
+
+    @Operation(
+            summary = "마이페이지 조회",
+            description = "로그인한 사용자의 마이페이지를 조회합니다."
+    )
+    @GetMapping("/me")
+    public ApiResponse<ProfileResponse> getUserProfile(@UserId Long loginUserId) {
+        ProfileResponse response = profileService.getUserProfile(loginUserId, loginUserId);
+        return ApiResponse.success(response);
+    }
+
+    @PatchMapping("/me/image")
+    public ApiResponse<Void> updateMyProfileImage(
+            @UserId Long userId,
+            @RequestBody UpdateProfileImageRequest req
+    ) {
+        profileService.updateMyProfileImage(userId, req);
+        return ApiResponse.success(null);
+    }
+
 
     @Operation(
             summary = "마이페이지 한줄 소개(bio) 수정",

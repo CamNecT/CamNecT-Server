@@ -177,7 +177,8 @@ public class PostQueryServiceImpl implements PostQueryService {
                     bookmarkCount,
                     acceptedPostIds.contains(p.getId()),
                     tagsMap.getOrDefault(p.getId(), List.of()),
-                    null // thumbnailUrl: 첨부 썸네일 필요해지면 PostAttachmentsRepository로 보강
+                    null, // thumbnailUrl: 첨부 썸네일 필요해지면 PostAttachmentsRepository로 보강
+                    p.getAccessType()
             ));
         }
 

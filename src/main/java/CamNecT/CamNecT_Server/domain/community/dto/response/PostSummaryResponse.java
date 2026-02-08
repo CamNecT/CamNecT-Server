@@ -1,6 +1,7 @@
 package CamNecT.CamNecT_Server.domain.community.dto.response;
 
 import CamNecT.CamNecT_Server.domain.community.model.enums.BoardCode;
+import CamNecT.CamNecT_Server.domain.community.model.enums.PostAccessType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,7 +16,8 @@ public record PostSummaryResponse(
         long answerCount,     // 질문 탭 표시용(루트댓글 수)
         long commentCount,    // 전체댓글 수
         long bookmarkCount,
-        boolean accepted,     // 질문글 채택완료 뱃지
+        boolean acceptedBadge,     // 질문글 채택완료 뱃지
         List<String> tags,
-        String thumbnailUrl   // 일단 null 가능
+        String thumbnailUrl,   // 일단 null 가능
+        PostAccessType accessType
 ) {}

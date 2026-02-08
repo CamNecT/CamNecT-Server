@@ -27,7 +27,7 @@ public record UserProfileDto(
                 .isEducationVisible(profile.getIsEducationVisible())
                 .isExperienceVisible(profile.getIsExperienceVisible())
                 .isCertificateVisible(profile.getIsCertificateVisible())
-                .profileImageUrl(profile.getProfileImageUrl()) // 초기값은 원본 S3 key
+                .profileImageUrl(profile.getProfileImageKey()) // 초기값은 원본 S3 key
                 .studentNo(profile.getStudentNo())
                 .yearLevel(profile.getYearLevel())
                 .institutionId(profile.getInstitutionId())

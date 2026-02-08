@@ -1,8 +1,11 @@
 package CamNecT.CamNecT_Server.domain.alumni.service;
 
+import CamNecT.CamNecT_Server.domain.alumni.dto.AlumniHomeResponse;
+import CamNecT.CamNecT_Server.domain.alumni.dto.ProfileCardDto;
 import CamNecT.CamNecT_Server.domain.alumni.dto.response.AlumniPreviewResponse;
 import CamNecT.CamNecT_Server.domain.alumni.dto.UserProfileDto;
 import CamNecT.CamNecT_Server.domain.alumni.repository.AlumniRepository;
+import CamNecT.CamNecT_Server.domain.home.dto.HomeResponse;
 import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
@@ -17,6 +20,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -64,7 +68,7 @@ public class AlumniService {
                     // UserProfile 엔티티 → DTO 변환 + 프로필 이미지 presigned URL 적용
                     UserProfileDto profileDto = UserProfileDto.from(profile)
                             .withProfileImageUrl(
-                                    presignOrNull(profile.getProfileImageUrl(), "profile-image", "image/jpeg")
+                                    presignOrNull(profile.getProfileImageKey(), "profile-image", "image/jpeg")
                             );
 
                     return new AlumniPreviewResponse(
@@ -76,6 +80,8 @@ public class AlumniService {
                 })
                 .toList();
     }
+
+
 
     /**
      * S3 key를 presigned download URL로 변환
@@ -89,4 +95,50 @@ public class AlumniService {
             return null;
         }
     }
+
+    @Transactional(readOnly = true)
+    public HomeResponse.AlumniSection getHomePreview(Long myId, int limit) {
+
+        // 1) 추천 정렬된 ID 목록
+        List<Long> orderedIds = alumniRepository.findAlumniIdsByConditions(myId, null, List.of());
+        if (orderedIds.isEmpty()) {
+            return HomeResponse.AlumniSection.empty();
+        }
+
+        boolean hasMore = orderedIds.size() > limit;
+        List<Long> topIds = orderedIds.stream().limit(limit).toList();
+
+        // 2) 프로필 + 유저(이름) 한 번에
+        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdInWithUser(topIds).stream()
+                .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
+
+        // 3) 태그 맵 (userId -> tags)
+        Map<Long, List<Tag>> tagMap = userTagMapRepository.findTagsWithUserIdByUserIdIn(topIds).stream()
+                .collect(Collectors.groupingBy(
+                        row -> (Long) row[0],
+                        Collectors.mapping(row -> (Tag) row[1], Collectors.toList())
+                ));
+
+        // 4) 정렬 유지하면서 AlumniHomeResponse 생성
+        List<AlumniHomeResponse> items = topIds.stream()
+                .map(id -> {
+                    UserProfile p = profileMap.get(id);
+                    if (p == null || p.getUser() == null) return null;
+
+                    ProfileCardDto card = ProfileCardDto.from(p); // 홈에서만 우선 적용
+
+                    return new AlumniHomeResponse(
+                            id,
+                            p.getUser().getName(),
+                            card,
+                            tagMap.getOrDefault(id, List.of())
+                    );
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        return new HomeResponse.AlumniSection(items, hasMore);
+    }
+
+
 }

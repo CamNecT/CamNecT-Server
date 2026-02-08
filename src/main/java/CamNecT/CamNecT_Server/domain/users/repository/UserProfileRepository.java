@@ -42,4 +42,12 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     Slice<UserProfile> findByAllTagIds(List<Long> tagIds, Long tagCount, Pageable pageable);
 
     boolean existsByUserIdAndOpenToCoffeeChatTrue(Long userId);
+
+    @Query("""
+    select up
+    from UserProfile up
+    join fetch up.user u
+    where up.userId in :userIds
+""")
+    List<UserProfile> findAllByUserIdInWithUser(@Param("userIds") List<Long> userIds);
 }

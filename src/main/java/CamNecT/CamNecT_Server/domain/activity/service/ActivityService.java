@@ -16,6 +16,7 @@ import CamNecT.CamNecT_Server.domain.activity.repository.external_activity.Exter
 import CamNecT.CamNecT_Server.domain.activity.repository.external_activity.ExternalActivityRepository;
 import CamNecT.CamNecT_Server.domain.activity.repository.external_activity.ExternalActivityTagRepository;
 import CamNecT.CamNecT_Server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
+import CamNecT.CamNecT_Server.domain.home.dto.HomeResponse;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.ActivityErrorCode;
 import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
@@ -355,6 +356,42 @@ public class ActivityService {
             activityBookmarkRepository.save(newBookmark);
             return true; // 등록됨을 반환
         }
+    }
+
+    @Transactional(readOnly = true)
+    public HomeResponse.ContestSection getHomeContests(int limit) {
+
+        List<Long> ids = activityRepository.findTopIdsByBookmark(ActivityCategory.EXTERNAL, limit + 1);
+        if (ids.isEmpty()) return HomeResponse.ContestSection.empty();
+
+        boolean hasMore = ids.size() > limit;
+        List<Long> topIds = hasMore ? ids.subList(0, limit) : ids;
+
+        Map<Long, ExternalActivity> map = activityRepository.findAllById(topIds).stream()
+                .collect(Collectors.toMap(ExternalActivity::getActivityId, a -> a));
+
+        List<HomeResponse.ContestSection.ContestCard> items = topIds.stream()
+                .map(id -> {
+                    ExternalActivity a = map.get(id);
+                    if (a == null) return null;
+
+                    String thumbKey = normalizeThumbKey(a.getThumbnailUrl()); // 지금은 key로 내려줌
+                    return new HomeResponse.ContestSection.ContestCard(
+                            a.getActivityId(),
+                            a.getTitle(),
+                            a.getOrganizer(),
+                            thumbKey
+                    );
+                })
+                .filter(Objects::nonNull)
+                .toList();
+
+        return new HomeResponse.ContestSection(items, hasMore);
+    }
+
+    private String normalizeThumbKey(String key) {
+        if (!StringUtils.hasText(key) || "기본이미지".equals(key)) return null;
+        return key;
     }
 
     // --- Helper Methods ---
