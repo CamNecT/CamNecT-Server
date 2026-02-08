@@ -28,6 +28,7 @@ app:
         - application/pdf
         - image/jpeg
         - image/png
+        - image/webp
   community:
     attachments:
       max-files: 3
@@ -36,6 +37,18 @@ app:
         - application/pdf
         - image/jpeg
         - image/png
+        - image/webp
+  portfolio:
+    assets:
+      max-files: 10
+      max-file-size-mb: 20
+      allowed-content-types:
+        - image/jpeg
+        - image/png
+        - image/webp
+        - application/pdf
+    thumbnail:
+      max-file-size-mb: 5
   point:
     reward:
       comment-selection: 200
