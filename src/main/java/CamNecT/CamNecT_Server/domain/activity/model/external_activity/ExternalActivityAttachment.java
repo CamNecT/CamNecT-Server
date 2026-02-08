@@ -22,8 +22,8 @@ public class ExternalActivityAttachment {
     @JoinColumn(name = "activity_id", nullable = false)
     private Long externalActivity;
 
-    @Column(name = "file_url", nullable = false, length = 500)
-    private String fileUrl;
+    @Column(name = "file_key", nullable = false, length = 500)
+    private String fileKey;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

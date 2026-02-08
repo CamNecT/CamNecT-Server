@@ -10,7 +10,6 @@ import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
 import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadBatchRequest;
 import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadRequest;
-import CamNecT.CamNecT_Server.global.storage.dto.response.PresignDownloadResponse;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadBatchResponse;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -119,14 +118,4 @@ public class ActivityController {
     ) {
         return ApiResponse.success(activityAttachmentService.presignAttachmentsBatch(userId, req));
     }
-
-    @Operation(summary = "대외활동 첨부 다운로드용 Presigned URL 발급")
-    @GetMapping("/{activityId}/attachments/{attachmentId}/download")
-    public ApiResponse<PresignDownloadResponse> downloadAttachment(
-            @PathVariable Long activityId,
-            @PathVariable Long attachmentId
-    ) {
-        return ApiResponse.success(activityAttachmentService.presignDownload(activityId, attachmentId));
-    }
-
 }

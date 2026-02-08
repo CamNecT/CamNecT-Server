@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.format.DateTimeFormatter;
 
 @Slf4j
@@ -34,6 +36,9 @@ public class GifticonExportMailService {
 
     @Value("${app.gifticon.export-mail.subject:[CamNecT] 기프티콘 구매요청 엑셀}")
     private String subject;
+
+    @Value("${app.gifticon.export-mail.delete-after-send:true}")
+    private boolean deleteAfterSend;
 
     public void sendExportExcel(GifticonExportBatch batch) {
         if (!enabled) return;
@@ -95,6 +100,18 @@ public class GifticonExportMailService {
 
             log.info("[gifticon-mail] send export excel to={} file={}", to, batch.getFileName());
             mailSender.send(mimeMessage);
+
+            // 메일 보낸 이후에 삭제
+            log.info("[gifticon-mail] sent to={} file={}", to, batch.getFileName());
+
+            if (deleteAfterSend) {
+                try {
+                    Files.deleteIfExists(Path.of(batch.getFilePath()));
+                    log.info("[gifticon-mail] deleted export file path={}", batch.getFilePath());
+                } catch (Exception delEx) {
+                    log.warn("[gifticon-mail] delete failed path={}", batch.getFilePath(), delEx);
+                }
+            }
 
         } catch (MessagingException | MailException e) {
             // 메일 실패해도 export 자체는 이미 끝난 상태여야 하므로 예외는 던지지 않는 편이 운영상 안전합니다.

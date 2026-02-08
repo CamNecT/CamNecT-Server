@@ -4,8 +4,10 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Entity
 @Table(
@@ -65,13 +67,30 @@ public class GifticonProduct {
     private LocalDateTime updatedAt;
 
     public void updateFromVendor(VendorSnapshot v, LocalDateTime syncedAt) {
-        this.brandName = v.brandName();
-        this.productName = v.productName();
-        this.pricePoints = v.pricePoints();
-        this.imageUrl = v.imageUrl();
-        this.detailImageUrl = v.detailImageUrl();
+
+        Optional.ofNullable(v.brandName())
+                .filter(StringUtils::hasText)
+                .ifPresent(s -> this.brandName = s);
+
+        Optional.ofNullable(v.productName())
+                .filter(StringUtils::hasText)
+                .ifPresent(s -> this.productName = s);
+
+        Optional.ofNullable(v.pricePoints())
+                .ifPresent(pp -> this.pricePoints = pp);
+
+        Optional.ofNullable(v.imageUrl())
+                .filter(StringUtils::hasText)
+                .ifPresent(s -> this.imageUrl = s);
+
+        Optional.ofNullable(v.detailImageUrl())
+                .filter(StringUtils::hasText)
+                .ifPresent(s -> this.detailImageUrl = s);
+
+        Optional.ofNullable(v.sortScore())
+                .ifPresent(s -> this.sortScore = s);
+
         this.isActive = true;
-        this.sortScore = (v.sortScore() == null ? 0 : v.sortScore());
         this.lastSyncedAt = syncedAt;
     }
 

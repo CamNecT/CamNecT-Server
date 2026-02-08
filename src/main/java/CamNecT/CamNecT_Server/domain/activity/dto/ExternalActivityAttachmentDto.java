@@ -22,7 +22,7 @@ public class ExternalActivityAttachmentDto {
         return ExternalActivityAttachmentDto.builder()
                 .id(entity.getId())
                 .activityId(entity.getExternalActivity())
-                .fileUrl(entity.getFileUrl())
+                .fileUrl(entity.getFileKey())
                 .createdAt(entity.getCreatedAt())
                 .build();
     }
