@@ -55,7 +55,7 @@ public record HomeResponse(
                 Long contestId,
                 String title,
                 String organizer,
-                String thumbnailKey
+                String thumbnailUrl
         ) {}
         public static ContestSection empty() {
             return new ContestSection(List.of(), false);
