@@ -4,6 +4,7 @@ package CamNecT.CamNecT_Server.domain.chat.service;
 import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatMessageResponseDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatMessageSendRequestDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatReadEvent;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestDetailDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomListDetailDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomListUpdateDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomWithDetailDto;
@@ -18,6 +19,7 @@ import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
+import CamNecT.CamNecT_Server.domain.users.repository.UserTagMapRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
@@ -51,8 +53,9 @@ public class ChatService {
     private final ChatRequestRepository chatRequestRepository;
     private final TagRepository tagRepository;
     private final UserProfileRepository userProfileRepository;
+    private final UserTagMapRepository userTagMapRepository;
     private final MajorRepository majorRepository;
-    private final PublicUrlIssuer  publicUrlIssuer;
+    private final PublicUrlIssuer publicUrlIssuer;
 
     /*
       1. 커피챗 요청 보내기
@@ -125,6 +128,41 @@ public class ChatService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public ChatRequestDetailDto getChatRequestDetail(Long requestId, Long userId) {
+        ChatRequest request = chatRequestRepository.findById(requestId)
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUEST_NOT_FOUND));
+
+        if (!request.getReceiver().getUserId().equals(userId) && !request.getRequester().getUserId().equals(userId)) {
+            throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
+        }
+
+        boolean isReceiver = request.getReceiver().getUserId().equals(userId);
+        Users me = isReceiver ? request.getReceiver() : request.getRequester();
+        Users opponent = isReceiver ? request.getRequester() : request.getReceiver();
+
+        UserProfile opProfile = userProfileRepository.findByUserId(opponent.getUserId())
+                .orElse(null);
+
+        String majorName = "전공 미입력";
+        String profileImgUrl = "/images/default.png";
+        if (opProfile != null) {
+            if (opProfile.getMajorId() != null) {
+                majorName = majorRepository.findById(opProfile.getMajorId())
+                        .map(Majors::getMajorNameKor)
+                        .orElse("알 수 없는 전공");
+            }
+            profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
+        }
+
+        List<String> opTagNames = userTagMapRepository.findAllTagsByUserId(opponent.getUserId())
+                .stream()
+                .map(Tag::getName)
+                .toList();
+
+        return ChatRequestDetailDto.from(me, opponent, opProfile, request, majorName, opTagNames, profileImgUrl);
+    }
+
     /*
      2-1. 채팅방 생성 (수락 시 자동 호출)
      */
@@ -161,6 +199,12 @@ public class ChatService {
         UserProfile opProfile = userProfileRepository.findByUserId(opponent.getUserId())
                 .orElse(null);
 
+        List<Tag> opTags = userTagMapRepository.findAllTagsByUserId(opponent.getUserId());
+
+        List<String> tagNames = opTags.stream()
+                .map(Tag::getName)
+                .toList();
+
         String majorName = "전공 미입력";
         if (opProfile != null && opProfile.getMajorId() != null) {
             majorName = majorRepository.findById(opProfile.getMajorId())
@@ -170,7 +214,7 @@ public class ChatService {
 
         List<ChatMessageResponseDto> chatHistory = this.getChatHistory(roomId, userId);
 
-        return ChatRoomWithDetailDto.from(room, me, opponent, opProfile, majorName, chatHistory);
+        return ChatRoomWithDetailDto.from(room, me, opponent, opProfile, majorName, tagNames, chatHistory);
     }
 
 

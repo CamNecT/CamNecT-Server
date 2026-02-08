@@ -1,6 +1,7 @@
 package CamNecT.CamNecT_Server.domain.chat.controller;
 
 import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestAcceptDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestDetailDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestSendDto;
 import CamNecT.CamNecT_Server.domain.chat.service.ChatService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
@@ -49,5 +50,18 @@ public class ChatRequestController {
         );
 
         return ApiResponse.success(null);
+    }
+
+    @Operation(summary = "커피챗 요청 상세 조회", description = "특정 커피챗 요청의 상세 정보를 조회합니다.")
+    @GetMapping("/{requestId}")
+    public ApiResponse<ChatRequestDetailDto> getRequestDetail(
+            @UserId Long userId,
+            @PathVariable Long requestId
+    ) {
+        log.info("커피챗 요청 상세 조회 - 요청자 ID: {}, 요청서 ID: {}", userId, requestId);
+
+        ChatRequestDetailDto detail = chatService.getChatRequestDetail(requestId, userId);
+
+        return ApiResponse.success(detail);
     }
 }
