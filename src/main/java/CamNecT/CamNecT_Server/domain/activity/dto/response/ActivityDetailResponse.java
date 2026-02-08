@@ -11,7 +11,7 @@ public record ActivityDetailResponse(
         boolean isMine,
         ExternalActivityDto activity,
         List<ExternalActivityAttachmentDto> attachment,
-        List<Tag> tagList,
+        List<String> tagList,
         List<TeamRecruitment> recruitmentList
         ) {
 }

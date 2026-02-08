@@ -6,7 +6,6 @@ import CamNecT.CamNecT_Server.domain.users.model.QUserTagMap;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
-import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -42,12 +41,20 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
                 .orderBy(
                         // 나와 공통 태그 개수를 계산하는 서브쿼리를 OrderSpecifier로 래핑
                         new OrderSpecifier<>(Order.DESC,
-                                Expressions.numberTemplate(Long.class,
-                                        "(select count(*) from UserTagMap where user_id = {0} and tag_id in (select tag_id from user_tag_map where user_id = {1}))",
-                                        user.userId, myId
-                                )
+                                JPAExpressions
+                                        .select(commonTagMap.count())
+                                        .from(commonTagMap)
+                                        .where(
+                                                commonTagMap.userId.eq(user.userId),
+                                                commonTagMap.tagId.in(
+                                                        JPAExpressions
+                                                                .select(myTagMap.tagId)
+                                                                .from(myTagMap)
+                                                                .where(myTagMap.userId.eq(myId))
+                                                )
+                                        )
                         ),
-                        user.createdAt.desc()
+                        user.createdAt.desc()  // 이건 그대로 사용 가능
                 )
                 .fetch();
     }

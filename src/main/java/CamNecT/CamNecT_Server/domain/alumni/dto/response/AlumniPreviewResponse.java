@@ -7,7 +7,8 @@ import java.util.List;
 
 public record AlumniPreviewResponse(
         Long userId,
+        String userName,
         UserProfileDto userProfile,
-        List<Tag> tagList
+        List<String> tagList
 ) {
 }

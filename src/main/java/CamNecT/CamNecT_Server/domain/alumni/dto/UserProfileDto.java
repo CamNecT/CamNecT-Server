@@ -6,17 +6,17 @@ import lombok.Builder;
 @Builder
 public record UserProfileDto(
         Long userId,
-        String bio,
-        Boolean openToCoffeeChat,
-        Boolean isFollowerVisible,
-        Boolean isEducationVisible,
-        Boolean isExperienceVisible,
-        Boolean isCertificateVisible,
+        String bio, // 설명
+        Boolean openToCoffeeChat, // 커피챗 허용 여부
+        Boolean isFollowerVisible, // 팔로워 공개여부
+        Boolean isEducationVisible, // 학력 공개여부
+        Boolean isExperienceVisible, // 경력 공개여부
+        Boolean isCertificateVisible, // 자격증 공개여부
         String profileImageUrl,  // presigned URL이 적용됨
-        String studentNo,
-        Integer yearLevel,
-        Long institutionId,
-        Long majorId
+        String studentNo, // 학번
+        Integer yearLevel, // 학년
+        Long institutionId, // 학교 id
+        Long majorId // 전공 id
 ) {
     public static UserProfileDto from(UserProfile profile) {
         return UserProfileDto.builder()
