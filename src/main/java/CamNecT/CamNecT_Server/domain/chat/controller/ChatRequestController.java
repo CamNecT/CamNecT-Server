@@ -23,7 +23,7 @@ public class ChatRequestController {
 
     private final ChatService chatService;
 
-    @Operation(summary = "커피챗 요청 보내기", description = "상대방에게 커피챗 요청을 보냅니다.")
+    @Operation(summary = "커피챗 요청 보내기 (커피챗)", description = "상대방에게 커피챗 요청을 보냅니다.")
     @PostMapping("/send")
     public ApiResponse<Void> sendRequest(
             @UserId Long userId,
@@ -76,4 +76,5 @@ public class ChatRequestController {
 
         return ApiResponse.success(detail);
     }
+
 }

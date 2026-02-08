@@ -75,10 +75,10 @@ public class ChatService {
         }
 
         // todo: (선택) 이미 수락해서 채팅하고 있는(ACCEPTED) 상태면 요청 못하게 막아야 하는가?
-/*         if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
+         if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
                 requesterId, receiverId, ChatRequest.RequestStatus.ACCEPTED)) {
             throw new CustomException(CoffeeChatErrorCode.CHATROOM_ALREADY_EXISTS);
-         }*/
+         }
 
         boolean isOpen = userProfileRepository.existsByUserIdAndOpenToCoffeeChatTrue(receiverId);
         if (!isOpen) {
