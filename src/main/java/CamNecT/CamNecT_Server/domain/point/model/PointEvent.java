@@ -21,6 +21,11 @@ public record PointEvent(
         return new PointEvent(PointSource.SIGNUP,null, null, key);
     }
 
+    public static PointEvent threeLikeReward(Long userId, Long postId) {
+        String key = "THREELIKES_REWARD:" + userId + ":" + postId;
+        return new PointEvent(PointSource.THREELIKES_REWARD,postId, null, key);
+    }
+
     public static PointEvent coffeeChatRequest(Long userId, Long requestId) {
         String key = "COFFEECHAT_REQUEST:" + userId + ":" + requestId;
         return new PointEvent(PointSource.COFFEECHAT_REQUEST, null, requestId, key);

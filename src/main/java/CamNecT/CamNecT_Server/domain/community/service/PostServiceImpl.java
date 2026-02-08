@@ -16,6 +16,7 @@ import CamNecT.CamNecT_Server.domain.community.repository.Comments.CommentLikesR
 import CamNecT.CamNecT_Server.domain.community.repository.Comments.CommentsRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.*;
 import CamNecT.CamNecT_Server.domain.point.model.PointEvent;
+import CamNecT.CamNecT_Server.domain.point.model.TransactionType;
 import CamNecT.CamNecT_Server.domain.point.service.PointService;
 import CamNecT.CamNecT_Server.domain.users.model.UserRole;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
@@ -39,8 +40,10 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
 
-    @Value("${app.point.reward.comment-selection:50}")
-    private int reward;
+    @Value("${app.point.reward.comment-selection:200}")
+    private int rewardAcceptedComment;
+    @Value("${app.point.reward.first-three-likes:100}")
+    private int rewardFirstThreeLikes;
 
 
     private final BoardsRepository boardsRepository;
@@ -174,7 +177,11 @@ public class PostServiceImpl implements PostService {
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
 
-        PostStats stats = getOrCreateStats(post);
+        PostStats stats = postStatsRepository.findByPostIdForUpdate(postId)
+                .orElseGet(() -> postStatsRepository.save(PostStats.init(post)));
+
+        //작성자면 본인글 좋아요 불가
+        if(Objects.equals(userId, post.getUser().getUserId())) throw new CustomException(CommunityErrorCode.CANNOT_LIKE_OWN_POST);
 
         boolean liked;
         if (postLikesRepository.existsByPost_IdAndUser_UserId(postId, userId)) {
@@ -182,11 +189,20 @@ public class PostServiceImpl implements PostService {
             stats.decLike();
             liked = false;
         } else {
+            //좋아요 증가 이때 좋아요 개수 3개 이상시 포인트 제공 : 100P
             postLikesRepository.save(PostLikes.of(post, user));
             stats.incLike();
             liked = true;
-        }
 
+            // 좋아요 3개 이상 “첫 1회” 보상 -> 정보글 한정
+            if (stats.getLikeCount() >= 3 && stats.tryMarkLikeRewarded3()
+                    && post.getBoard().getCode()==BoardCode.INFO) {
+                // 작성자에게 지급 (본인 글이면 지급 안 줄지 정책 결정)
+                Long authorId = post.getUser().getUserId();
+                pointService.changePoint(authorId,rewardFirstThreeLikes,
+                        TransactionType.EARN, PointEvent.threeLikeReward(authorId,postId));
+            }
+        }
         return new ToggleLikeResponse(liked, stats.getLikeCount());
     }
 
@@ -202,7 +218,8 @@ public class PostServiceImpl implements PostService {
             throw new CustomException(CommunityErrorCode.POST_NOT_PUBLISHED);
         }
 
-        PostStats stats = getOrCreateStats(post);
+        PostStats stats = postStatsRepository.findByPost_Id(post.getId())
+                .orElseGet(() -> postStatsRepository.save(PostStats.init(post)));
         stats.incView();
 
         boolean likedByMe = postLikesRepository.existsByPost_IdAndUser_UserId(postId, userId);
@@ -299,7 +316,7 @@ public class PostServiceImpl implements PostService {
 
         Long receiverId = comment.getUserId();
         if (receiverId != null && !Objects.equals(receiverId, userId)) {
-            pointService.earnPointByCommentSelection(receiverId, postId, commentId, reward);
+            pointService.earnPointByCommentSelection(receiverId, postId, commentId, rewardAcceptedComment);
 
             eventPublisher.publishEvent(new CommentAcceptedEvent(receiverId, postId, commentId, userId));
         }
@@ -398,10 +415,5 @@ public class PostServiceImpl implements PostService {
 
     private void touchStats(Long postId) {
         postStatsRepository.findByPost_Id(postId).ifPresent(PostStats::touch);
-    }
-
-    private PostStats getOrCreateStats(Posts post) {
-        return postStatsRepository.findByPost_Id(post.getId())
-                .orElseGet(() -> postStatsRepository.save(PostStats.init(post)));
     }
 }
