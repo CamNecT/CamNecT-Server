@@ -136,7 +136,6 @@ public class PostAttachmentsService {
             toSave.add(PostAttachments.create(
                     post,
                     finalFileKey,
-                    null,  // thumbnailKey 미사용
                     req.width(),
                     req.height(),
                     req.fileSize(),
@@ -205,13 +204,11 @@ public class PostAttachmentsService {
 
     private void registerAfterCommitDelete(List<PostAttachments> oldActive, Set<String> newKeys) {
         Set<String> deleteKeys = new HashSet<>();
-
         for (PostAttachments a : oldActive) {
             String fk = a.getFileKey();
-            String tk = a.getThumbnailKey();
-
-            if (StringUtils.hasText(fk) && !newKeys.contains(fk)) deleteKeys.add(fk);
-            if (StringUtils.hasText(tk) && !newKeys.contains(tk)) deleteKeys.add(tk);
+            if (StringUtils.hasText(fk) && !newKeys.contains(fk)) {
+                deleteKeys.add(fk);
+            }
         }
         globalPresignMethods.deleteAfterCommit(deleteKeys);
     }
