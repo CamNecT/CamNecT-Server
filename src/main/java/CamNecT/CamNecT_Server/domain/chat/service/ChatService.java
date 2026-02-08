@@ -555,4 +555,23 @@ public class ChatService {
         return new HomeResponse.CoffeeChatSection(pendingCount, previews);
     }
 
+    @Transactional
+    public void rejectAllCoffeeChatRequests(Long userId, ChatRequest.RequestType requestType) {
+        List<ChatRequest> requests = chatRequestRepository.findAllByReceiver_UserIdAndTypeAndStatus(
+                userId, requestType, ChatRequest.RequestStatus.WAITING);
+
+        requests.forEach(ChatRequest::reject);
+    }
+
+    @Transactional
+    public void rejectAllTeamRecruitRequestsByRecruitment(Long userId, Long recruitmentId) {
+        List<ChatRequest> requests = chatRequestRepository.findAllByReceiver_UserIdAndTypeAndRecruitmentIdAndStatus(
+                userId,
+                ChatRequest.RequestType.TEAM_RECRUIT,
+                recruitmentId,
+                ChatRequest.RequestStatus.WAITING
+        );
+
+        requests.forEach(ChatRequest::reject);
+    }
 }
