@@ -14,9 +14,7 @@ public record CreatePostRequest(
         @NotBlank String content,
         Boolean anonymous,
         List<Long> tagIds, // <- global tags.tag_id들
-        List<AttachmentRequest> attachments,
-        PostAccessType accessType,
-        Integer requiredPoints
+        List<AttachmentRequest> attachments
 ) {
     public boolean isAnonymous() { return Boolean.TRUE.equals(anonymous); }
 }

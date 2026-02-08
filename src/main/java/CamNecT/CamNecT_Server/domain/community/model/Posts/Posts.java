@@ -54,9 +54,6 @@ public class Posts {
     @Builder.Default
     private PostAccessType accessType = PostAccessType.FREE;
 
-    @Column(name = "required_points")
-    private Integer requiredPoints; // accessType=POINT_REQUIRED일 때만 사용
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -95,8 +92,7 @@ public class Posts {
         this.deletedAt = LocalDateTime.now();
     }
 
-    public void applyAccess(PostAccessType accessType, Integer requiredPoints) {
+    public void applyAccess(PostAccessType accessType) {
         this.accessType = (accessType == null) ? PostAccessType.FREE : accessType;
-        this.requiredPoints = requiredPoints;
     }
 }

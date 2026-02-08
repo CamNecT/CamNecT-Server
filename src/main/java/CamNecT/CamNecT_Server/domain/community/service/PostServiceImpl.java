@@ -22,7 +22,6 @@ import CamNecT.CamNecT_Server.domain.users.model.UserRole;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
-import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CommunityErrorCode;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
@@ -44,6 +43,8 @@ public class PostServiceImpl implements PostService {
     private int rewardAcceptedComment;
     @Value("${app.point.reward.first-three-likes:100}")
     private int rewardFirstThreeLikes;
+    @Value("${app.point.cost.question-view:100}")
+    private int questionViewCost;
 
 
     private final BoardsRepository boardsRepository;
@@ -77,19 +78,10 @@ public class PostServiceImpl implements PostService {
         Boards board = boardsRepository.findByCode(req.boardCode())
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.BOARD_NOT_FOUND));
 
-        PostAccessType accessType = (req.accessType() == null) ? PostAccessType.FREE : req.accessType();
-        Integer requiredPoints = req.requiredPoints();
-
-        if (accessType == PostAccessType.POINT_REQUIRED) {
-            if (requiredPoints == null || requiredPoints <= 0) {
-                throw new CustomException(CommunityErrorCode.INVALID_REQUIRED_POINTS);
-            }
-        } else {
-            requiredPoints = null;
-        }
+        PostAccessType accessType = (req.boardCode() == BoardCode.QUESTION) ? PostAccessType.POINT_REQUIRED : PostAccessType.FREE;
 
         Posts post = Posts.create(board, user, req.title(), req.content(), Boolean.TRUE.equals(req.anonymous()));
-        post.applyAccess(accessType, requiredPoints);
+        post.applyAccess(accessType);
 
         Posts saved = postsRepository.save(post);
         postStatsRepository.save(PostStats.init(saved));
@@ -232,23 +224,24 @@ public class PostServiceImpl implements PostService {
                 .map(ac -> ac.getComment().getId())
                 .orElse(null);
 
+        boolean isQuestion = post.getBoard().getCode() == BoardCode.QUESTION;
+
         ContentAccessStatus accessStatus;
         Integer requiredPoints = null;
         Integer myPoints = null;
 
-        if (post.getAccessType() == PostAccessType.POINT_REQUIRED) {
-            requiredPoints = post.getRequiredPoints();
-            if (requiredPoints == null || requiredPoints <= 0) {
-                throw new CustomException(ErrorCode.INTERNAL_ERROR);
-            }
-
-            if (userId.equals(post.getUser().getUserId())) {
+        if (isQuestion) {
+            // 작성자 무료
+            if (Objects.equals(userId, post.getUser().getUserId())) {
                 accessStatus = ContentAccessStatus.GRANTED;
+                requiredPoints = questionViewCost;
             } else if (postAccessRepository.existsByPost_IdAndUser_UserId(postId, userId)) {
                 accessStatus = ContentAccessStatus.GRANTED;
+                requiredPoints = questionViewCost;
             } else {
                 myPoints = pointService.getBalance(userId);
-                accessStatus = (myPoints >= requiredPoints)
+                requiredPoints = questionViewCost;
+                accessStatus = (myPoints >= questionViewCost)
                         ? ContentAccessStatus.NEED_PURCHASE
                         : ContentAccessStatus.INSUFFICIENT_POINTS;
             }
@@ -365,30 +358,29 @@ public class PostServiceImpl implements PostService {
             throw new CustomException(CommunityErrorCode.POST_NOT_PUBLISHED);
         }
 
-        if (post.getAccessType() != PostAccessType.POINT_REQUIRED) {
+        boolean isQuestion = post.getBoard().getCode() == BoardCode.QUESTION;
+
+        if (!isQuestion && post.getAccessType() != PostAccessType.POINT_REQUIRED) {
             int bal = pointService.getBalance(user.getUserId());
             return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
         }
 
-        Integer cost = post.getRequiredPoints();
-        if (cost == null || cost <= 0) {
-            throw new CustomException(ErrorCode.INTERNAL_ERROR);
-        }
-
+        // 2) 작성자는 무료
         if (userId.equals(post.getUser().getUserId())) {
             int bal = pointService.getBalance(user.getUserId());
             return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
         }
 
+        // 3) 이미 구매했으면 무료
         if (postAccessRepository.existsByPost_IdAndUser_UserId(postId, userId)) {
             int bal = pointService.getBalance(user.getUserId());
             return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
         }
 
-        pointService.spendPoint(userId, cost, PointEvent.postAccess(userId, postId));
+        pointService.spendPoint(userId, questionViewCost, PointEvent.postAccess(userId, postId));
 
         try {
-            postAccessRepository.save(PostAccess.of(user, post, cost));
+            postAccessRepository.save(PostAccess.of(user, post, questionViewCost));
         } catch (DataIntegrityViolationException ignored) {
         }
 
