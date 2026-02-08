@@ -40,17 +40,24 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
     long countByReceiver_UserIdAndStatus(Long userId, ChatRequest.RequestStatus status);
 
     @Query("""
-        select cr
-        from ChatRequest cr
-        join fetch cr.requester r
-        where cr.receiver.userId = :userId
-          and cr.status = :status
-        order by cr.createdAt desc
-    """)
+                select cr
+                from ChatRequest cr
+                join fetch cr.requester r
+                where cr.receiver.userId = :userId
+                  and cr.status = :status
+                order by cr.createdAt desc
+            """)
     List<ChatRequest> findLatestReceivedRequests(
             @Param("userId") Long userId,
             @Param("status") ChatRequest.RequestStatus status,
             Pageable pageable
     );
+
+    List<ChatRequest> findAllByReceiver_UserIdAndTypeAndStatusOrderByCreatedAtDesc(
+            Long receiverId,
+            ChatRequest.RequestType type,
+            ChatRequest.RequestStatus status
+    );
 }
+
 
