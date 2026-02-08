@@ -1,4 +1,4 @@
-package CamNecT.CamNecT_Server.domain.chat.dto.request;
+package CamNecT.CamNecT_Server.domain.chat.dto.request.response;
 
 import CamNecT.CamNecT_Server.domain.chat.model.ChatRequest;
 import CamNecT.CamNecT_Server.domain.users.model.UserProfile;

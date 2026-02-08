@@ -1,9 +1,9 @@
 package CamNecT.CamNecT_Server.domain.chat.controller;
 
-import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestAcceptDto;
-import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestDetailDto;
-import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestListResponseDto;
-import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestSendDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.request.ChatRequestAcceptDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.response.ChatRequestDetailDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.response.ChatRequestListResponseDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.request.ChatRequestSendDto;
 import CamNecT.CamNecT_Server.domain.chat.model.ChatRequest;
 import CamNecT.CamNecT_Server.domain.chat.service.ChatService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
