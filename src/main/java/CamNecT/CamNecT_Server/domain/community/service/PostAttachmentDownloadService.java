@@ -42,7 +42,7 @@ public class PostAttachmentDownloadService {
     private final UploadTicketRepository uploadTicketRepository;
 
     @Transactional(readOnly = true)
-    public PresignDownloadResponse presignDownload(Long userId, Long postId, Long attachmentId, Kind kind) {
+    public PresignDownloadResponse presignDownload(Long userId, Long postId, Long attachmentId) {
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
