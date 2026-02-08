@@ -23,7 +23,11 @@ public record ChatRequestDetailDto(
         String requestType,
         List<String> requestTags,
         String requestContent,
-        String createdAt
+        String createdAt,
+
+        String recruitmentTitle,
+        Long activityId,
+        Long recruitmentId
 ) {
 
     public static ChatRequestDetailDto from(Users me,
@@ -32,7 +36,7 @@ public record ChatRequestDetailDto(
                                             ChatRequest request,
                                             String majorName,
                                             List<String> opTagNames,
-                                            String profileImgUrl) {
+                                            String profileImgUrl, String title) {
 
         return ChatRequestDetailDto.builder()
                 .myId(me.getUserId())
@@ -51,6 +55,10 @@ public record ChatRequestDetailDto(
                         .toList())
                 .requestContent(request.getContent())
                 .createdAt(request.getCreatedAt().toString())
+
+                .recruitmentTitle(title)
+                .activityId(request.getActivityId())
+                .recruitmentId(request.getRecruitmentId())
                 .build();
     }
 }

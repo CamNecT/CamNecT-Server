@@ -146,6 +146,13 @@ public class ChatService {
             throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
         }
 
+        String title = "커피챗 요청";
+        if (request.getType() == ChatRequest.RequestType.TEAM_RECRUIT && request.getRecruitmentId() != null) {
+            title = recruitmentRepository.findById(request.getRecruitmentId())
+                    .map(TeamRecruitment::getTitle)
+                    .orElse("삭제된 모집 공고입니다.");
+        }
+
         boolean isReceiver = request.getReceiver().getUserId().equals(userId);
         Users me = isReceiver ? request.getReceiver() : request.getRequester();
         Users opponent = isReceiver ? request.getRequester() : request.getReceiver();
@@ -169,7 +176,7 @@ public class ChatService {
                 .map(Tag::getName)
                 .toList();
 
-        return ChatRequestDetailDto.from(me, opponent, opProfile, request, majorName, opTagNames, profileImgUrl);
+        return ChatRequestDetailDto.from(me, opponent, opProfile, request, majorName, opTagNames, profileImgUrl, title);
     }
 
     @Transactional(readOnly = true)
