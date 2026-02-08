@@ -10,7 +10,6 @@ import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostAttachmentsR
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostsRepository;
 import CamNecT.CamNecT_Server.domain.point.service.PointService;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
-import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CommunityErrorCode;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignDownloadResponse;
@@ -18,6 +17,7 @@ import CamNecT.CamNecT_Server.global.storage.model.UploadTicket;
 import CamNecT.CamNecT_Server.global.storage.repository.UploadTicketRepository;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -28,7 +28,8 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class PostAttachmentDownloadService {
 
-    public enum Kind { FILE, THUMBNAIL }
+    @Value("${app.point.cost.question-view:100}")
+    private int questionViewCost;
 
     private final PostsRepository postsRepository;
     private final PostAttachmentsRepository postAttachmentsRepository;
@@ -39,7 +40,7 @@ public class PostAttachmentDownloadService {
     private final UploadTicketRepository uploadTicketRepository;
 
     @Transactional(readOnly = true)
-    public PresignDownloadResponse presignDownload(Long userId, Long postId, Long attachmentId, Kind kind) {
+    public PresignDownloadResponse presignDownload(Long userId, Long postId, Long attachmentId) {
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -60,7 +61,7 @@ public class PostAttachmentDownloadService {
         PostAttachments att = postAttachmentsRepository.findByIdAndPost_IdAndStatusTrue(attachmentId, postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.ATTACHMENT_NOT_FOUND));
 
-        String key = resolveKey(att, kind);
+        String key = att.getFileKey();
         if (!StringUtils.hasText(key)) {
             throw new CustomException(CommunityErrorCode.ATTACHMENT_NOT_FOUND);
         }
@@ -72,21 +73,9 @@ public class PostAttachmentDownloadService {
         return presignEngine.presignDownload(key, filename, contentType);
     }
 
-    private String resolveKey(PostAttachments att, Kind kind) {
-        if (kind == Kind.THUMBNAIL) {
-            return StringUtils.hasText(att.getThumbnailKey()) ? att.getThumbnailKey() : att.getFileKey();
-        }
-        return att.getFileKey();
-    }
-
     private ContentAccessStatus computeAccessStatus(Long userId, Long postId, Posts post) {
         if (post.getAccessType() != PostAccessType.POINT_REQUIRED) {
             return ContentAccessStatus.GRANTED;
-        }
-
-        Integer requiredPoints = post.getRequiredPoints();
-        if (requiredPoints == null || requiredPoints <= 0) {
-            throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
         if (userId == null) return ContentAccessStatus.LOGIN_REQUIRED;
@@ -94,7 +83,7 @@ public class PostAttachmentDownloadService {
         if (postAccessRepository.existsByPost_IdAndUser_UserId(postId, userId)) return ContentAccessStatus.GRANTED;
 
         int myPoints = pointService.getBalance(userId);
-        return (myPoints >= requiredPoints)
+        return (myPoints >= questionViewCost)
                 ? ContentAccessStatus.NEED_PURCHASE
                 : ContentAccessStatus.INSUFFICIENT_POINTS;
     }

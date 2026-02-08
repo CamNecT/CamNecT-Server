@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.community.service;
 
+import CamNecT.CamNecT_Server.domain.community.dto.AuthorDto;
 import CamNecT.CamNecT_Server.domain.community.dto.request.CreateCommentRequest;
 import CamNecT.CamNecT_Server.domain.community.dto.request.UpdateCommentRequest;
 import CamNecT.CamNecT_Server.domain.community.dto.response.CreateCommentResponse;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +33,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentsRepository commentsRepository;
     private final PostStatsRepository postStatsRepository;
     private final CommentLikesRepository commentLikesRepository;
+    private final AuthorAssembler  authorAssembler;
 
     @Transactional
     @Override
@@ -165,6 +168,15 @@ public class CommentServiceImpl implements CommentService {
         // 자식 댓글: 부모 아래 created_at asc
         List<Comments> children = rootIds.isEmpty() ? List.of() : mergeChildren(postId, rootIds);
 
+        // author bulk
+        List<Long> userIds = Stream.concat(roots.stream(), children.stream())
+                .map(Comments::getUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<Long, AuthorDto> authorMap = authorAssembler.buildAuthorMap(userIds);
+
         // 좋아요 수 배치 집계 (옵션 쿼리 사용)
         Map<Long, Long> likeMap = buildLikeCountMap(roots, children);
 
@@ -178,11 +190,11 @@ public class CommentServiceImpl implements CommentService {
         }
 
         for (Comments r : roots) {
-            out.add(toRow(r, likeMap.getOrDefault(r.getId(), 0L)));
+            out.add(toRow(r, likeMap.getOrDefault(r.getId(), 0L), authorMap));
 
             List<Comments> kids = childMap.getOrDefault(r.getId(), List.of());
             for (Comments k : kids) {
-                out.add(toRow(k, likeMap.getOrDefault(k.getId(), 0L)));
+                out.add(toRow(k, likeMap.getOrDefault(k.getId(), 0L), authorMap));
             }
         }
 
@@ -218,16 +230,20 @@ public class CommentServiceImpl implements CommentService {
         return map;
     }
 
-    private CommentRow toRow(Comments c, long likeCount) {
-        String content = (c.getStatus() == CommentStatus.DELETED) ? "삭제된 댓글입니다." : c.getContent();
+    private CommentRow toRow(Comments c, long likeCount, Map<Long, AuthorDto> authorMap) {
+        boolean deleted = (c.getStatus() == CommentStatus.DELETED);
+        String content = deleted ? "삭제된 댓글입니다." : c.getContent();
         Long parentId = (c.getParent() == null) ? null : c.getParent().getId();
+
+        AuthorDto author = deleted ? null : authorMap.get(c.getUserId());
 
         return new CommentRow(
                 c.getId(),
                 c.getUserId(),
                 parentId,
                 content,
-                likeCount
+                likeCount,
+                author
         );
     }
 }

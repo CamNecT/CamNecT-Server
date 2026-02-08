@@ -73,6 +73,9 @@ public class AuthInterceptor implements HandlerInterceptor {
                         || uri.equals("/api/auth/onboarding")
 
                         // 프로필 관련 제한 API (선택)
-                        || uri.startsWith("/api/profile/");
+                        || uri.startsWith("/api/profile/")
+
+                        // Auth과정에서 tag조회해야하므로
+                        || uri.equals("/api/tags");
     }
 }

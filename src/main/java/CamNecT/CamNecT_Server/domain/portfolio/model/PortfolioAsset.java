@@ -24,8 +24,8 @@ public class PortfolioAsset {
     @Column(nullable = false, length = 20)
     private String type;
 
-    @Column(name = "file_url", nullable = false, length = 500)
-    private String fileUrl;
+    @Column(name = "file_key", nullable = false, length = 500)
+    private String fileKey;
 
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder;

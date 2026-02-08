@@ -4,13 +4,14 @@ import CamNecT.CamNecT_Server.domain.activity.dto.request.ActivityRequest;
 import CamNecT.CamNecT_Server.domain.activity.dto.response.ActivityDetailResponse;
 import CamNecT.CamNecT_Server.domain.activity.dto.response.ActivityPreviewResponse;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityCategory;
+import CamNecT.CamNecT_Server.domain.activity.service.ActivityAttachmentService;
 import CamNecT.CamNecT_Server.domain.activity.service.ActivityService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
+import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadBatchRequest;
 import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadRequest;
+import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadBatchResponse;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadResponse;
-import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
-import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -28,7 +29,7 @@ import java.util.List;
 public class ActivityController {
 
     private final ActivityService activityService;
-    private final PresignEngine presignEngine;
+    private final ActivityAttachmentService activityAttachmentService;
 
     @Operation(
             summary = "대외활동 목록 조회",
@@ -100,25 +101,21 @@ public class ActivityController {
     }
 
     // --- S3 Presign URL 발급 API 추가 ---
-
-    @Operation(summary = "대외활동 썸네일 업로드용 Presigned URL 발급", description = "대외활동 썸네일 이미지를 S3에 업로드하기 위한 사전 승인 URL을 발급받습니다.")
+    @Operation(summary = "대외활동 썸네일 업로드용 Presigned URL 발급")
     @PostMapping("/uploads/presign/thumbnail")
     public ApiResponse<PresignUploadResponse> presignThumbnail(
             @UserId Long userId,
             @RequestBody @Valid PresignUploadRequest req
     ) {
-        String keyPrefix = "activity/user-" + userId + "/thumbnail";
-        return ApiResponse.success(presignEngine.issueUpload(userId, UploadPurpose.ACTIVITY_ATTACHMENT, keyPrefix, req.contentType(), req.size(), req.originalFilename()));
+        return ApiResponse.success(activityAttachmentService.presignThumbnail(userId, req));
     }
 
-    @Operation(summary = "대외활동 첨부파일 업로드용 Presigned URL 발급", description = "대외활동 관련 첨부파일을 S3에 업로드하기 위한 사전 승인 URL을 발급받습니다.")
-    @PostMapping("/uploads/presign/attachment")
-    public ApiResponse<PresignUploadResponse> presignAttachment(
+    @Operation(summary = "대외활동 첨부 업로드용 Presigned URL 발급 (Batch)")
+    @PostMapping("/uploads/presign/attachments")
+    public ApiResponse<PresignUploadBatchResponse> presignAttachments(
             @UserId Long userId,
-            @RequestBody @Valid PresignUploadRequest req
+            @RequestBody @Valid PresignUploadBatchRequest req
     ) {
-        String keyPrefix = "activity/user-" + userId + "/attachments";
-        return ApiResponse.success(presignEngine.issueUpload(userId, UploadPurpose.ACTIVITY_ATTACHMENT, keyPrefix, req.contentType(), req.size(), req.originalFilename()));
+        return ApiResponse.success(activityAttachmentService.presignAttachmentsBatch(userId, req));
     }
-
 }

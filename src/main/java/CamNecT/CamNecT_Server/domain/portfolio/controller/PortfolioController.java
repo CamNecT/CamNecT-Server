@@ -4,13 +4,14 @@ import CamNecT.CamNecT_Server.domain.portfolio.dto.request.PortfolioRequest;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioDetailResponse;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioPreviewResponse;
 import CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioResponse;
+import CamNecT.CamNecT_Server.domain.portfolio.service.PortfolioAttachmentService;
 import CamNecT.CamNecT_Server.domain.portfolio.service.PortfolioService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
+import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadBatchRequest;
 import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadRequest;
+import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadBatchResponse;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadResponse;
-import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
-import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -26,7 +27,7 @@ import java.util.List;
 public class PortfolioController {
 
     private final PortfolioService portfolioService;
-    private final PresignEngine presignEngine;
+    private final PortfolioAttachmentService portfolioAttachmentService;
 
     @Operation(summary = "포트폴리오 목록 조회", description = "해당 사용자의 포트폴리오 요약 목록(Preview)을 조회합니다.")
     @GetMapping
@@ -80,42 +81,24 @@ public class PortfolioController {
         return ApiResponse.success(portfolioService.toggleFavorite(userId, portfolioId));
     }
 
-    @Operation(summary = "썸네일 업로드용 Presigned URL 발급", description = "포트폴리오 대표 이미지를 S3에 업로드하기 위한 사전 승인 URL을 발급받습니다.")
+    @Operation(summary = "썸네일 업로드용 Presigned URL 발급", description = "포트폴리오 대표 이미지를 업로드하기 위한 Presigned URL을 발급합니다. (이미지 파일만 허용)")
     @PostMapping("/uploads/presign/thumbnail")
     public ApiResponse<PresignUploadResponse> presignThumbnail(
             @UserId Long userId,
+            @PathVariable Long portfolioUserId,
             @RequestBody @Valid PresignUploadRequest req
     ) {
-        String keyPrefix = "portfolio/user-" + userId + "/thumbnail";
-        return ApiResponse.success(
-                presignEngine.issueUpload(
-                        userId,
-                        UploadPurpose.PORTFOLIO_ATTACHMENT,
-                        keyPrefix,
-                        req.contentType(),
-                        req.size(),
-                        req.originalFilename()
-                )
-        );
+        return ApiResponse.success(portfolioAttachmentService.presignThumbnail(userId, portfolioUserId, req));
     }
 
-    @Operation(summary = "포트폴리오 첨부파일(Asset) 업로드용 Presigned URL 발급", description = "포트폴리오 내부에 포함될 첨부파일을 S3에 업로드하기 위한 사전 승인 URL을 발급받습니다.")
-    @PostMapping("/uploads/presign/asset")
-    public ApiResponse<PresignUploadResponse> presignAsset(
+    @Operation(summary = "포트폴리오 첨부파일 업로드용 Presigned URL 발급(다건)", description = "포트폴리오 첨부파일을 업로드하기 위한 Presigned URL을 다건 발급합니다.")
+    @PostMapping("/uploads/presign/assets")
+    public ApiResponse<PresignUploadBatchResponse> presignAssetsBatch(
             @UserId Long userId,
-            @RequestBody @Valid PresignUploadRequest req
+            @PathVariable Long portfolioUserId,
+            @RequestBody @Valid PresignUploadBatchRequest req
     ) {
-        String keyPrefix = "portfolio/user-" + userId + "/assets";
-        return ApiResponse.success(
-                presignEngine.issueUpload(
-                        userId,
-                        UploadPurpose.PORTFOLIO_ATTACHMENT,
-                        keyPrefix,
-                        req.contentType(),
-                        req.size(),
-                        req.originalFilename()
-                )
-        );
+        return ApiResponse.success(portfolioAttachmentService.presignAssetsBatch(userId, portfolioUserId, req));
     }
 
 }

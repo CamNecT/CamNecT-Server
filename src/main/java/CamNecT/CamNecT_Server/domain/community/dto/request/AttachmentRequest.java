@@ -5,7 +5,6 @@ import jakarta.validation.constraints.Size;
 
 public record AttachmentRequest(
         @NotBlank @Size(max = 500) String fileKey,
-        @Size(max = 500) String thumbnailKey,
         Integer width,
         Integer height,
         Long fileSize
