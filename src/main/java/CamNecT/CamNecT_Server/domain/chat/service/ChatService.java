@@ -275,25 +275,35 @@ public class ChatService {
         Users me = (room.getRequester().getUserId().equals(userId)) ? room.getRequester() : room.getReceiver();
         Users opponent = (room.getRequester().getUserId().equals(userId)) ? room.getReceiver() : room.getRequester();
 
-        UserProfile opProfile = userProfileRepository.findByUserId(opponent.getUserId())
-                .orElse(null);
-
-        List<Tag> opTags = userTagMapRepository.findAllTagsByUserId(opponent.getUserId());
-
-        List<String> tagNames = opTags.stream()
-                .map(Tag::getName)
-                .toList();
-
+        UserProfile opProfile = userProfileRepository.findByUserId(opponent.getUserId()).orElse(null);
         String majorName = "전공 미입력";
+        String profileImgUrl = "/images/default.png";
+
         if (opProfile != null && opProfile.getMajorId() != null) {
             majorName = majorRepository.findById(opProfile.getMajorId())
                     .map(Majors::getMajorNameKor)
                     .orElse("알 수 없는 전공");
+            profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
         }
+
+        List<String> tagNames = userTagMapRepository.findAllTagsByUserId(opponent.getUserId())
+                .stream()
+                .map(Tag::getName)
+                .toList();
 
         List<ChatMessageResponseDto> chatHistory = this.getChatHistory(roomId, userId);
 
-        return ChatRoomWithDetailDto.from(room, me, opponent, opProfile, majorName, tagNames, chatHistory);
+        String title = "커피챗 요청";
+        if (room.getRequest().getType() == ChatRequest.RequestType.TEAM_RECRUIT) {
+            Long recruitmentId = room.getRequest().getRecruitmentId();
+            if (recruitmentId != null) {
+                title = recruitmentRepository.findById(recruitmentId)
+                        .map(TeamRecruitment::getTitle)
+                        .orElse("삭제된 모집 공고입니다.");
+            }
+        }
+
+        return ChatRoomWithDetailDto.from(room, me, opponent, opProfile, majorName, tagNames, chatHistory, title, profileImgUrl);
     }
 
 
