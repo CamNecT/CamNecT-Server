@@ -5,6 +5,8 @@ import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatMessageResponseDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatMessageSendRequestDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatReadEvent;
 import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestDetailDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestListDetailDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestListResponseDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomListDetailDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomListUpdateDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomWithDetailDto;
@@ -460,4 +462,55 @@ public class ChatService {
     }
 
 
+    @Transactional(readOnly = true)
+    public ChatRequestListResponseDto getChatRequestList(Long userId, ChatRequest.RequestType type) {
+        List<ChatRequest> requests = chatRequestRepository
+                .findAllByReceiver_UserIdAndTypeAndStatusOrderByCreatedAtDesc(
+                        userId, type, ChatRequest.RequestStatus.WAITING);
+
+        if (requests.isEmpty()) {
+            return new ChatRequestListResponseDto(List.of());
+        }
+
+        List<Long> opponentIds = requests.stream()
+                .map(req -> req.getRequester().getUserId())
+                .distinct()
+                .toList();
+
+        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(opponentIds)
+                .stream()
+                .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
+
+        List<ChatRequestListDetailDto> dtoList = requests.stream()
+                .map(request -> {
+                    Users opponent = request.getRequester();
+                    UserProfile opProfile = profileMap.get(opponent.getUserId());
+
+                    String majorName = "전공 미입력";
+                    String profileImgUrl = "/images/default.png";
+
+                    if (opProfile != null) {
+                        if (opProfile.getMajorId() != null) {
+                            majorName = majorRepository.findById(opProfile.getMajorId())
+                                    .map(Majors::getMajorNameKor)
+                                    .orElse("알 수 없는 전공");
+                        }
+
+                        if (StringUtils.hasText(opProfile.getProfileImageKey())) {
+                            profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
+                        }
+                    }
+
+                    return ChatRequestListDetailDto.from(
+                            opponent,
+                            opProfile,
+                            request,
+                            majorName,
+                            profileImgUrl
+                    );
+                })
+                .toList();
+
+        return new ChatRequestListResponseDto(dtoList);
+    }
 }
