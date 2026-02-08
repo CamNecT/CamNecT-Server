@@ -83,7 +83,7 @@ public class Posts {
         if (isAnonymous != null) this.isAnonymous = isAnonymous;
     }
 
-    public void hide() { this.status = PostStatus.HIDDEN; }
+    //public void hide() { this.status = PostStatus.HIDDEN; }
 
     public void publish() { this.status = PostStatus.PUBLISHED; }
 
