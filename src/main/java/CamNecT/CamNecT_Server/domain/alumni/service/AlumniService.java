@@ -4,7 +4,9 @@ import CamNecT.CamNecT_Server.domain.alumni.dto.response.AlumniPreviewResponse;
 import CamNecT.CamNecT_Server.domain.alumni.dto.UserProfileDto;
 import CamNecT.CamNecT_Server.domain.alumni.repository.AlumniRepository;
 import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
+import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
+import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserTagMapRepository;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
@@ -24,6 +26,7 @@ public class AlumniService {
     private final UserTagMapRepository userTagMapRepository;
     private final UserProfileRepository userProfileRepository;
     private final AlumniRepository alumniRepository;
+    private final UserRepository usersRepository; // Users Repository 추가
     private final PresignEngine presignEngine;
 
     @Transactional(readOnly = true)
@@ -34,21 +37,28 @@ public class AlumniService {
 
         if (targetIds.isEmpty()) return List.of();
 
-        // 2. 프로필 정보 조회 및 Map 변환
+        // 2-1. Users 정보 조회 및 Map 변환 (userName 조회용)
+        Map<Long, Users> usersMap = usersRepository.findAllById(targetIds).stream()
+                .collect(Collectors.toMap(Users::getUserId, u -> u));
+
+        // 2-2. 프로필 정보 조회 및 Map 변환
         Map<Long, UserProfile> profileMap = userProfileRepository.findAllById(targetIds).stream()
                 .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
 
         // 3. 태그 정보 조회 및 Map 변환 (통합 로직)
         List<Object[]> tagResults = userTagMapRepository.findTagsWithUserIdByUserIdIn(targetIds);
-        Map<Long, List<Tag>> tagMap = tagResults.stream()
+        Map<Long, List<String>> tagMap = tagResults.stream()
                 .collect(Collectors.groupingBy(
                         row -> (Long) row[0], // userId
-                        Collectors.mapping(row -> (Tag) row[1], Collectors.toList()) // Tag 객체
+                        Collectors.mapping(
+                                row -> ((Tag) row[1]).getName(),
+                                Collectors.toList())
                 ));
 
         // 4. targetIds의 정렬 순서를 유지하며 최종 DTO 생성 (프로필 이미지 presigned URL 적용)
         return targetIds.stream()
                 .map(id -> {
+                    Users user = usersMap.get(id);
                     UserProfile profile = profileMap.get(id);
 
                     // UserProfile 엔티티 → DTO 변환 + 프로필 이미지 presigned URL 적용
@@ -59,6 +69,7 @@ public class AlumniService {
 
                     return new AlumniPreviewResponse(
                             id,
+                            user.getName(), // Users 엔티티에서 name 가져오기
                             profileDto,
                             tagMap.getOrDefault(id, List.of())
                     );

@@ -312,7 +312,7 @@ public class ActivityService {
         List<Long> tagIds = activityTagRepository.findAllByActivityId(activityId).stream()
                 .map(ExternalActivityTag::getTagId)
                 .toList();
-        List<Tag> tagList = tagRepository.findAllById(tagIds);
+        List<String> tagNames = tagRepository.findNamesByIds(tagIds);
 
         // 5. 팀원 공고 리스트 조회
         List<TeamRecruitment> recruitmentList =
@@ -326,7 +326,7 @@ public class ActivityService {
                 isMine,
                 activityDto,
                 attachmentDtos,
-                tagList,
+                tagNames,
                 recruitmentList
         );
     }

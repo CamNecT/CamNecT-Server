@@ -9,6 +9,6 @@ public record ActivityPreviewResponse(
         String title,
         String context,
         String thumbnailUrl,
-        List<Tag> tags
+        List<String> tags
 ) {
 }
