@@ -220,11 +220,20 @@ public class ChatService {
     }
 
 
-    public List<ChatRoomListDetailDto> getChatRoomList(Long userId) {
+    public List<ChatRoomListDetailDto> getChatRoomList(Long userId, ChatRequest.RequestType type) {
         Users me = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
-        List<ChatRoom> myRooms = chatRoomRepository.findAllByUserIdWithBasicInfo(userId);
+//        List<ChatRoom> myRooms = chatRoomRepository.findAllByUserIdWithBasicInfo(userId);
+        List<ChatRoom> myRooms;
+
+        if (type == null) {
+            // 전체 조회
+            myRooms = chatRoomRepository.findAllByUserIdWithBasicInfo(userId);
+        } else {
+            // 타입별 조회
+            myRooms = chatRoomRepository.findAllByUserIdAndType(userId, type);
+        }
 
         if (myRooms.isEmpty()) {
             return List.of();

@@ -3,6 +3,7 @@ package CamNecT.CamNecT_Server.domain.chat.controller;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomListDetailDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomListResponseDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomWithDetailDto;
+import CamNecT.CamNecT_Server.domain.chat.model.ChatRequest;
 import CamNecT.CamNecT_Server.domain.chat.service.ChatService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
@@ -23,12 +24,15 @@ public class ChatRoomController {
 
     private final ChatService chatService;
 
-    @Operation(summary = "내 채팅방 목록 조회", description = "참여 중인 모든 채팅방 목록과 전체 안 읽은 메시지 수를 반환합니다.")
+    @Operation(summary = "내 채팅방 목록 조회", description = "참여 중인 모든 채팅방 목록과 전체 안 읽은 메시지 수를 반환합니다. 요청 타입(COFFEE_CHAT, TEAM_RECRUIT)의 리스트를 조회합니다. 아무것도 넘기지 않을 시 전체 조회합니다.")
     @GetMapping("/rooms")
     @Transactional(readOnly = true)
-    public ApiResponse<ChatRoomListResponseDto> roomList(@UserId Long userId) {
+    public ApiResponse<ChatRoomListResponseDto> roomList(
+            @UserId Long userId,
+            @RequestParam(name = "type", required = false) ChatRequest.RequestType type
+    ) {
 
-        List<ChatRoomListDetailDto> roomList = chatService.getChatRoomList(userId);
+        List<ChatRoomListDetailDto> roomList = chatService.getChatRoomList(userId, type);
         long totalUnreadCount = roomList.stream().mapToLong(ChatRoomListDetailDto::getUnreadCount).sum();
 
         ChatRoomListResponseDto response = ChatRoomListResponseDto.builder()
@@ -39,11 +43,7 @@ public class ChatRoomController {
         return ApiResponse.success(response);
     }
 
-    /**
-     * [채팅방 상세 조회 (입장)]
-     * URL: GET /api/chat/room/{roomId}
-     * React: 채팅방 클릭 시 호출 -> 이 데이터를 받아서 화면 그리고 소켓 연결(CONNECT)
-     */
+
     @Operation(summary = "채팅방 상세 조회 (입장)", description = "특정 채팅방의 상대방 정보와 채팅 내역을 불러옵니다. 이 API 호출 후 소켓 연결(CONNECT)을 진행해야 합니다.")
     @GetMapping("/room/{roomId}")
     public ApiResponse<ChatRoomWithDetailDto> joinRoom(@Parameter(description = "채팅방 ID") @PathVariable Long roomId, @UserId Long userId) {

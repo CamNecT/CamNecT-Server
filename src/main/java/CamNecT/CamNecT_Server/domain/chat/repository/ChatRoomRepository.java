@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.chat.repository;
 
+import CamNecT.CamNecT_Server.domain.chat.model.ChatRequest;
 import CamNecT.CamNecT_Server.domain.chat.model.ChatRoom;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,14 +21,28 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "WHERE r.requester.userId = :userId OR r.receiver.userId = :userId")
     List<ChatRoom> findAllByUserIdWithRequest(@Param("userId") Long userId);*/
 
-    @Query("SELECT DISTINCT r FROM ChatRoom r " +
+/*    @Query("SELECT DISTINCT r FROM ChatRoom r " +
             "JOIN FETCH r.request req " +
             "LEFT JOIN FETCH req.requestInterests " +
             "JOIN FETCH r.requester " +
             "JOIN FETCH r.receiver " +
             "WHERE r.requester.userId = :userId OR r.receiver.userId = :userId")
+    List<ChatRoom> findAllByUserIdWithBasicInfo(@Param("userId") Long userId);*/
+
+    @Query("SELECT r FROM ChatRoom r " +
+            "JOIN FETCH r.request " +
+            "WHERE r.requester.userId = :userId OR r.receiver.userId = :userId " +
+            "ORDER BY r.lastMessageAt DESC")
     List<ChatRoom> findAllByUserIdWithBasicInfo(@Param("userId") Long userId);
 
+    // 타입별 조회
+    @Query("SELECT r FROM ChatRoom r " +
+            "JOIN FETCH r.request req " +
+            "WHERE (r.requester.userId = :userId OR r.receiver.userId = :userId) " +
+            "AND req.type = :type " +
+            "ORDER BY r.lastMessageAt DESC")
+    List<ChatRoom> findAllByUserIdAndType(@Param("userId") Long userId,
+                                          @Param("type") ChatRequest.RequestType type);
 
     @Query("SELECT r FROM ChatRoom r " +
             "JOIN FETCH r.requester " +
@@ -36,6 +51,5 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "JOIN FETCH req.requestInterests " +
             "WHERE r.id = :roomId")
     Optional<ChatRoom> findByUserIdWithDetails(@Param("roomId") Long roomId);
-
 
 }
