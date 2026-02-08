@@ -40,7 +40,7 @@ public record ChatRequestDetailDto(
                 .opponentId(opponent.getUserId())
                 .opponentName(opponent.getName())
                 .opponentMajor(majorName)
-                .opponentStudentYear(opProfile != null ? opProfile.getYearLevel().toString() : "")
+                .opponentStudentYear(opProfile != null && opProfile.getYearLevel() != null ? opProfile.getYearLevel().toString() : "")
                 .opponentProfileImg(profileImgUrl)
                 .opponentTags(opTagNames)
                 

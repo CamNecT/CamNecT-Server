@@ -53,10 +53,14 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
             Pageable pageable
     );
 
-    List<ChatRequest> findAllByReceiver_UserIdAndTypeAndStatusOrderByCreatedAtDesc(
-            Long receiverId,
-            ChatRequest.RequestType type,
-            ChatRequest.RequestStatus status
+    @Query("SELECT cr FROM ChatRequest cr " +
+                     "JOIN FETCH cr.requester " +
+                     "WHERE cr.receiver.userId = :userId AND cr.type = :type AND cr.status = :status " +
+                     "ORDER BY cr.createdAt DESC")
+             List<ChatRequest> findAllByReceiver_UserIdAndTypeAndStatusOrderByCreatedAtDesc(
+            @Param("userId") Long userId,
+            @Param("type") ChatRequest.RequestType type,
+            @Param("status") ChatRequest.RequestStatus status
     );
 }
 
