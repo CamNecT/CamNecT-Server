@@ -383,7 +383,7 @@ public class ChatService {
                     .build();
 
             messagingTemplate.convertAndSend(
-                    "/sub/user/" + receiver.getUserId() + "/roomList",
+                    "/sub/user/" + receiver.getUserId() + "/rooms",
                     updateDto
             );
 
@@ -399,7 +399,7 @@ public class ChatService {
                     .build();
 
             messagingTemplate.convertAndSend(
-                    "/sub/user/" + sender.getUserId() + "/roomList",
+                    "/sub/user/" + sender.getUserId() + "/rooms",
                     senderUpdateDto
             );
         } catch (Exception e) {
