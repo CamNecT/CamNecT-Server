@@ -15,21 +15,17 @@ public class ExternalActivityAttachmentDto {
     private final String fileUrl;
     private final LocalDateTime createdAt;
 
-    /**
-     * 엔티티 → DTO 1:1 매핑
-     */
     public static ExternalActivityAttachmentDto from(ExternalActivityAttachment entity) {
+        Long activityId = (entity.getActivity() == null) ? null : entity.getActivity().getActivityId();
+
         return ExternalActivityAttachmentDto.builder()
                 .id(entity.getId())
-                .activityId(entity.getExternalActivity())
-                .fileUrl(entity.getFileKey())
+                .activityId(activityId)
+                .fileUrl(null) // presign으로 채울 예정
                 .createdAt(entity.getCreatedAt())
                 .build();
     }
 
-    /**
-     * presigned URL 적용용
-     */
     public ExternalActivityAttachmentDto withFileUrl(String fileUrl) {
         return ExternalActivityAttachmentDto.builder()
                 .id(id)

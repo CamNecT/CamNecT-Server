@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface ExternalActivityAttachmentRepository extends JpaRepository<ExternalActivityAttachment, Long> {
 
-    void deleteByExternalActivity(Long activityId);
+    void deleteByActivity_ActivityId(Long activityId);
 
-    List<ExternalActivityAttachment> findAllByExternalActivity(Long activityId);
+    List<ExternalActivityAttachment> findAllByActivity_ActivityId(Long activityId);
 }

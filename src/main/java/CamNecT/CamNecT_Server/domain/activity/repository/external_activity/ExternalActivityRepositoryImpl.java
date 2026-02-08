@@ -74,16 +74,16 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
 
         // 4. 태그 이름 일괄 조회 (N+1 해결)
         List<Tuple> tagTuples = queryFactory
-                .select(externalActivityTag.activityId, tag.name)  // tag 대신 tag.name만 선택
+                .select(externalActivityTag.activity.activityId, tag.name)
                 .from(externalActivityTag)
-                .join(tag).on(externalActivityTag.tagId.eq(tag.id))
-                .where(externalActivityTag.activityId.in(activityIds))
+                .join(externalActivityTag.tag, tag)
+                .where(externalActivityTag.activity.activityId.in(activityIds))
                 .fetch();
 
         // 5. activityId별로 태그 이름 그룹핑
         Map<Long, List<String>> tagMap = tagTuples.stream()
                 .collect(Collectors.groupingBy(
-                        tuple -> tuple.get(externalActivityTag.activityId),
+                        tuple -> tuple.get(externalActivityTag.activity.activityId),
                         Collectors.mapping(
                                 tuple -> tuple.get(tag.name),  // tag.name으로 변경
                                 Collectors.toList()
@@ -127,14 +127,15 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
     private BooleanExpression hasAllTags(List<Long> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) return null;
 
-        return Expressions.asBoolean(true).isTrue().and(
-                externalActivity.activityId.in(
-                        JPAExpressions.select(externalActivityTag.activityId)
-                                .from(externalActivityTag)
-                                .where(externalActivityTag.tagId.in(tagIds))
-                                .groupBy(externalActivityTag.activityId)
-                                .having(externalActivityTag.tagId.count().eq((long) tagIds.size()))
-                )
+        List<Long> distinct = tagIds.stream().distinct().toList();
+
+        return externalActivity.activityId.in(
+                JPAExpressions
+                        .select(externalActivityTag.activity.activityId)
+                        .from(externalActivityTag)
+                        .where(externalActivityTag.tag.id.in(distinct))
+                        .groupBy(externalActivityTag.activity.activityId)
+                        .having(externalActivityTag.tag.id.countDistinct().eq((long) distinct.size()))
         );
     }
 
@@ -148,9 +149,12 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                 NumberExpression<Long> matchCount = Expressions.asNumber(
                         JPAExpressions.select(userTagMap.count())
                                 .from(userTagMap)
-                                .join(externalActivityTag).on(userTagMap.tagId.eq(externalActivityTag.tagId))
-                                .where(userTagMap.userId.eq(userId)
-                                        .and(externalActivityTag.activityId.eq(externalActivity.activityId)))
+                                .join(externalActivityTag)
+                                .on(userTagMap.tagId.eq(externalActivityTag.tag.id))
+                                .where(
+                                        userTagMap.userId.eq(userId)
+                                                .and(externalActivityTag.activity.activityId.eq(externalActivity.activityId))
+                                        )
                 );
                 yield matchCount.desc();
             }
@@ -159,7 +163,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                 NumberExpression<Long> bookmarkCount = Expressions.asNumber(
                         JPAExpressions.select(externalActivityBookmark.count())
                                 .from(externalActivityBookmark)
-                                .where(externalActivityBookmark.activityId.eq(externalActivity.activityId))
+                                .where(externalActivityBookmark.activity.activityId.eq(externalActivity.activityId))
                 );
                 yield bookmarkCount.desc();
             }
@@ -183,7 +187,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
         return queryFactory
                 .select(ea.activityId)
                 .from(ea)
-                .leftJoin(b).on(b.activityId.eq(ea.activityId))
+                .leftJoin(b).on(b.activity.activityId.eq(ea.activityId))
                 .where(
                         category != null ? ea.category.eq(category) : null,
                         ea.status.eq(ActivityStatus.OPEN) // 홈은 OPEN만 추천 (원치 않으면 제거)
