@@ -13,6 +13,15 @@ app:
   upload-ticket:
     expire-job-delay-ms: 900000  # 15분
 
+  activity:
+    attachments:
+      max-files: 10
+      max-file-size-mb: 20
+      allowed-content-types:
+        - application/pdf
+        - image/jpeg
+        - image/png
+        - image/webp
   auth:
     email-verification:
       expiration-minutes: 30

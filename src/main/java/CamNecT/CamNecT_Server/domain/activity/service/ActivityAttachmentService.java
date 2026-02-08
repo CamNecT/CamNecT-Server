@@ -2,7 +2,6 @@ package CamNecT.CamNecT_Server.domain.activity.service;
 
 import CamNecT.CamNecT_Server.domain.activity.model.props.ActivityAttachmentProps;
 import CamNecT.CamNecT_Server.domain.activity.model.props.ActivityThumbnailProps;
-import CamNecT.CamNecT_Server.domain.activity.repository.external_activity.ExternalActivityAttachmentRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.StorageErrorCode;
@@ -18,6 +17,7 @@ import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -38,13 +38,20 @@ public class ActivityAttachmentService {
 
     private final ActivityAttachmentProps attachmentProps;
     private final ActivityThumbnailProps thumbnailProps;
-    private final ExternalActivityAttachmentRepository attachmentRepository;
 
     @Transactional
     public PresignUploadResponse presignThumbnail(Long userId, PresignUploadRequest req) {
         userRepository.lockUserRow(userId);
 
         String ct = globalPresignMethods.normalize(req.contentType());
+        if (!StringUtils.hasText(ct)) {
+            throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
+        }
+        if (attachmentProps.allowedContentTypes() != null
+                && !attachmentProps.allowedContentTypes().isEmpty()
+                && !attachmentProps.allowedContentTypes().contains(ct)) {
+            throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
+        }
         if (req.size() == null || req.size() <= 0) throw new CustomException(StorageErrorCode.EMPTY_FILE_NOT_ALLOWED);
         if (req.size() > thumbnailProps.maxFileSizeBytes()) throw new CustomException(StorageErrorCode.FILE_TOO_LARGE);
 

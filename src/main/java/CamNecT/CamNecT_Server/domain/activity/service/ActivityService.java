@@ -125,7 +125,7 @@ public class ActivityService {
 
             activityAttachmentRepository.save(ExternalActivityAttachment.builder()
                     .externalActivity(saved.getActivityId())
-                    .fileUrl(finalKey)
+                    .fileKey(finalKey)
                     .build());
         }
 
@@ -146,9 +146,7 @@ public class ActivityService {
         ExternalActivity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
-        if (!activity.getUserId().equals(userId)) {
-            throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
-        }
+        if (!Objects.equals(activity.getUserId(), userId)) throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
 
         Set<String> deleteAfterCommit = new HashSet<>();
         String finalAttachPrefix = "activity/activities/activity-" + activity.getActivityId() + "/attachments";
@@ -179,8 +177,8 @@ public class ActivityService {
             // 기존 첨부파일 목록을 Map으로 관리
             Map<String, ExternalActivityAttachment> currentByKey =
                     activityAttachmentRepository.findAllByExternalActivity(activityId).stream()
-                            .filter(a -> StringUtils.hasText(a.getFileUrl()))
-                            .collect(Collectors.toMap(ExternalActivityAttachment::getFileUrl, a -> a));
+                            .filter(a -> StringUtils.hasText(a.getFileKey()))
+                            .collect(Collectors.toMap(ExternalActivityAttachment::getFileKey, a -> a));
 
             Set<String> keepKeys = new HashSet<>();
             LinkedHashSet<String> reqKeys = new LinkedHashSet<>();
@@ -203,7 +201,7 @@ public class ActivityService {
 
                 activityAttachmentRepository.save(ExternalActivityAttachment.builder()
                         .externalActivity(activityId)
-                        .fileUrl(finalKey)
+                        .fileKey(finalKey)
                         .build());
 
                 keepKeys.add(finalKey);
@@ -218,7 +216,7 @@ public class ActivityService {
             // DB에서 삭제할 첨부파일 제거
             activityAttachmentRepository.deleteAll(
                     currentByKey.values().stream()
-                            .filter(a -> !keepKeys.contains(a.getFileUrl()))
+                            .filter(a -> !keepKeys.contains(a.getFileKey()))
                             .collect(Collectors.toList())
             );
         }
@@ -238,9 +236,8 @@ public class ActivityService {
         ExternalActivity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
-        if (!activity.getUserId().equals(userId)) {
-            throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
-        }
+        if (!Objects.equals(activity.getUserId(), userId)) throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
+
 
         Set<String> deleteAfterCommit = new HashSet<>();
 
@@ -249,7 +246,7 @@ public class ActivityService {
         }
 
         activityAttachmentRepository.findAllByExternalActivity(activityId)
-                .forEach(a -> { if (StringUtils.hasText(a.getFileUrl())) deleteAfterCommit.add(a.getFileUrl()); });
+                .forEach(a -> { if (StringUtils.hasText(a.getFileKey())) deleteAfterCommit.add(a.getFileKey()); });
 
         activityRepository.delete(activity);
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
@@ -275,7 +272,7 @@ public class ActivityService {
 
             // fileKey 목록
             List<String> keys = atts.stream()
-                    .map(ExternalActivityAttachment::getFileUrl) // TODO: fileKey로 필드명 정리 추천
+                    .map(ExternalActivityAttachment::getFileKey)
                     .filter(StringUtils::hasText)
                     .distinct()
                     .toList();
@@ -301,11 +298,10 @@ public class ActivityService {
                 }
             }
 
-            // ✅ url 있는 것만 내려줌
             attachmentDtos = atts.stream()
-                    .filter(a -> StringUtils.hasText(a.getFileUrl()))
+                    .filter(a -> StringUtils.hasText(a.getFileKey()))
                     .map(a -> {
-                        String url = urlMap.get(a.getFileUrl());
+                        String url = urlMap.get(a.getFileKey());
                         if (!StringUtils.hasText(url)) return null;
                         return ExternalActivityAttachmentDto.from(a).withFileUrl(url);
                     })
@@ -324,7 +320,7 @@ public class ActivityService {
                 teamRecruitmentRepository.findAllByActivityId(activityId);
 
         // 6. 본인 글 여부
-        boolean isMine = activity.getUserId() == null || activity.getUserId().equals(userId);
+        boolean isMine = Objects.equals(activity.getUserId(), userId);
 
         // 7. Response 생성
         return new ActivityDetailResponse(
@@ -401,9 +397,13 @@ public class ActivityService {
      */
     private String thumbnailUrlOrNull(String key) {
         if (!StringUtils.hasText(key) || DEFAULT_THUMB.equals(key)) return null;
-        return publicUrlIssuer.issuePublicUrl(key);
+        try {
+            return publicUrlIssuer.issuePublicUrl(key);
+        } catch (Exception e) {
+            log.warn("issuePublicUrl failed. key={}", key, e);
+            return null;
+        }
     }
-
     /**
      * 활동의 태그 저장
      */
