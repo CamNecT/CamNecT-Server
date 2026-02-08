@@ -31,8 +31,6 @@ public class PostAttachmentDownloadService {
     @Value("${app.point.cost.question-view:100}")
     private int questionViewCost;
 
-    public enum Kind { FILE, THUMBNAIL }
-
     private final PostsRepository postsRepository;
     private final PostAttachmentsRepository postAttachmentsRepository;
     private final PostAccessRepository postAccessRepository;
