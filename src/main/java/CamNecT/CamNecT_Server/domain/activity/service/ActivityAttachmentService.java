@@ -44,14 +44,8 @@ public class ActivityAttachmentService {
         userRepository.lockUserRow(userId);
 
         String ct = globalPresignMethods.normalize(req.contentType());
-        if (!StringUtils.hasText(ct)) {
-            throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
-        }
-        if (attachmentProps.allowedContentTypes() != null
-                && !attachmentProps.allowedContentTypes().isEmpty()
-                && !attachmentProps.allowedContentTypes().contains(ct)) {
-            throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
-        }
+        if (!StringUtils.hasText(ct)) throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
+
         if (req.size() == null || req.size() <= 0) throw new CustomException(StorageErrorCode.EMPTY_FILE_NOT_ALLOWED);
         if (req.size() > thumbnailProps.maxFileSizeBytes()) throw new CustomException(StorageErrorCode.FILE_TOO_LARGE);
 
@@ -89,11 +83,15 @@ public class ActivityAttachmentService {
             throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
         }
 
+        Set<String> allow = attachmentProps.allowedSet();
+
         String prefix = "activity/user-" + userId + "/attachments";
         List<PresignEngine.IssueItem> issueItems = new ArrayList<>(items.size());
 
         for (var item : items) {
             String ct = globalPresignMethods.normalize(item.contentType());
+            if (!StringUtils.hasText(ct)) throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
+            if (!allow.isEmpty() && !allow.contains(ct)) throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
             if (item.size() <= 0) throw new CustomException(StorageErrorCode.EMPTY_FILE_NOT_ALLOWED);
             if (item.size() > attachmentProps.maxFileSizeBytes()) throw new CustomException(StorageErrorCode.FILE_TOO_LARGE);
 
