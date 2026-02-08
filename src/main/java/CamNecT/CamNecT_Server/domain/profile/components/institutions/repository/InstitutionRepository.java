@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 
 public interface InstitutionRepository extends JpaRepository<Institutions, Long> {
@@ -18,4 +19,8 @@ public interface InstitutionRepository extends JpaRepository<Institutions, Long>
             "ORDER BY i.institutionNameKor ASC")
         // 가나다순 정렬
     List<Institutions> searchActiveInstitutions(@Param("keyword") String keyword, Pageable pageable);
+
+    @Query("select i.institutionNameKor from Institutions i where i.institutionId = :id")
+    Optional<String> findNameKorById(@Param("id") Long id);
+
 }

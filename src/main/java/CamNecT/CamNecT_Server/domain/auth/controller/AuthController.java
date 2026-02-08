@@ -2,6 +2,7 @@ package CamNecT.CamNecT_Server.domain.auth.controller;
 
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginRequest;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginResponse;
+import CamNecT.CamNecT_Server.domain.auth.dto.login.VerificationCompleteResponse;
 import CamNecT.CamNecT_Server.domain.auth.dto.signup.*;
 import CamNecT.CamNecT_Server.domain.auth.service.LoginService;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateOnboardingRequest;
@@ -115,12 +116,11 @@ public class AuthController {
     )
     @PostMapping("/onboarding")
     @ResponseStatus(HttpStatus.CREATED)
-    public CamNecT.CamNecT_Server.global.common.response.ApiResponse<ProfileStatusResponse> createOnboarding(
+    public ProfileStatusResponse createOnboarding(
             @UserId Long userId,
             @RequestBody @Valid UpdateOnboardingRequest req
     ) {
-        ProfileStatusResponse response = profileService.createOnboarding(userId, req);
-        return CamNecT.CamNecT_Server.global.common.response.ApiResponse.success(response);
+        return profileService.createOnboarding(userId, req);
     }
 
 
@@ -135,5 +135,11 @@ public class AuthController {
     @PostMapping("/logout")
     public void logout(@UserId Long loginUserId) {
         loginService.logout(loginUserId);
+    }
+
+    @Operation(summary = "인증 완료 화면 정보 조회", description = "인증 완료 화면에 필요한 이름/학번/학교/학과를 반환합니다.")
+    @GetMapping("/verification-complete")
+    public VerificationCompleteResponse verificationComplete(@UserId Long userId) {
+        return loginService.getVerificationCompleteInfo(userId);
     }
 }

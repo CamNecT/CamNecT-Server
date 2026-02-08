@@ -19,12 +19,11 @@ import CamNecT.CamNecT_Server.domain.activity.repository.recruitment.TeamRecruit
 import CamNecT.CamNecT_Server.domain.home.dto.HomeResponse;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.ActivityErrorCode;
+import CamNecT.CamNecT_Server.global.common.service.GlobalPresignMethods;
 import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
 import CamNecT.CamNecT_Server.global.storage.model.UploadRefType;
-import CamNecT.CamNecT_Server.global.storage.model.UploadTicket;
-import CamNecT.CamNecT_Server.global.storage.repository.UploadTicketRepository;
-import CamNecT.CamNecT_Server.global.storage.service.FileStorage;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
+import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,8 +31,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
@@ -44,6 +41,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ActivityService {
 
+    private static final String DEFAULT_THUMB = "기본이미지";
+
     private final ExternalActivityRepository activityRepository;
     private final ExternalActivityTagRepository activityTagRepository;
     private final ExternalActivityAttachmentRepository activityAttachmentRepository;
@@ -51,10 +50,12 @@ public class ActivityService {
     private final TagRepository tagRepository;
     private final TeamRecruitmentRepository teamRecruitmentRepository;
 
+
     //S3 관련 의존성 주입
     private final PresignEngine presignEngine;
-    private final UploadTicketRepository ticketRepo;
-    private final FileStorage fileStorage;
+    private final PublicUrlIssuer publicUrlIssuer;
+    private final GlobalPresignMethods globalPresignMethods;
+    private enum FileKind { THUMBNAIL, ATTACHMENT }
 
     public Slice<ActivityPreviewResponse> getActivities(
             Long userId,
@@ -62,47 +63,40 @@ public class ActivityService {
             List<Long> tagIds,
             String title,
             String sortType,
-            Pageable pageable) {
-
-        Slice<ActivityPreviewResponse> activities = activityRepository.findActivitiesByCondition(
+            Pageable pageable
+    ) {
+        var activities = activityRepository.findActivitiesByCondition(
                 userId, category, tagIds, title, sortType, pageable
         );
 
-        // 조회 결과의 썸네일 URL을 presigned URL로 변환
-        return activities.map(activity -> {
-            String thumbnailKey = activity.thumbnailUrl(); // DB에 저장된 key
-            String presignedUrl = presignOrNull(thumbnailKey, "thumbnail", null);
-
-            return new ActivityPreviewResponse(
-                    activity.activityId(),
-                    activity.title(),
-                    activity.context(),
-                    presignedUrl,
-                    activity.tags()
-            );
-        });
+        return activities.map(a -> new ActivityPreviewResponse(
+                a.activityId(),
+                a.title(),
+                a.context(),
+                fileUrlOrNull(a.thumbnailUrl(), FileKind.THUMBNAIL),
+                a.tags()
+        ));
     }
 
     @Transactional
     public ActivityPreviewResponse create(Long userId, ActivityRequest request) {
         // 1. 엔티티 기본 저장
-        ExternalActivity activity = ExternalActivity.builder()
+        ExternalActivity saved = activityRepository.save(ExternalActivity.builder()
                 .userId(userId)
                 .title(request.title())
                 .category(request.category())
                 .context(request.content())
-                .thumbnailUrl("기본이미지")
-                .build();
-        ExternalActivity saved = activityRepository.save(activity);
+                .thumbnailUrl(DEFAULT_THUMB)
+                .build());
 
-        String finalThumbPrefix = "activity/user-" + userId + "/activity-" + saved.getActivityId() + "/thumbnail";
-        String finalAttachPrefix = "activity/user-" + userId + "/activity-" + saved.getActivityId() + "/attachments";
+        String finalAttachPrefix = "activity/activities/activity-" + saved.getActivityId() + "/attachments";
+        String finalThumbPrefix = "activity/activities/activity-" + saved.getActivityId() + "/attachments/thumbnail";
 
         // 2. 썸네일 Consume
         if (StringUtils.hasText(request.thumbnailKey())) {
             String finalKey = presignEngine.consume(
                     userId,
-                    UploadPurpose.ACTIVITY_ATTACHMENT,
+                    UploadPurpose.ACTIVITY_THUMBNAIL,
                     UploadRefType.ACTIVITY,
                     saved.getActivityId(),
                     request.thumbnailKey(),
@@ -126,9 +120,6 @@ public class ActivityService {
                     finalAttachPrefix
             );
 
-            UploadTicket t = ticketRepo.findByStorageKey(finalKey)
-                    .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
             activityAttachmentRepository.save(ExternalActivityAttachment.builder()
                     .externalActivity(saved.getActivityId())
                     .fileUrl(finalKey)
@@ -142,7 +133,7 @@ public class ActivityService {
                 saved.getActivityId(),
                 saved.getTitle(),
                 saved.getContext(),
-                presignOrNull(saved.getThumbnailUrl(), "thumbnail", null),
+                fileUrlOrNull(saved.getThumbnailUrl(),FileKind.THUMBNAIL),
                 null
         );
     }
@@ -157,21 +148,21 @@ public class ActivityService {
         }
 
         Set<String> deleteAfterCommit = new HashSet<>();
-        String finalThumbPrefix = "activity/user-" + userId + "/activity-" + activityId + "/thumbnail";
-        String finalAttachPrefix = "activity/user-" + userId + "/activity-" + activityId + "/attachments";
+        String finalAttachPrefix = "activity/activities/activity-" + activity.getActivityId() + "/attachments";
+        String finalThumbPrefix = "activity/activities/activity-" + activity.getActivityId() + "/attachments/thumbnail";
 
         // 1. 썸네일 교체 로직
         if (StringUtils.hasText(request.thumbnailKey())
                 && !request.thumbnailKey().equals(activity.getThumbnailUrl())) {
 
             // 기존 썸네일이 있으면 삭제 대상에 추가
-            if (StringUtils.hasText(activity.getThumbnailUrl()) && !"기본이미지".equals(activity.getThumbnailUrl())) {
+            if (StringUtils.hasText(activity.getThumbnailUrl()) && !DEFAULT_THUMB.equals(activity.getThumbnailUrl())) {
                 deleteAfterCommit.add(activity.getThumbnailUrl());
             }
 
             String finalKey = presignEngine.consume(
                     userId,
-                    UploadPurpose.ACTIVITY_ATTACHMENT,
+                    UploadPurpose.ACTIVITY_THUMBNAIL,
                     UploadRefType.ACTIVITY,
                     activityId,
                     request.thumbnailKey(),
@@ -189,22 +180,13 @@ public class ActivityService {
                             .collect(Collectors.toMap(ExternalActivityAttachment::getFileUrl, a -> a));
 
             Set<String> keepKeys = new HashSet<>();
-
-            // 요청된 키 목록 (중복 제거)
             LinkedHashSet<String> reqKeys = new LinkedHashSet<>();
-            for (String k : request.attachmentKey()) {
-                if (StringUtils.hasText(k)) reqKeys.add(k);
-            }
+            for (String k : request.attachmentKey()) if (StringUtils.hasText(k)) reqKeys.add(k);
 
             // 새로운 첨부파일 처리
             for (String k : reqKeys) {
                 ExternalActivityAttachment existing = currentByKey.get(k);
-
-                // 이미 존재하는 키면 유지
-                if (existing != null) {
-                    keepKeys.add(k);
-                    continue;
-                }
+                if (existing != null) { keepKeys.add(k); continue; } // 이미 존재하는 키면 유지
 
                 // 새로운 temp 키면 consume
                 String finalKey = presignEngine.consume(
@@ -216,9 +198,6 @@ public class ActivityService {
                         finalAttachPrefix
                 );
 
-                UploadTicket t = ticketRepo.findByStorageKey(finalKey)
-                        .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
                 activityAttachmentRepository.save(ExternalActivityAttachment.builder()
                         .externalActivity(activityId)
                         .fileUrl(finalKey)
@@ -229,10 +208,9 @@ public class ActivityService {
 
             // 삭제할 첨부파일 식별
             for (String oldKey : currentByKey.keySet()) {
-                if (!keepKeys.contains(oldKey)) {
-                    deleteAfterCommit.add(oldKey);
-                }
+                if (!keepKeys.contains(oldKey)) deleteAfterCommit.add(oldKey);
             }
+
 
             // DB에서 삭제할 첨부파일 제거
             activityAttachmentRepository.deleteAll(
@@ -249,7 +227,7 @@ public class ActivityService {
         saveTags(activityId, request.tagIds());
 
         // 5. S3 파일 삭제 예약
-        registerAfterCommitDelete(deleteAfterCommit);
+        globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
     }
 
     @Transactional
@@ -263,21 +241,15 @@ public class ActivityService {
 
         Set<String> deleteAfterCommit = new HashSet<>();
 
-        // 썸네일 삭제 대상 추가
-        if (StringUtils.hasText(activity.getThumbnailUrl()) && !"기본이미지".equals(activity.getThumbnailUrl())) {
+        if (StringUtils.hasText(activity.getThumbnailUrl()) && !DEFAULT_THUMB.equals(activity.getThumbnailUrl())) {
             deleteAfterCommit.add(activity.getThumbnailUrl());
         }
 
-        // 첨부파일 삭제 대상 추가
         activityAttachmentRepository.findAllByExternalActivity(activityId)
-                .forEach(a -> {
-                    if (StringUtils.hasText(a.getFileUrl())) {
-                        deleteAfterCommit.add(a.getFileUrl());
-                    }
-                });
+                .forEach(a -> { if (StringUtils.hasText(a.getFileUrl())) deleteAfterCommit.add(a.getFileUrl()); });
 
         activityRepository.delete(activity);
-        registerAfterCommitDelete(deleteAfterCommit);
+        globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
     }
 
     @Transactional(readOnly = true)
@@ -288,24 +260,16 @@ public class ActivityService {
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
         // 2. Activity → DTO 변환 + 썸네일 presign
-        ExternalActivityDto activityDto =
-                ExternalActivityDto.from(activity)
-                        .withThumbnailUrl(
-                                presignOrNull(activity.getThumbnailUrl(), "thumbnail", null)
-                        );
+        ExternalActivityDto activityDto = ExternalActivityDto.from(activity)
+                .withThumbnailUrl(fileUrlOrNull(activity.getThumbnailUrl(), FileKind.THUMBNAIL));
 
         // 3. 첨부파일 조회 (카테고리 조건)
         List<ExternalActivityAttachmentDto> attachmentDtos = null;
 
-        if (activity.getCategory() == ActivityCategory.EXTERNAL
-                || activity.getCategory() == ActivityCategory.RECRUITMENT) {
-
-            attachmentDtos = activityAttachmentRepository.findAllByExternalActivity(activityId)
-                    .stream()
+        if (activity.getCategory() == ActivityCategory.EXTERNAL || activity.getCategory() == ActivityCategory.RECRUITMENT) {
+            attachmentDtos = activityAttachmentRepository.findAllByExternalActivity(activityId).stream()
                     .map(a -> ExternalActivityAttachmentDto.from(a)
-                            .withFileUrl(
-                                    presignOrNull(a.getFileUrl(), "attachment", null)
-                            ))
+                            .withFileUrl(fileUrlOrNull(a.getFileUrl(), FileKind.ATTACHMENT)))
                     .toList();
         }
 
@@ -375,12 +339,12 @@ public class ActivityService {
                     ExternalActivity a = map.get(id);
                     if (a == null) return null;
 
-                    String thumbKey = normalizeThumbKey(a.getThumbnailUrl()); // 지금은 key로 내려줌
+                    String thumbUrl = fileUrlOrNull(a.getThumbnailUrl(),FileKind.THUMBNAIL);
                     return new HomeResponse.ContestSection.ContestCard(
                             a.getActivityId(),
                             a.getTitle(),
                             a.getOrganizer(),
-                            thumbKey
+                            thumbUrl
                     );
                 })
                 .filter(Objects::nonNull)
@@ -389,54 +353,18 @@ public class ActivityService {
         return new HomeResponse.ContestSection(items, hasMore);
     }
 
-    private String normalizeThumbKey(String key) {
-        if (!StringUtils.hasText(key) || "기본이미지".equals(key)) return null;
-        return key;
-    }
-
     // --- Helper Methods ---
 
     /**
-     * S3 key를 presigned download URL로 변환
-     * Portfolio 방식과 동일한 로직
+     * thumbnail 전용 URL 제공 메서드
+     * CDN 방식
      */
-    private String presignOrNull(String key, String filename, String contentType) {
-        if (!StringUtils.hasText(key) || "기본이미지".equals(key)) return null;
-        try {
-            return presignEngine.presignDownload(key, filename, contentType).downloadUrl();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * 트랜잭션 커밋 후 S3 파일 삭제
-     * Portfolio 방식과 동일한 로직 (트랜잭션 활성 상태 체크 추가)
-     */
-    private void registerAfterCommitDelete(Set<String> keys) {
-        if (keys == null || keys.isEmpty()) return;
-
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    for (String key : keys) {
-                        try {
-                            fileStorage.delete(key);
-                        } catch (Exception ignored) {
-                        }
-                    }
-                }
-            });
-        } else {
-            // 트랜잭션이 없는 경우 즉시 삭제
-            for (String key : keys) {
-                try {
-                    fileStorage.delete(key);
-                } catch (Exception ignored) {
-                }
-            }
-        }
+    private String fileUrlOrNull(String key, FileKind kind) {
+        if (!StringUtils.hasText(key) || DEFAULT_THUMB.equals(key)) return null;
+        // THUMBNAIL은 CDN으로
+        if (kind == FileKind.THUMBNAIL) return publicUrlIssuer.issuePublicUrl(key); // CDN만
+        // ATTACHMENT는 presign만
+        return presignEngine.presignDownload(key, null, null).downloadUrl();
     }
 
     /**

@@ -103,7 +103,8 @@ public class PresignEngine {
 
         for (IssueItem item : items) {
             String ct = normalize(item.contentType());
-            String ext = EXT_BY_CONTENT_TYPE.getOrDefault(ct, "");
+            String ext = EXT_BY_CONTENT_TYPE.get(ct);
+            if (ext == null) throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
             String key = buildKey(tempPrefix, UUID.randomUUID() + ext);
 
             UploadTicket ticket = UploadTicket.builder()
@@ -326,6 +327,9 @@ public class PresignEngine {
     }
 
     private String normalize(String ct) {
-        return (ct == null) ? "" : ct.trim().toLowerCase(Locale.ROOT);
+        if (ct == null) return "";
+        String v = ct.trim().toLowerCase(Locale.ROOT);
+        int semi = v.indexOf(';');
+        return (semi >= 0) ? v.substring(0, semi).trim() : v;
     }
 }

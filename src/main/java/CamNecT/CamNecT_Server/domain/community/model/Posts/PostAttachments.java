@@ -34,9 +34,6 @@ public class PostAttachments {
     @Column(name = "file_key", nullable = false, length = 500)
     private String fileKey;
 
-    @Column(name = "thumbnail_key", length = 500)
-    private String thumbnailKey;
-
     @Column(name = "width")
     private Integer width;
 
@@ -60,7 +57,6 @@ public class PostAttachments {
     public static PostAttachments create(
             Posts post,
             String fileKey,
-            String thumbnailKey,
             Integer width,
             Integer height,
             Long fileSize,
@@ -69,7 +65,6 @@ public class PostAttachments {
         return PostAttachments.builder()
                 .post(post)
                 .fileKey(fileKey)
-                .thumbnailKey(thumbnailKey)
                 .width(width)
                 .height(height)
                 .fileSize(fileSize)
@@ -80,13 +75,5 @@ public class PostAttachments {
 
     public boolean isActive() {
         return status;
-    }
-
-    public void deleteSoft() {
-        this.status = false;
-    }
-
-    public String thumbnailOrFile() {
-        return (thumbnailKey != null && !thumbnailKey.isBlank()) ? thumbnailKey : fileKey;
     }
 }

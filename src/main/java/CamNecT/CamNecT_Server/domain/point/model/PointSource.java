@@ -9,6 +9,8 @@ public enum PointSource {
     // 적립(EARN) 관련
     COMMENT_SELECTION("댓글 채택 적립"),
     COFFEECHAT_ACCEPTANCE("커피챗 수락 적립"),
+    SIGNUP("회원가입 시 지급"),
+    THREELIKES_REWARD("정보글 좋아요 첫 3개 달성 시 제공"),
 
     // 사용(SPEND) 관련
     COFFEECHAT_REQUEST("커피챗 요청 사용"),

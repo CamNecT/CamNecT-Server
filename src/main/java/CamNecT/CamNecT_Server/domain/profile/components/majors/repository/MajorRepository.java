@@ -2,6 +2,8 @@ package CamNecT.CamNecT_Server.domain.profile.components.majors.repository;
 
 import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 
 import java.util.List;
@@ -18,5 +20,11 @@ public interface MajorRepository extends JpaRepository<Majors, Long> {
             Long majorId,
             Long institutionId
     );
+
+    @Query("select m.majorNameKor from Majors m where m.majorId = :ids")
+    Optional<String> findNameKorById(@Param("id") Long id);
+
+    @Query("select m.majorId, m.majorNameKor from Majors m where m.majorId in :ids")
+    List<Object[]> findNameKorByIdIn(@Param("ids") List<Long> ids);
 
 }

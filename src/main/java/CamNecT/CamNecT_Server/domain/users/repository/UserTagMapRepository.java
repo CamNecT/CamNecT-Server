@@ -21,11 +21,12 @@ public interface UserTagMapRepository extends JpaRepository<UserTagMap, Long> {
     void deleteAllByUserId(@Param("userId") Long userId);
 
     @Query("""
-    SELECT t
+    SELECT DISTINCT t
     FROM Tag t
     JOIN FETCH t.category c
     JOIN UserTagMap utm ON t.id = utm.tagId
     WHERE utm.userId = :userId
+      AND t.active = true
 """)
     List<Tag> findAllTagsByUserId(@Param("userId") Long userId);
 

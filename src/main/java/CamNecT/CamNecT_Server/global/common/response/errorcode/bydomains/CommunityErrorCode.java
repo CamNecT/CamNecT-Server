@@ -38,7 +38,8 @@ public enum CommunityErrorCode implements BaseErrorCode {
     CANNOT_ACCEPT_UNPUBLISHED_COMMENT(HttpStatus.CONFLICT, 43923, "삭제/숨김 댓글은 채택할 수 없습니다."),
     ALREADY_ACCEPTED(HttpStatus.CONFLICT, 43924, "이미 채택된 질문입니다."),
     POST_NOT_PUBLISHED(HttpStatus.CONFLICT, 43925, "게시글이 공개 상태가 아닙니다."),
-    INACTIVE_TAG(HttpStatus.CONFLICT, 43926, "비활성화된 태그입니다.");
+    INACTIVE_TAG(HttpStatus.CONFLICT, 43926, "비활성화된 태그입니다."),
+    CANNOT_LIKE_OWN_POST(HttpStatus.CONFLICT,43927,"본인의 글에 좋아요를 누를 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final int code;

@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.community.dto.response;
 
+import CamNecT.CamNecT_Server.domain.community.dto.AuthorDto;
 import CamNecT.CamNecT_Server.domain.community.model.enums.BoardCode;
 import CamNecT.CamNecT_Server.domain.community.model.enums.ContentAccessStatus;
 
@@ -11,13 +12,14 @@ public record PostDetailResponse(
         String title,
         String content,
         boolean anonymous,
-        Long authorId,
         long viewCount,
         long likeCount,
         boolean likedByMe,
         Long acceptedCommentId,
         List<Long> tagIds,
+        List<PostAttachmentItemResponse> attachments,
         ContentAccessStatus accessStatus,
         Integer requiredPoints,
-        Integer myPoints
+        Integer myPoints,
+        AuthorDto author
 ) {}

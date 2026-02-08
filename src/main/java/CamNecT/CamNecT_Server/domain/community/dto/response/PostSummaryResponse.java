@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.community.dto.response;
 
+import CamNecT.CamNecT_Server.domain.community.dto.AuthorDto;
 import CamNecT.CamNecT_Server.domain.community.model.enums.BoardCode;
 import CamNecT.CamNecT_Server.domain.community.model.enums.PostAccessType;
 
@@ -18,6 +19,7 @@ public record PostSummaryResponse(
         long bookmarkCount,
         boolean acceptedBadge,     // 질문글 채택완료 뱃지
         List<String> tags,
+        AuthorDto author,
         String thumbnailUrl,   // 일단 null 가능
         PostAccessType accessType
 ) {}
