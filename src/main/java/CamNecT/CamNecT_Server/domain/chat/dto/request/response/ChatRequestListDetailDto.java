@@ -17,25 +17,33 @@ public record ChatRequestListDetailDto(
         Long requestId,
         String requestType,
         String requestContent,
-        String createdAt
+        String createdAt,
+
+        String recruitmentTitle,
+        Long activityId,
+        Long recruitmentId
 ) {
     public static ChatRequestListDetailDto from(Users opponent,
                                                 UserProfile opProfile,
                                                 ChatRequest request,
                                                 String majorName,
-                                                String profileImgUrl) {
+                                                String profileImgUrl, String title) {
 
         return ChatRequestListDetailDto.builder()
                 .opponentId(opponent.getUserId())
                 .opponentName(opponent.getName())
                 .opponentMajor(majorName)
-                .opponentStudentYear(opProfile != null ? opProfile.getYearLevel().toString() : "")
+                .opponentStudentYear(opProfile != null && opProfile.getYearLevel() != null ? opProfile.getYearLevel().toString() : "")
                 .opponentProfileImg(profileImgUrl)
 
                 .requestId(request.getId())
                 .requestType(request.getType().name())
                 .requestContent(request.getContent())
                 .createdAt(request.getCreatedAt().toString())
+
+                .recruitmentTitle(title)
+                .activityId(request.getActivityId())
+                .recruitmentId(request.getRecruitmentId())
                 .build();
     }
 }
