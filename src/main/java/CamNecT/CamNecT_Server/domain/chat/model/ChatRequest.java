@@ -52,6 +52,10 @@ public class ChatRequest {
     private String content;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "request_type", nullable = false)
+    private RequestType type;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RequestStatus status;
 
@@ -59,17 +63,23 @@ public class ChatRequest {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    // 요청 종류 Enum
+    public enum RequestType {
+        COFFEE_CHAT, TEAM_RECRUIT
+    }
+
     // 상태값 Enum (받았는지, 거절했는지 등)
     public enum RequestStatus {
         WAITING, ACCEPTED, REJECTED
     }
 
     @Builder
-    public ChatRequest(Users requester, Users receiver, List<Tag> requestInterest, String content) {
+    public ChatRequest(Users requester, Users receiver, List<Tag> requestInterest, String content, RequestType type) {
         this.requester = requester;
         this.receiver = receiver;
         this.requestInterests = requestInterest;
         this.content = content;
+        this.type = (type != null) ? type : RequestType.COFFEE_CHAT; // 기본값 커피챗
         this.status = RequestStatus.WAITING; // 기본값 대기중
     }
 

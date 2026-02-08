@@ -4,6 +4,9 @@ package CamNecT.CamNecT_Server.domain.chat.service;
 import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatMessageResponseDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatMessageSendRequestDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatReadEvent;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.response.ChatRequestDetailDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.response.ChatRequestListDetailDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.response.ChatRequestListResponseDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomListDetailDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomListUpdateDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.room.ChatRoomWithDetailDto;
@@ -18,6 +21,7 @@ import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
+import CamNecT.CamNecT_Server.domain.users.repository.UserTagMapRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
@@ -51,8 +55,9 @@ public class ChatService {
     private final ChatRequestRepository chatRequestRepository;
     private final TagRepository tagRepository;
     private final UserProfileRepository userProfileRepository;
+    private final UserTagMapRepository userTagMapRepository;
     private final MajorRepository majorRepository;
-    private final PublicUrlIssuer  publicUrlIssuer;
+    private final PublicUrlIssuer publicUrlIssuer;
 
     /*
       1. 커피챗 요청 보내기
@@ -70,10 +75,10 @@ public class ChatService {
         }
 
         // todo: (선택) 이미 수락해서 채팅하고 있는(ACCEPTED) 상태면 요청 못하게 막아야 하는가?
-/*         if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
+         if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
                 requesterId, receiverId, ChatRequest.RequestStatus.ACCEPTED)) {
             throw new CustomException(CoffeeChatErrorCode.CHATROOM_ALREADY_EXISTS);
-         }*/
+         }
 
         boolean isOpen = userProfileRepository.existsByUserIdAndOpenToCoffeeChatTrue(receiverId);
         if (!isOpen) {
@@ -125,6 +130,41 @@ public class ChatService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public ChatRequestDetailDto getChatRequestDetail(Long requestId, Long userId) {
+        ChatRequest request = chatRequestRepository.findById(requestId)
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUEST_NOT_FOUND));
+
+        if (!request.getReceiver().getUserId().equals(userId) && !request.getRequester().getUserId().equals(userId)) {
+            throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
+        }
+
+        boolean isReceiver = request.getReceiver().getUserId().equals(userId);
+        Users me = isReceiver ? request.getReceiver() : request.getRequester();
+        Users opponent = isReceiver ? request.getRequester() : request.getReceiver();
+
+        UserProfile opProfile = userProfileRepository.findByUserId(opponent.getUserId())
+                .orElse(null);
+
+        String majorName = "전공 미입력";
+        String profileImgUrl = "/images/default.png";
+        if (opProfile != null) {
+            if (opProfile.getMajorId() != null) {
+                majorName = majorRepository.findById(opProfile.getMajorId())
+                        .map(Majors::getMajorNameKor)
+                        .orElse("알 수 없는 전공");
+            }
+            profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
+        }
+
+        List<String> opTagNames = userTagMapRepository.findAllTagsByUserId(opponent.getUserId())
+                .stream()
+                .map(Tag::getName)
+                .toList();
+
+        return ChatRequestDetailDto.from(me, opponent, opProfile, request, majorName, opTagNames, profileImgUrl);
+    }
+
     /*
      2-1. 채팅방 생성 (수락 시 자동 호출)
      */
@@ -161,6 +201,12 @@ public class ChatService {
         UserProfile opProfile = userProfileRepository.findByUserId(opponent.getUserId())
                 .orElse(null);
 
+        List<Tag> opTags = userTagMapRepository.findAllTagsByUserId(opponent.getUserId());
+
+        List<String> tagNames = opTags.stream()
+                .map(Tag::getName)
+                .toList();
+
         String majorName = "전공 미입력";
         if (opProfile != null && opProfile.getMajorId() != null) {
             majorName = majorRepository.findById(opProfile.getMajorId())
@@ -170,15 +216,24 @@ public class ChatService {
 
         List<ChatMessageResponseDto> chatHistory = this.getChatHistory(roomId, userId);
 
-        return ChatRoomWithDetailDto.from(room, me, opponent, opProfile, majorName, chatHistory);
+        return ChatRoomWithDetailDto.from(room, me, opponent, opProfile, majorName, tagNames, chatHistory);
     }
 
 
-    public List<ChatRoomListDetailDto> getChatRoomList(Long userId) {
+    public List<ChatRoomListDetailDto> getChatRoomList(Long userId, ChatRequest.RequestType type) {
         Users me = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
-        List<ChatRoom> myRooms = chatRoomRepository.findAllByUserIdWithBasicInfo(userId);
+//        List<ChatRoom> myRooms = chatRoomRepository.findAllByUserIdWithBasicInfo(userId);
+        List<ChatRoom> myRooms;
+
+        if (type == null) {
+            // 전체 조회
+            myRooms = chatRoomRepository.findAllByUserIdWithBasicInfo(userId);
+        } else {
+            // 타입별 조회
+            myRooms = chatRoomRepository.findAllByUserIdAndType(userId, type);
+        }
 
         if (myRooms.isEmpty()) {
             return List.of();
@@ -328,7 +383,7 @@ public class ChatService {
                     .build();
 
             messagingTemplate.convertAndSend(
-                    "/sub/user/" + receiver.getUserId() + "/roomList",
+                    "/sub/user/" + receiver.getUserId() + "/rooms",
                     updateDto
             );
 
@@ -344,7 +399,7 @@ public class ChatService {
                     .build();
 
             messagingTemplate.convertAndSend(
-                    "/sub/user/" + sender.getUserId() + "/roomList",
+                    "/sub/user/" + sender.getUserId() + "/rooms",
                     senderUpdateDto
             );
         } catch (Exception e) {
@@ -416,4 +471,55 @@ public class ChatService {
     }
 
 
+    @Transactional(readOnly = true)
+    public ChatRequestListResponseDto getChatRequestList(Long userId, ChatRequest.RequestType type) {
+        List<ChatRequest> requests = chatRequestRepository
+                .findAllByReceiver_UserIdAndTypeAndStatusOrderByCreatedAtDesc(
+                        userId, type, ChatRequest.RequestStatus.WAITING);
+
+        if (requests.isEmpty()) {
+            return new ChatRequestListResponseDto(List.of());
+        }
+
+        List<Long> opponentIds = requests.stream()
+                .map(req -> req.getRequester().getUserId())
+                .distinct()
+                .toList();
+
+        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(opponentIds)
+                .stream()
+                .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
+
+        List<ChatRequestListDetailDto> dtoList = requests.stream()
+                .map(request -> {
+                    Users opponent = request.getRequester();
+                    UserProfile opProfile = profileMap.get(opponent.getUserId());
+
+                    String majorName = "전공 미입력";
+                    String profileImgUrl = "/images/default.png";
+
+                    if (opProfile != null) {
+                        if (opProfile.getMajorId() != null) {
+                            majorName = majorRepository.findById(opProfile.getMajorId())
+                                    .map(Majors::getMajorNameKor)
+                                    .orElse("알 수 없는 전공");
+                        }
+
+                        if (StringUtils.hasText(opProfile.getProfileImageKey())) {
+                            profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
+                        }
+                    }
+
+                    return ChatRequestListDetailDto.from(
+                            opponent,
+                            opProfile,
+                            request,
+                            majorName,
+                            profileImgUrl
+                    );
+                })
+                .toList();
+
+        return new ChatRequestListResponseDto(dtoList);
+    }
 }
