@@ -36,6 +36,12 @@ public class PointService {
     }
 
     @Transactional
+    public void earnPointBySignUp(Long userId, int amount) {
+        changePoint(userId, amount, TransactionType.EARN,
+                new PointEvent(PointSource.SIGNUP, null, userId, "SIGNUP:" + userId));
+    }
+
+    @Transactional
     public void spendPoint(Long userId, int amount, PointEvent event) {
         changePoint(userId, amount, TransactionType.SPEND, event);
     }

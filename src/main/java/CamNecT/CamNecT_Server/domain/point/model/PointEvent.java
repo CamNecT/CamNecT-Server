@@ -16,6 +16,11 @@ public record PointEvent(
         return new PointEvent(PointSource.POST_ACCESS_PURCHASE, postId, null, key);
     }
 
+    public static PointEvent signup(Long userId) {
+        String key = "SIGNUP:" + userId;
+        return new PointEvent(PointSource.SIGNUP,null, null, key);
+    }
+
     public static PointEvent coffeeChatRequest(Long userId, Long requestId) {
         String key = "COFFEECHAT_REQUEST:" + userId + ":" + requestId;
         return new PointEvent(PointSource.COFFEECHAT_REQUEST, null, requestId, key);

@@ -1,5 +1,9 @@
 package CamNecT.CamNecT_Server.domain.verification.document.service;
 
+import CamNecT.CamNecT_Server.domain.community.event.CommentAcceptedEvent;
+import CamNecT.CamNecT_Server.domain.point.model.PointEvent;
+import CamNecT.CamNecT_Server.domain.point.model.TransactionType;
+import CamNecT.CamNecT_Server.domain.point.service.PointService;
 import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.UserStatus;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
@@ -28,6 +32,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,6 +44,7 @@ public class AdminDocumentVerificationService {
     private final UserProfileRepository userProfileRepository;
     private final PresignEngine presignEngine;
     private final ApplicationEventPublisher eventPublisher;
+    private final PointService pointService;
 
     @Transactional(readOnly = true)
     public Page<AdminDocumentVerificationListItemResponse> list(VerificationStatus status, Pageable pageable) {
@@ -112,6 +118,7 @@ public class AdminDocumentVerificationService {
         Users user = usersRepository.findById(s.getUserId())
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.USER_NOT_FOUND));
 
+        //APPROVE
         if (req.decision() == AdminReviewDocumentVerificationRequest.Decision.APPROVE) {
 
             if (user.getStatus() == UserStatus.EMAIL_PENDING) {
@@ -136,6 +143,12 @@ public class AdminDocumentVerificationService {
                     AdminReviewDocumentVerificationRequest.Decision.APPROVE,
                     null
             ));
+
+            Long receiverId = user.getUserId();
+            if (receiverId != null) { pointService.changePoint(receiverId,300, TransactionType.EARN, PointEvent.signup(receiverId)); }
+
+
+
             return;
         }
 
