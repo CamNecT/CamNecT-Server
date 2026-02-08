@@ -26,7 +26,7 @@ public class RecruitmentController {
             @UserId Long userId,
             @PathVariable Long activityId,
             @RequestBody RecruitmentRequest request
-    ){
+    ) {
         return ApiResponse.success(recruitmentService.createRecruitment(userId, activityId, request));
     }
 
@@ -36,7 +36,7 @@ public class RecruitmentController {
             @UserId Long userId,
             @PathVariable Long activityId,
             @PathVariable Long recruitmentId
-    ){
+    ) {
         return ApiResponse.success(recruitmentService.getRecruitmentDetail(userId, recruitmentId));
     }
 
@@ -60,7 +60,7 @@ public class RecruitmentController {
             @PathVariable Long recruitmentId,
             @RequestBody RecruitmentApplyRequest request
     ) {
-        Long applicationId = recruitmentService.applyToTeam(userId, recruitmentId, request);
+        Long applicationId = recruitmentService.applyToTeam(userId, activityId, recruitmentId, request);
         return ApiResponse.success(applicationId);
     }
 

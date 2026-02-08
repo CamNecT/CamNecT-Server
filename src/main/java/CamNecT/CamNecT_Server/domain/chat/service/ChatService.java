@@ -1,6 +1,8 @@
 package CamNecT.CamNecT_Server.domain.chat.service;
 
 
+import CamNecT.CamNecT_Server.domain.activity.model.recruitment.TeamRecruitment;
+import CamNecT.CamNecT_Server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatMessageResponseDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatMessageSendRequestDto;
 import CamNecT.CamNecT_Server.domain.chat.dto.message.ChatReadEvent;
@@ -58,6 +60,9 @@ public class ChatService {
     private final UserTagMapRepository userTagMapRepository;
     private final MajorRepository majorRepository;
     private final PublicUrlIssuer publicUrlIssuer;
+    private final TeamRecruitmentRepository recruitmentRepository;
+    private final ChatPresenceService presenceService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     /*
       1. 커피챗 요청 보내기
@@ -74,11 +79,12 @@ public class ChatService {
             throw new CustomException(CoffeeChatErrorCode.DUPLICATE_REQUEST);
         }
 
-        // todo: (선택) 이미 수락해서 채팅하고 있는(ACCEPTED) 상태면 요청 못하게 막아야 하는가?
-         if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                requesterId, receiverId, ChatRequest.RequestStatus.ACCEPTED)) {
+        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
+                requesterId, receiverId, ChatRequest.RequestStatus.ACCEPTED)
+                || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
+                receiverId, requesterId, ChatRequest.RequestStatus.ACCEPTED)) {
             throw new CustomException(CoffeeChatErrorCode.CHATROOM_ALREADY_EXISTS);
-         }
+        }
 
         boolean isOpen = userProfileRepository.existsByUserIdAndOpenToCoffeeChatTrue(receiverId);
         if (!isOpen) {
@@ -100,6 +106,7 @@ public class ChatService {
         ChatRequest request = ChatRequest.builder()
                 .requester(requester)
                 .receiver(receiver)
+                .type(ChatRequest.RequestType.COFFEE_CHAT)
                 .requestInterest(tags)
                 .content(content)
                 .build();
@@ -163,6 +170,69 @@ public class ChatService {
                 .toList();
 
         return ChatRequestDetailDto.from(me, opponent, opProfile, request, majorName, opTagNames, profileImgUrl);
+    }
+
+    @Transactional(readOnly = true)
+    public ChatRequestListResponseDto getChatRequestList(Long userId, ChatRequest.RequestType type) {
+        List<ChatRequest> requests = chatRequestRepository
+                .findAllByReceiver_UserIdAndTypeAndStatusOrderByCreatedAtDesc(
+                        userId, type, ChatRequest.RequestStatus.WAITING);
+
+        if (requests.isEmpty()) {
+            return new ChatRequestListResponseDto(List.of());
+        }
+
+        Set<Long> recruitmentIds = requests.stream()
+                .map(ChatRequest::getRecruitmentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, String> recruitmentTitleMap = recruitmentIds.isEmpty() ? Map.of() :
+                recruitmentRepository.findAllById(recruitmentIds).stream()
+                        .collect(Collectors.toMap(TeamRecruitment::getRecruitId, TeamRecruitment::getTitle));
+
+        List<Long> opponentIds = requests.stream()
+                .map(req -> req.getRequester().getUserId())
+                .distinct()
+                .toList();
+
+        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(opponentIds)
+                .stream()
+                .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
+
+        List<ChatRequestListDetailDto> dtoList = requests.stream()
+                .map(request -> {
+                    Users opponent = request.getRequester();
+                    UserProfile opProfile = profileMap.get(opponent.getUserId());
+
+                    String majorName = "전공 미입력";
+                    String profileImgUrl = "/images/default.png";
+                    String title = recruitmentTitleMap.getOrDefault(request.getRecruitmentId(), "커피챗 요청");
+
+                    if (opProfile != null) {
+                        if (opProfile.getMajorId() != null) {
+                            majorName = majorRepository.findById(opProfile.getMajorId())
+                                    .map(Majors::getMajorNameKor)
+                                    .orElse("알 수 없는 전공");
+                        }
+
+                        if (StringUtils.hasText(opProfile.getProfileImageKey())) {
+                            profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
+                        }
+                    }
+
+                    return ChatRequestListDetailDto.from(
+                            opponent,
+                            opProfile,
+                            request,
+                            majorName,
+                            profileImgUrl,
+                            title
+                    );
+                })
+                .toList();
+
+        return new ChatRequestListResponseDto(dtoList);
     }
 
     /*
@@ -294,8 +364,6 @@ public class ChatService {
                 .toList();
     }
 
-    private final ChatPresenceService presenceService;
-    private final SimpMessagingTemplate messagingTemplate;
 
     //   기존 unread 전부 읽음 처리
     @Transactional
@@ -470,56 +538,4 @@ public class ChatService {
         return new HomeResponse.CoffeeChatSection(pendingCount, previews);
     }
 
-
-    @Transactional(readOnly = true)
-    public ChatRequestListResponseDto getChatRequestList(Long userId, ChatRequest.RequestType type) {
-        List<ChatRequest> requests = chatRequestRepository
-                .findAllByReceiver_UserIdAndTypeAndStatusOrderByCreatedAtDesc(
-                        userId, type, ChatRequest.RequestStatus.WAITING);
-
-        if (requests.isEmpty()) {
-            return new ChatRequestListResponseDto(List.of());
-        }
-
-        List<Long> opponentIds = requests.stream()
-                .map(req -> req.getRequester().getUserId())
-                .distinct()
-                .toList();
-
-        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(opponentIds)
-                .stream()
-                .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
-
-        List<ChatRequestListDetailDto> dtoList = requests.stream()
-                .map(request -> {
-                    Users opponent = request.getRequester();
-                    UserProfile opProfile = profileMap.get(opponent.getUserId());
-
-                    String majorName = "전공 미입력";
-                    String profileImgUrl = "/images/default.png";
-
-                    if (opProfile != null) {
-                        if (opProfile.getMajorId() != null) {
-                            majorName = majorRepository.findById(opProfile.getMajorId())
-                                    .map(Majors::getMajorNameKor)
-                                    .orElse("알 수 없는 전공");
-                        }
-
-                        if (StringUtils.hasText(opProfile.getProfileImageKey())) {
-                            profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
-                        }
-                    }
-
-                    return ChatRequestListDetailDto.from(
-                            opponent,
-                            opProfile,
-                            request,
-                            majorName,
-                            profileImgUrl
-                    );
-                })
-                .toList();
-
-        return new ChatRequestListResponseDto(dtoList);
-    }
 }
