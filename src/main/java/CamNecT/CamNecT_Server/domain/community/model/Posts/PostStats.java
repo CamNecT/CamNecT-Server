@@ -52,6 +52,11 @@ public class PostStats {
     @Column(name = "root_comment_count", nullable = false)
     private long rootCommentCount;
 
+    @Builder.Default
+    @Column(name = "like_rewarded_3", nullable = false)
+    private boolean likeRewarded3 = false;
+
+
     @Column(name = "last_activity_at", nullable = false)
     private LocalDateTime lastActivityAt;
 
@@ -98,4 +103,10 @@ public class PostStats {
 
     public void incRootComment() { this.rootCommentCount++; touch(); }
     public void decRootComment() { if (this.rootCommentCount > 0) this.rootCommentCount--; touch(); }
+
+    public boolean tryMarkLikeRewarded3() {
+        if (this.likeRewarded3) return false;
+        this.likeRewarded3 = true;
+        return true;
+    }
 }

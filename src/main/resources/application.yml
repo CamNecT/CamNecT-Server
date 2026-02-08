@@ -38,7 +38,10 @@ app:
         - image/png
   point:
     reward:
-      comment-selection: 50
+      comment-selection: 200
+      first-three-likes : 100
+    cost:
+      question-view: 100
   cdn:
     base-url: https://cdn.camnect.site
 

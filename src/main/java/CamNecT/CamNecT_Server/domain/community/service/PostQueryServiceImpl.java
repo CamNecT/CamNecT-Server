@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.community.service;
 
+import CamNecT.CamNecT_Server.domain.community.dto.AuthorDto;
 import CamNecT.CamNecT_Server.domain.community.dto.response.PostListResponse;
 import CamNecT.CamNecT_Server.domain.community.dto.response.PostSummaryResponse;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.PostAttachments;
@@ -7,6 +8,7 @@ import CamNecT.CamNecT_Server.domain.community.model.Posts.PostStats;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.PostTags;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.Posts;
 import CamNecT.CamNecT_Server.domain.community.model.enums.BoardCode;
+import CamNecT.CamNecT_Server.domain.community.model.enums.PostAccessType;
 import CamNecT.CamNecT_Server.domain.community.model.enums.PostStatus;
 import CamNecT.CamNecT_Server.domain.community.repository.Comments.AcceptedCommentsRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostAttachmentsRepository;
@@ -29,6 +31,7 @@ import java.util.*;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PostQueryServiceImpl implements PostQueryService {
+    private static final Set<String> THUMB_EXT = Set.of(".jpg", ".jpeg", ".png", ".webp");
 
     private final PostsRepository postsRepository;
     private final PostStatsRepository postStatsRepository;
@@ -36,6 +39,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     private final PostTagsRepository postTagsRepository;
     private final AcceptedCommentsRepository acceptedCommentsRepository;
     private final PublicUrlIssuer  publicUrlIssuer;
+    private final AuthorAssembler  authorAssembler;
 
     @Override
     public PostListResponse getPosts(Tab tab, Sort sort, Long tagId, String keyword,
@@ -66,42 +70,16 @@ public class PostQueryServiceImpl implements PostQueryService {
 
         Slice<Posts> slice = switch (sort) {
             case LATEST -> postsRepository.findFeedLatestWithFilter(
-                    PostStatus.PUBLISHED,
-                    code,
-                    tagId,
-                    kw,
-                    cursorId,
-                    PageRequest.of(0, limit)
+                    PostStatus.PUBLISHED, code, tagId, kw, cursorId, PageRequest.of(0, limit)
             );
-
             case RECOMMENDED -> postsRepository.findFeedRecommended(
-                    PostStatus.PUBLISHED,
-                    code,
-                    tagId,
-                    kw,
-                    cv,        // cursorValue(hotScore)
-                    cursorId,  // cursorId(postId)
-                    PageRequest.of(0, limit)
+                    PostStatus.PUBLISHED, code, tagId, kw, cv, cursorId, PageRequest.of(0, limit)
             );
-
             case LIKE -> postsRepository.findFeedLikeDesc(
-                    PostStatus.PUBLISHED,
-                    code,
-                    tagId,
-                    kw,
-                    cv,        // cursorValue(likeCount)
-                    cursorId,
-                    PageRequest.of(0, limit)
+                    PostStatus.PUBLISHED, code, tagId, kw, cv, cursorId, PageRequest.of(0, limit)
             );
-
             case BOOKMARK -> postsRepository.findFeedBookmarkDesc(
-                    PostStatus.PUBLISHED,
-                    code,
-                    tagId,
-                    kw,
-                    cv,        // cursorValue(bookmarkCount)
-                    cursorId,
-                    PageRequest.of(0, limit)
+                    PostStatus.PUBLISHED, code, tagId, kw, cv, cursorId, PageRequest.of(0, limit)
             );
         };
 
@@ -163,25 +141,37 @@ public class PostQueryServiceImpl implements PostQueryService {
         Map<Long, String> thumbKeyMap = new HashMap<>();
         for (PostAttachments a : postAttachmentsRepository.findThumbCandidates(postIds)) {
             Long pid = a.getPost().getId();
-            // 같은 post에 여러 개가 와도 첫 번째만 채택
-            thumbKeyMap.putIfAbsent(pid,
-                    (hasText(a.getThumbnailKey()) ? a.getThumbnailKey() : a.getFileKey())
-            );
+            if (!thumbKeyMap.containsKey(pid) && hasText(a.getFileKey())) {
+                thumbKeyMap.put(pid, a.getFileKey());
+            }
         }
         List<PostSummaryResponse> items = new ArrayList<>(posts.size());
+
+        List<Long> authorIds = posts.stream()
+                .map(p -> p.getUser().getUserId())
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<Long, AuthorDto> authorMap = authorAssembler.buildAuthorMap(authorIds);
 
         for (Posts p : posts) {
             PostStats ps = statsMap.get(p.getId());
 
             long likeCount = ps == null ? 0 : ps.getLikeCount();
             long commentCount = ps == null ? 0 : ps.getCommentCount();
-            long answerCount = ps == null ? 0 : ps.getRootCommentCount();     // 질문 탭 "답변"
+            long answerCount = ps == null ? 0 : ps.getRootCommentCount();
             long bookmarkCount = ps == null ? 0 : ps.getBookmarkCount();
 
             String preview = makePreview(p.getContent(), MAX_CONTENT);
 
-            String thumbKey = thumbKeyMap.get(p.getId()); // fileKey or thumbnailKey
-            String thumbUrl = publicUrlIssuer.issuePublicUrl(thumbKey);
+            String thumbUrl = null;
+            String thumbKey = thumbKeyMap.get(p.getId());
+            // paywall 글은 CDN 썸네일 null (보안)
+            if (p.getAccessType() != PostAccessType.POINT_REQUIRED) {
+                thumbUrl = thumbnailUrlOrNull(thumbKey);
+            }
+            AuthorDto author = authorMap.get(p.getUser().getUserId());
 
             items.add(new PostSummaryResponse(
                     p.getId(),
@@ -195,6 +185,7 @@ public class PostQueryServiceImpl implements PostQueryService {
                     bookmarkCount,
                     acceptedPostIds.contains(p.getId()),
                     tagsMap.getOrDefault(p.getId(), List.of()),
+                    author,
                     thumbUrl,
                     p.getAccessType()
             ));
@@ -211,6 +202,16 @@ public class PostQueryServiceImpl implements PostQueryService {
         };
 
         return PostListResponse.of(items, slice.hasNext(), nextCursorValue);
+    }
+
+    private String thumbnailUrlOrNull(String key) {
+        if (!hasText(key)) return null;
+
+        String lower = key.toLowerCase(Locale.ROOT);
+        boolean isImage = THUMB_EXT.stream().anyMatch(lower::endsWith);
+        if (!isImage) return null; // 0번이 pdf면 썸네일 없음
+
+        return publicUrlIssuer.issuePublicUrl(key); // CDN 대상 prefix 아니면 null 가능
     }
 
     private static String normalizeKeyword(String keyword) {

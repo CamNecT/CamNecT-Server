@@ -1,4 +1,4 @@
-package CamNecT.CamNecT_Server.domain.community.model.Posts;
+package CamNecT.CamNecT_Server.domain.community.model.props;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

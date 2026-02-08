@@ -133,17 +133,20 @@ public class PostController {
     @Operation(
             summary = "첨부파일 업로드용 Presigned URL 발급",
             description = """
-    게시글에 포함될 파일을 S3에 업로드하기 위한 Presigned URL을 발급합니다.
-    - 업로드는 temp 경로로 수행됩니다.
-    - 게시글 저장 시 consume되어 최종 경로로 이동됩니다.
-  """
+                게시글에 포함될 파일을 S3에 업로드하기 위한 Presigned URL을 발급합니다.
+                - 업로드는 temp 경로로 수행됩니다.
+                - 게시글 저장/수정 시 consume되어 최종 경로로 이동됩니다.
+                - 규칙: items[0]은 썸네일(이미지 jpg/png/webp)가 권장됩니다.
+                - 규칙: items[1..]은 일반 첨부(예: pdf 포함 허용)입니다.
+                - 규칙: items[0]에 pdf가 들어오면 썸네일은 null입니다.
+            """
     )
     @PostMapping("/uploads/presign")
     public ApiResponse<PresignUploadBatchResponse> presignAttachmentUpload(
             @UserId Long userId,
             @RequestBody @Valid PresignUploadBatchRequest req
     ) {
-        return ApiResponse.success(postAttachmentsService.presignBatch(userId, req));
+        return ApiResponse.success(postAttachmentsService.presignAttachmentsBatch(userId, req));
     }
 
     @Operation(summary = "첨부파일 다운로드 URL 발급", description = "게시글의 첨부파일을 다운로드하기 위한 임시 URL을 발급받습니다.")

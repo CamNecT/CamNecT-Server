@@ -12,7 +12,6 @@ import CamNecT.CamNecT_Server.domain.users.model.UserStatus;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
-import CamNecT.CamNecT_Server.domain.users.repository.UserTagMapRepository;
 import CamNecT.CamNecT_Server.domain.verification.document.model.DocumentVerificationSubmission;
 import CamNecT.CamNecT_Server.domain.verification.document.repository.DocumentVerificationSubmissionRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
@@ -36,7 +35,6 @@ public class LoginService {
     private final JwtFacade jwtFacade;
     private final DocumentVerificationSubmissionRepository submissionRepo;
     private final UserProfileRepository userProfileRepository;
-    private final UserTagMapRepository userTagMapRepository;
     private final InstitutionRepository institutionRepository;
     private final MajorRepository majorRepository;
 
@@ -76,7 +74,7 @@ public class LoginService {
                 .orElse(null);
 
         // 3) 온보딩 완료 여부
-        boolean onboardingDone = isOnboardingDone(user.getUserId());
+        boolean onboardingDone = userProfileRepository.existsByUserId(user.getUserId());
 
         // 4) nextStep 결정
         LoginNextStep nextStep = resolveNext(user, latest, onboardingDone);
@@ -108,16 +106,6 @@ public class LoginService {
                 user.getRole().name(),
                 nextStep
         );
-    }
-
-    private boolean isOnboardingDone(Long userId) {
-        // “소개/사진/태그”가 모두 필요하다는 요구 기준으로 엄격하게 체크
-        return userProfileRepository.findByUserId(userId)
-                .map(p -> org.springframework.util.StringUtils.hasText(p.getBio())
-                        && org.springframework.util.StringUtils.hasText(p.getProfileImageKey())
-                        && userTagMapRepository.countByUserId(userId) > 0
-                )
-                .orElse(false);
     }
 
     public VerificationCompleteResponse getVerificationCompleteInfo(Long userId) {
