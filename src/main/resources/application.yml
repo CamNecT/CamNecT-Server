@@ -52,6 +52,7 @@ app:
       enabled: true
       to: camnect.official@gmail.com
       subject: "[CamNecT] 기프티콘 구매요청 엑셀"
+      delete-after-send : true
     vendor:
       enabled: ${SENDB_ENABLED:false}
       base-url: ${SENDB_BASE_URL:https://vendor.example.com}
