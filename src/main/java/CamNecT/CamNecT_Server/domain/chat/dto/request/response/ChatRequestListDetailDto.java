@@ -32,6 +32,7 @@ public record ChatRequestListDetailDto(
                 .opponentStudentYear(opProfile != null ? opProfile.getYearLevel().toString() : "")
                 .opponentProfileImg(profileImgUrl)
 
+                .requestId(request.getId())
                 .requestType(request.getType().name())
                 .requestContent(request.getContent())
                 .createdAt(request.getCreatedAt().toString())
