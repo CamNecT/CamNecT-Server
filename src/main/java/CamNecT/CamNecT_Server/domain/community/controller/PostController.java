@@ -154,11 +154,10 @@ public class PostController {
     public ApiResponse<PresignDownloadResponse> downloadUrl(
             @UserId Long userId,
             @PathVariable Long postId,
-            @PathVariable Long attachmentId,
-            @RequestParam(defaultValue = "FILE") PostAttachmentDownloadService.Kind kind
+            @PathVariable Long attachmentId
     ) {
         return ApiResponse.success(
-                postAttachmentDownloadService.presignDownload(userId, postId, attachmentId, kind)
+                postAttachmentDownloadService.presignDownload(userId, postId, attachmentId)
         );
     }
 }

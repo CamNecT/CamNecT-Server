@@ -15,6 +15,7 @@ public enum PointSource {
     // 사용(SPEND) 관련
     COFFEECHAT_REQUEST("커피챗 요청 사용"),
     POST_ACCESS_PURCHASE("정보글 열람권 구매"),
+    GIFTICON_PURCHASE("기프티콘 구매"),
 
     // 기타
     ADMIN_ADJUSTMENT("관리자 수동 조정");

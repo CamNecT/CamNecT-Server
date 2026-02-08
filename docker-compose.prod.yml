@@ -9,6 +9,7 @@ services:
       - .env.prod
     volumes:
       - /etc/camnect/secrets/firebase-admin.json:/var/app/secrets/firebase-admin.json:ro
+      - /home/ubuntu/app/exports/gifticon:/var/app/exports/gifticon
     environment:
         SPRING_PROFILES_ACTIVE: prod
         JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70.0

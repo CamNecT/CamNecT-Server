@@ -31,8 +31,6 @@ public class PostAttachmentDownloadService {
     @Value("${app.point.cost.question-view:100}")
     private int questionViewCost;
 
-    public enum Kind { FILE, THUMBNAIL }
-
     private final PostsRepository postsRepository;
     private final PostAttachmentsRepository postAttachmentsRepository;
     private final PostAccessRepository postAccessRepository;
@@ -42,7 +40,7 @@ public class PostAttachmentDownloadService {
     private final UploadTicketRepository uploadTicketRepository;
 
     @Transactional(readOnly = true)
-    public PresignDownloadResponse presignDownload(Long userId, Long postId, Long attachmentId, Kind kind) {
+    public PresignDownloadResponse presignDownload(Long userId, Long postId, Long attachmentId) {
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
