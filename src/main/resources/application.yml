@@ -44,6 +44,21 @@ app:
       question-view: 100
   cdn:
     base-url: https://cdn.camnect.site
+  gifticon:
+    catalog-sync-cron: "0 0 3 * * *"   # 매일 03:00
+    export-cron: "0 10 3 * * *"        # 매일 03:10
+    export-dir: "/var/app/exports/gifticon"  # 로컬 저장 디렉토리 (EC2)
+    export-mail:
+      enabled: true
+      to: camnect.official@gmail.com
+      subject: "[CamNecT] 기프티콘 구매요청 엑셀"
+    vendor:
+      enabled: ${SENDB_ENABLED:false}
+      base-url: ${SENDB_BASE_URL:https://vendor.example.com}
+      mid: ${SENDB_MID:sendbee}
+      secret-key: ${SENDB_SECRET_KEY:}
+      cipher: ${SENDB_CIPHER:AES/ECB/PKCS5Padding}
+      iv: ${SENDB_IV:}
 
 
 
