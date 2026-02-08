@@ -125,7 +125,7 @@ public class PortfolioAttachmentService {
         String finalAssetPrefix = "portfolio/user-" + userId + "/portfolio-" + project.getPortfolioId() + "/assets";
 
         // thumbnail
-        if (hasText(thumbnailKey)) {
+        if (hasText(thumbnailKey) && !DEFAULT_THUMB.equals(thumbnailKey)) {
             ensureThumbnailIsImage(thumbnailKey);
             String finalKey = consume(userId, project.getPortfolioId(), thumbnailKey, finalThumbPrefix);
             project.updateThumbnail(finalKey);
@@ -162,7 +162,11 @@ public class PortfolioAttachmentService {
         String finalAssetPrefix = "portfolio/user-" + userId + "/portfolio-" + project.getPortfolioId() + "/assets";
 
         // thumbnail 교체(요청이 있고, 기존과 다를 때만)
-        if (hasText(newThumbnailKey) && !Objects.equals(newThumbnailKey, project.getThumbnailUrl())) {
+        if (DEFAULT_THUMB.equals(newThumbnailKey)) {
+            String old = project.getThumbnailUrl();
+            if (hasText(old) && !DEFAULT_THUMB.equals(old)) deleteAfterCommit.add(old);
+            project.updateThumbnail(DEFAULT_THUMB);
+        } else if (hasText(newThumbnailKey) && !Objects.equals(newThumbnailKey, project.getThumbnailUrl())) {
             ensureThumbnailIsImage(newThumbnailKey);
 
             String old = project.getThumbnailUrl();

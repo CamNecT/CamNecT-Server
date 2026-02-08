@@ -17,6 +17,7 @@ import CamNecT.CamNecT_Server.global.storage.repository.UploadTicketRepository;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -25,6 +26,7 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PortfolioService {
@@ -39,7 +41,10 @@ public class PortfolioService {
     private final PortfolioAttachmentService portfolioAttachmentService;
 
     public PortfolioResponse<List<PortfolioPreviewResponse>> portfolioPreview(Long userId, Long portfolioUserId) {
-        List<PortfolioPreviewResponse> rows = portfolioRepository.findPreviewsByUserId(portfolioUserId);
+        boolean isMine = Objects.equals(userId, portfolioUserId);
+        List<PortfolioPreviewResponse> rows = isMine
+                ? portfolioRepository.findPreviewsByUserId(portfolioUserId)
+                : portfolioRepository.findPublicPreviewsByUserId(portfolioUserId);
 
         List<PortfolioPreviewResponse> resultList =  rows.stream()
                 .map(r -> {
@@ -49,7 +54,7 @@ public class PortfolioService {
                 })
                 .toList();
 
-        return PortfolioResponse.of(userId.equals(portfolioUserId), resultList);
+        return PortfolioResponse.of(isMine, resultList);
     }
 
     public PortfolioResponse<PortfolioDetailResponse> portfolioDetail(Long userId, Long portfolioUserId, Long portfolioId) {
@@ -60,6 +65,9 @@ public class PortfolioService {
         if (!Objects.equals(portfolio.getUserId(), portfolioUserId)) throw new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND);
 
         boolean isMine = Objects.equals(userId, portfolio.getUserId());
+        if (!isMine && !portfolio.isPublic()) {
+            throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
+        }
 
         String thumbUrl = cdnOrNull(portfolio.getThumbnailUrl());
         PortfolioProjectDto projectDto = PortfolioProjectDto.from(portfolio, thumbUrl);
@@ -72,7 +80,9 @@ public class PortfolioService {
                 .distinct()
                 .toList();
 
-        Map<String, UploadTicket> ticketMap = uploadTicketRepository.findAllByStorageKeyIn(keys).stream()
+        Map<String, UploadTicket> ticketMap = keys.isEmpty()
+                ? Map.of()
+                : uploadTicketRepository.findAllByStorageKeyIn(keys).stream()
                 .collect(Collectors.toMap(UploadTicket::getStorageKey, t -> t));
 
         Map<String, String> urlMap = new HashMap<>();
@@ -81,9 +91,14 @@ public class PortfolioService {
             String filename = (t == null) ? null : t.getOriginalFilename();
             String contentType = (t == null) ? null : t.getContentType();
 
-            urlMap.put(key, presignEngine.presignDownload(key, filename, contentType).downloadUrl());
+            try {
+                String url = presignEngine.presignDownload(key, filename, contentType).downloadUrl();
+                urlMap.put(key, url);
+            } catch (Exception e) {
+                log.warn("presignDownload failed. portfolioId={}, key={}", portfolioId, key, e);
+                urlMap.put(key, null);
+            }
         }
-
         List<PortfolioAssetView> views = assets.stream()
                 .map(a -> new PortfolioAssetView(
                         a.getAssetId(),
@@ -95,7 +110,7 @@ public class PortfolioService {
                 ))
                 .toList();
 
-        return PortfolioResponse.of(isMine, new PortfolioDetailResponse(isMine, projectDto, views));
+        return PortfolioResponse.of(isMine, new PortfolioDetailResponse(projectDto, views));
     }
 
     @Transactional
@@ -212,6 +227,7 @@ public class PortfolioService {
         try {
             return publicUrlIssuer.issuePublicUrl(key);
         } catch (Exception e) {
+            log.warn("issuePublicUrl failed. key={}", key, e);
             return null;
         }
     }
