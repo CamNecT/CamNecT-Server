@@ -23,12 +23,16 @@ public record ProfileResponse(
             String bio,
             Boolean openToCoffeeChat,
             Boolean isFollowerVisible,
+            Boolean isEducationVisible,
+            Boolean isExperienceVisible,
+            Boolean isCertificateVisible,
             String profileImageUrl,
             String studentNo,
 //            Integer yearLevel,
             Long institutionId,
             Long majorId
-    ) {}
+    ) {
+    }
 }
 
 
