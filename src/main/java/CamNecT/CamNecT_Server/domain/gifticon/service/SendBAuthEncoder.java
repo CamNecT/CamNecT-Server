@@ -10,7 +10,6 @@ public class SendBAuthEncoder {
 
     /**
      * SendB 스펙: "{mid}|{yyyyMMddHHmmss}" 를 PKCS5Padding 방식으로 암호화하여 Authorization 헤더에 사용
-     *
      * cipher 예시:
      * - AES/ECB/PKCS5Padding (iv 불필요)
      * - AES/CBC/PKCS5Padding (iv 필요)

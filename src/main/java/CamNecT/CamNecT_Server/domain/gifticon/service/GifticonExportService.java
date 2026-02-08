@@ -77,32 +77,35 @@ public class GifticonExportService {
                     "unitPricePoints", "quantity", "totalPricePoints",
                     "recipientName", "recipientPhone", "giftMessage"
             };
-            for (int i = 0; i < cols.length; i++) header.createCell(i).setCellValue(cols[i]);
+
+            for (int i = 0; i < cols.length; i++) {
+                header.createCell(i).setCellValue(cols[i]);
+            }
 
             for (GifticonPurchase p : rows) {
                 Row row = sheet.createRow(r++);
                 int c = 0;
 
-                row.createCell(c++).setCellValue(nvl(p.getId()));
-                row.createCell(c++).setCellValue(nvl(p.getRequestedAt()));
+                c = writeCell(row, c, p.getId());
+                c = writeCell(row, c, p.getRequestedAt());
 
-                row.createCell(c++).setCellValue(nvl(p.getUser().getUserId()));
-                row.createCell(c++).setCellValue(nvl(p.getBuyerName()));
-                row.createCell(c++).setCellValue(nvl(p.getBuyerPhone()));
-                row.createCell(c++).setCellValue(nvl(p.getBuyerEmail()));
+                c = writeCell(row, c, p.getUser().getUserId());
+                c = writeCell(row, c, p.getBuyerName());
+                c = writeCell(row, c, p.getBuyerPhone());
+                c = writeCell(row, c, p.getBuyerEmail());
 
-                row.createCell(c++).setCellValue(nvl(p.getProduct().getId()));
-                row.createCell(c++).setCellValue(nvl(p.getProduct().getVendorProductCode()));
-                row.createCell(c++).setCellValue(nvl(p.getProduct().getBrandName()));
-                row.createCell(c++).setCellValue(nvl(p.getProduct().getProductName()));
+                c = writeCell(row, c, p.getProduct().getId());
+                c = writeCell(row, c, p.getProduct().getVendorProductCode());
+                c = writeCell(row, c, p.getProduct().getBrandName());
+                c = writeCell(row, c, p.getProduct().getProductName());
 
-                row.createCell(c++).setCellValue(nvl(p.getUnitPricePoints()));
-                row.createCell(c++).setCellValue(nvl(p.getQuantity()));
-                row.createCell(c++).setCellValue(nvl(p.getTotalPricePoints()));
+                c = writeCell(row, c, p.getUnitPricePoints());
+                c = writeCell(row, c, p.getQuantity());
+                c = writeCell(row, c, p.getTotalPricePoints());
 
-                row.createCell(c++).setCellValue(nvl(p.getRecipientName()));
-                row.createCell(c++).setCellValue(nvl(p.getRecipientPhone()));
-                row.createCell(c++).setCellValue(nvl(p.getGiftMessage()));
+                c = writeCell(row, c, p.getRecipientName());
+                c = writeCell(row, c, p.getRecipientPhone());
+                writeCell(row, c, p.getGiftMessage());
             }
 
             for (int i = 0; i < cols.length; i++) sheet.autoSizeColumn(i);
@@ -113,7 +116,8 @@ public class GifticonExportService {
         }
     }
 
-    private static String nvl(Object o) {
-        return o == null ? "" : String.valueOf(o);
+    private int writeCell(Row row, int col, Object value) {
+        row.createCell(col).setCellValue(value == null ? "" : String.valueOf(value));
+        return col + 1;
     }
 }

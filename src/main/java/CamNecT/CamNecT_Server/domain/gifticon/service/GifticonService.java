@@ -7,7 +7,6 @@ import CamNecT.CamNecT_Server.domain.gifticon.model.GifticonBookmark;
 import CamNecT.CamNecT_Server.domain.gifticon.model.GifticonProduct;
 import CamNecT.CamNecT_Server.domain.gifticon.repository.GifticonBookmarkRepository;
 import CamNecT.CamNecT_Server.domain.gifticon.repository.GifticonProductRepository;
-import CamNecT.CamNecT_Server.domain.point.repository.PointWalletRepository;
 import CamNecT.CamNecT_Server.domain.point.service.PointService;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
@@ -20,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,17 +31,12 @@ public class GifticonService {
     private final GifticonBookmarkRepository bookmarkRepository;
     private final UserRepository userRepository;
     private final PointService pointService;
-
-    private final PointWalletRepository pointWalletRepository;
-
     private final GifticonVendorClient vendorClient;
 
     @Value("${app.gifticon.vendor.enabled:false}")
     private boolean vendorEnabled;
 
-    public enum Sort {
-        POPULAR, PRICE_ASC, PRICE_DESC
-    }
+    public enum Sort { POPULAR, PRICE_ASC, PRICE_DESC }
 
     public GifticonHomeResponse home(Long userId, Sort sort) {
         long myPoint = pointService.getBalance(userId);
@@ -100,14 +95,14 @@ public class GifticonService {
         GifticonProduct product = productRepository.findById(productId)
                 .orElseThrow(() -> new CustomException(GifticonErrorCode.PRODUCT_NOT_FOUND));
 
-        GifticonBookmark existing = bookmarkRepository.findByUser_UserIdAndProduct_Id(userId, productId).orElse(null);
+        var existing = bookmarkRepository.findByUser_UserIdAndProduct_Id(userId, productId).orElse(null);
         if (existing != null) {
             bookmarkRepository.delete(existing);
             return new BookmarkToggleResponse(false);
         }
 
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(GifticonErrorCode.PRODUCT_NOT_FOUND)); // USER 에러코드로 바꿔도 됨
+                .orElseThrow(() -> new CustomException(GifticonErrorCode.USER_NOT_FOUND));
 
         bookmarkRepository.save(GifticonBookmark.builder()
                 .user(user)
@@ -125,6 +120,7 @@ public class GifticonService {
         if (!vendorEnabled) return;
 
         LocalDateTime syncedAt = LocalDateTime.now();
+
         List<GifticonProduct.VendorSnapshot> vendorProducts;
         try {
             vendorProducts = vendorClient.fetchProducts();
@@ -132,16 +128,21 @@ public class GifticonService {
             throw new CustomException(GifticonErrorCode.VENDOR_SYNC_FAILED);
         }
 
-        Map<String, GifticonProduct.VendorSnapshot> vendorMap = vendorProducts.stream()
-                .collect(Collectors.toMap(GifticonProduct.VendorSnapshot::vendorProductCode, v -> v, (a, b) -> a));
+        // 업스트림이 일시적으로 비었을 때 "전체 비활성화" 방지
+        if (vendorProducts == null || vendorProducts.isEmpty()) {
+            return;
+        }
 
         List<GifticonProduct> existing = productRepository.findAll();
+        Map<String, GifticonProduct> existingMap = existing.stream()
+                .collect(Collectors.toMap(GifticonProduct::getVendorProductCode, Function.identity(), (a, b) -> a));
+
         Set<String> seen = new HashSet<>();
 
         for (GifticonProduct.VendorSnapshot v : vendorProducts) {
             seen.add(v.vendorProductCode());
 
-            GifticonProduct p = productRepository.findByVendorProductCode(v.vendorProductCode()).orElse(null);
+            GifticonProduct p = existingMap.get(v.vendorProductCode());
             if (p == null) {
                 productRepository.save(GifticonProduct.builder()
                         .vendorProductCode(v.vendorProductCode())
@@ -159,38 +160,11 @@ public class GifticonService {
             }
         }
 
-        // 이번 배치에 없던 상품은 비활성화
+        // 이번 배치에 없던 상품 비활성화
         for (GifticonProduct p : existing) {
             if (!seen.contains(p.getVendorProductCode())) {
                 p.deactivate(syncedAt);
             }
         }
-    }
-
-    /**
-     * ⚠️ 포인트 연동부
-     * - 여기 메서드는 프로젝트 point 도메인 구현에 따라 메서드명 조정이 필요할 수 있습니다.
-     */
-    private long loadMyPoint(Long userId) {
-        // 케이스 A) PointWallet의 PK가 userId인 구조면: pointWalletRepository.findById(userId)
-        // 케이스 B) user 엔티티 연관이면: pointWalletRepository.findByUser_UserId(userId)
-        // 아래는 “둘 중 하나로 맞춰” 쓰면 됩니다.
-
-        return pointWalletRepository.findById(userId)
-                .map(w -> {
-                    // TODO: PointWallet의 실제 필드/게터명에 맞추세요 (balance / point / amount 등)
-                    try {
-                        return (Number) w.getClass().getMethod("getBalance").invoke(w);
-                    } catch (Exception ignore) {
-                        try {
-                            return (Number) w.getClass().getMethod("getPoint").invoke(w);
-                        } catch (Exception e) {
-                            // 최후: 0
-                            return 0L;
-                        }
-                    }
-                })
-                .map(Number::longValue)
-                .orElse(0L);
     }
 }
