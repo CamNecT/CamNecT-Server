@@ -327,6 +327,9 @@ public class PresignEngine {
     }
 
     private String normalize(String ct) {
-        return (ct == null) ? "" : ct.trim().toLowerCase(Locale.ROOT);
+        if (ct == null) return "";
+        String v = ct.trim().toLowerCase(Locale.ROOT);
+        int semi = v.indexOf(';');
+        return (semi >= 0) ? v.substring(0, semi).trim() : v;
     }
 }

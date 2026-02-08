@@ -61,6 +61,7 @@ public class PostServiceImpl implements PostService {
 
     private final PostBookmarksRepository postBookmarksRepository;
     private final PostAccessRepository postAccessRepository;
+    private final PostAttachmentsRepository postAttachmentsRepository;
 
     private final PostAttachmentsService postAttachmentsService;
     private final PointService pointService;
@@ -249,6 +250,22 @@ public class PostServiceImpl implements PostService {
             accessStatus = ContentAccessStatus.GRANTED;
         }
 
+        List<PostAttachmentItemResponse> attachments = null;
+        if (accessStatus == ContentAccessStatus.GRANTED) {
+            attachments = postAttachmentsRepository
+                    .findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(postId)
+                    .stream()
+                    .map(a -> new PostAttachmentItemResponse(
+                            a.getId(),
+                            a.getSortOrder(),
+                            a.getFileKey(),
+                            a.getWidth(),
+                            a.getHeight(),
+                            a.getFileSize()
+                    ))
+                    .toList();
+        }
+
         String content = (accessStatus == ContentAccessStatus.GRANTED) ? post.getContent() : null;
 
         AuthorDto author = authorAssembler
@@ -266,6 +283,7 @@ public class PostServiceImpl implements PostService {
                 likedByMe,
                 acceptedCommentId,
                 tagIds,
+                attachments,
                 accessStatus,
                 requiredPoints,
                 myPoints,

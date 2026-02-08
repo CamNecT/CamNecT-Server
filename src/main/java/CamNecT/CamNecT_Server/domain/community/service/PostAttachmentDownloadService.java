@@ -63,7 +63,7 @@ public class PostAttachmentDownloadService {
         PostAttachments att = postAttachmentsRepository.findByIdAndPost_IdAndStatusTrue(attachmentId, postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.ATTACHMENT_NOT_FOUND));
 
-        String key = resolveKey(att, kind);
+        String key = att.getFileKey();
         if (!StringUtils.hasText(key)) {
             throw new CustomException(CommunityErrorCode.ATTACHMENT_NOT_FOUND);
         }
@@ -73,13 +73,6 @@ public class PostAttachmentDownloadService {
         String contentType = ticketOpt.map(UploadTicket::getContentType).orElse(null);
 
         return presignEngine.presignDownload(key, filename, contentType);
-    }
-
-    private String resolveKey(PostAttachments att, Kind kind) {
-        if (kind == Kind.THUMBNAIL) {
-            return StringUtils.hasText(att.getThumbnailKey()) ? att.getThumbnailKey() : att.getFileKey();
-        }
-        return att.getFileKey();
     }
 
     private ContentAccessStatus computeAccessStatus(Long userId, Long postId, Posts post) {

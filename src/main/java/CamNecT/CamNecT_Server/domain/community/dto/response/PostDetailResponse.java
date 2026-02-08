@@ -17,6 +17,7 @@ public record PostDetailResponse(
         boolean likedByMe,
         Long acceptedCommentId,
         List<Long> tagIds,
+        List<PostAttachmentItemResponse> attachments,
         ContentAccessStatus accessStatus,
         Integer requiredPoints,
         Integer myPoints,
