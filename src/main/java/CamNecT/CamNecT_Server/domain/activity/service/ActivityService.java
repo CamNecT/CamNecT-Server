@@ -19,7 +19,6 @@ import CamNecT.CamNecT_Server.domain.activity.repository.recruitment.TeamRecruit
 import CamNecT.CamNecT_Server.domain.home.dto.HomeResponse;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.ActivityErrorCode;
-import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.StorageErrorCode;
 import CamNecT.CamNecT_Server.global.common.service.GlobalPresignMethods;
 import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
 import CamNecT.CamNecT_Server.global.storage.model.UploadRefType;
@@ -90,8 +89,8 @@ public class ActivityService {
                 .thumbnailUrl(DEFAULT_THUMB)
                 .build());
 
-        String finalThumbPrefix = "activity/activities/activity-" + saved.getActivityId() + "/thumbnail";
         String finalAttachPrefix = "activity/activities/activity-" + saved.getActivityId() + "/attachments";
+        String finalThumbPrefix = "activity/activities/activity-" + saved.getActivityId() + "/attachments/thumbnail";
 
         // 2. 썸네일 Consume
         if (StringUtils.hasText(request.thumbnailKey())) {
@@ -149,8 +148,8 @@ public class ActivityService {
         }
 
         Set<String> deleteAfterCommit = new HashSet<>();
-        String finalThumbPrefix = "activity/activities/activity-" + activity.getActivityId() + "/thumbnail";
         String finalAttachPrefix = "activity/activities/activity-" + activity.getActivityId() + "/attachments";
+        String finalThumbPrefix = "activity/activities/activity-" + activity.getActivityId() + "/attachments/thumbnail";
 
         // 1. 썸네일 교체 로직
         if (StringUtils.hasText(request.thumbnailKey())
@@ -362,22 +361,10 @@ public class ActivityService {
      */
     private String fileUrlOrNull(String key, FileKind kind) {
         if (!StringUtils.hasText(key) || DEFAULT_THUMB.equals(key)) return null;
-
-        try {
-            if (kind == FileKind.THUMBNAIL) {
-                String cdn = publicUrlIssuer.issuePublicUrl(key);
-                if (cdn != null) return cdn;
-                return presignEngine.presignDownload(key, null, null).downloadUrl(); // fallback 유지/삭제는 취향
-            }
-
-            // ATTACHMENT: presign only
-            return presignEngine.presignDownload(key, null, null).downloadUrl();
-
-        } catch (CustomException e) {
-            // 썸네일은 유실돼도 화면 유지가 우선이라 NOT_FOUND는 null
-            if (kind == FileKind.THUMBNAIL && e.getErrorCode() == StorageErrorCode.STORAGE_NOT_FOUND) return null;
-            throw e;
-        }
+        // THUMBNAIL은 CDN으로
+        if (kind == FileKind.THUMBNAIL) return publicUrlIssuer.issuePublicUrl(key); // CDN만
+        // ATTACHMENT는 presign만
+        return presignEngine.presignDownload(key, null, null).downloadUrl();
     }
 
     /**
