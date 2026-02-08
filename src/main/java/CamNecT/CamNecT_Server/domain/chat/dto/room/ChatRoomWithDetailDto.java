@@ -28,7 +28,7 @@ public class ChatRoomWithDetailDto {
     private String opponentProfileImg;
     private List<String> opponentTags;
 
-    private String requestCategory;
+    private String requestType;
     private List<String> requestTags;
     private String requestContent;
 
@@ -39,7 +39,7 @@ public class ChatRoomWithDetailDto {
                                              Users opponent,
                                              UserProfile opProfile,
                                              String majorName,
-                                             List<ChatMessageResponseDto> chats) {
+                                             List<String> tagNames, List<ChatMessageResponseDto> chats) {
 
         return ChatRoomWithDetailDto.builder()
                 .roomId(room.getId())
@@ -51,7 +51,9 @@ public class ChatRoomWithDetailDto {
                 .opponentMajor(majorName)
                 .opponentStudentYear(opProfile != null ? opProfile.getYearLevel().toString() : "")
                 .opponentProfileImg(opProfile != null ? opProfile.getProfileImageKey() : "/images/default.png")
+                .opponentTags(tagNames)
 
+                .requestType(room.getRequest().getType().name())
                 .requestTags(room.getTags().stream()
                         .map(Tag::getName)
                         .toList())

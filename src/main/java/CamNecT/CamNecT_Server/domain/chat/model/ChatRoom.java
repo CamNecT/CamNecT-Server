@@ -84,8 +84,11 @@ public class ChatRoom {
 
 
     // 채팅방에 연결된 태그들 객체 반환
-
     public List<Tag> getTags() {
         return this.request.getRequestInterests();
     }
-}
+
+    // 커피챗/팀원모집 타입 구분
+    public ChatRequest.RequestType getType() {
+        return this.request.getType();
+    }}

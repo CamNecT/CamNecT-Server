@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface ExternalActivityTagRepository extends JpaRepository<ExternalActivityTag, Long> {
 
-    void deleteByActivityId(Long activityId);
+    void deleteByActivity_ActivityId(Long activityId);
 
-    List<ExternalActivityTag> findAllByActivityId(Long activityId);
+    List<ExternalActivityTag> findAllByActivity_ActivityId(Long activityId);
 }

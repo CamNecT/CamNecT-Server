@@ -8,5 +8,6 @@ import java.util.List;
 public record ChatRoomListResponseDto(
         List<ChatRoomListDetailDto> chatRoomList,
         Long totalUnreadCount
+        // todo : 리퀘스트 왔으면 true 타입으로 Boolean
 ) {
 }

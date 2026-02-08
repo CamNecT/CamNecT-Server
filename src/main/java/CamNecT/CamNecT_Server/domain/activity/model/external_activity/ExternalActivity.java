@@ -3,16 +3,15 @@ package CamNecT.CamNecT_Server.domain.activity.model.external_activity;
 import CamNecT.CamNecT_Server.domain.activity.dto.request.ActivityRequest;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityCategory;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityStatus;
+import CamNecT.CamNecT_Server.domain.users.model.Users;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@EntityListeners(AuditingEntityListener.class)
 @Table(name = "external_activities")
 @Getter
 @Builder
@@ -22,52 +21,55 @@ public class ExternalActivity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "activity_id")
     private Long activityId;
 
-    @Column(nullable = false, length = 200)
+    @Column(name = "title", nullable = false, length = 200)
     private String title;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 50)
+    @Column(name = "category", nullable = false, length = 50)
     private ActivityCategory category;
 
-    @Column(length = 100)
+    @Column(name = "organizer", length = 100)
     private String organizer;
 
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private Long userId;
+    private Users user;
 
-    @Column(length = 50)
+    @Column(name = "region", length = 50)
     private String region;
 
-    @Column(length = 300)
+    @Column(name = "target_description", length = 300)
     private String targetDescription;
 
-    @Column(length = 500)
+    @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
-    @Column
+    @Column(name = "apply_start_date")
     private LocalDate applyStartDate;
 
-    @Column
+    @Column(name = "apply_end_date")
     private LocalDate applyEndDate;
 
+    @Column(name = "result_announce_date")
     private LocalDate resultAnnounceDate;
 
-    @Column(length = 500)
+    @Column(name = "official_url", length = 500)
     private String officialUrl;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(name = "status", nullable = false, length = 20)
     private ActivityStatus status = ActivityStatus.OPEN;
 
-    @Builder.Default
-    @CreatedDate
-    @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    @Column(columnDefinition = "TEXT")
+    @Lob
+    @Column(name = "context", columnDefinition = "TEXT")
     private String context;
 
     public void updateThumbnail(String thumbnailUrl) {

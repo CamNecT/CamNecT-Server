@@ -13,6 +13,15 @@ app:
   upload-ticket:
     expire-job-delay-ms: 900000  # 15분
 
+  activity:
+    attachments:
+      max-files: 10
+      max-file-size-mb: 20
+      allowed-content-types:
+        - application/pdf
+        - image/jpeg
+        - image/png
+        - image/webp
   auth:
     email-verification:
       expiration-minutes: 30
@@ -28,6 +37,7 @@ app:
         - application/pdf
         - image/jpeg
         - image/png
+        - image/webp
   community:
     attachments:
       max-files: 3
@@ -36,6 +46,18 @@ app:
         - application/pdf
         - image/jpeg
         - image/png
+        - image/webp
+  portfolio:
+    assets:
+      max-files: 10
+      max-file-size-mb: 20
+      allowed-content-types:
+        - image/jpeg
+        - image/png
+        - image/webp
+        - application/pdf
+    thumbnail:
+      max-file-size-mb: 5
   point:
     reward:
       comment-selection: 200
@@ -52,6 +74,7 @@ app:
       enabled: true
       to: camnect.official@gmail.com
       subject: "[CamNecT] 기프티콘 구매요청 엑셀"
+      delete-after-send : true
     vendor:
       enabled: ${SENDB_ENABLED:false}
       base-url: ${SENDB_BASE_URL:https://vendor.example.com}

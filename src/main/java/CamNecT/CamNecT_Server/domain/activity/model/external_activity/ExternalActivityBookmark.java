@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.activity.model.external_activity;
 
+import CamNecT.CamNecT_Server.domain.users.model.Users;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -16,15 +17,18 @@ public class ExternalActivityBookmark {
     @Column(name = "activity_bookmark_id")
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private Users user;
 
-    @Column(name = "activity_id", nullable = false)
-    private Long activityId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "activity_id", nullable = false)
+    private ExternalActivity activity;
 
-    @Builder
-    public ExternalActivityBookmark(Long userId, Long activityId) {
-        this.userId = userId;
-        this.activityId = activityId;
+    public static ExternalActivityBookmark of(Users user, ExternalActivity activity) {
+        return ExternalActivityBookmark.builder()
+                .user(user)
+                .activity(activity)
+                .build();
     }
 }

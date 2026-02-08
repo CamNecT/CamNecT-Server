@@ -1,7 +1,10 @@
 package CamNecT.CamNecT_Server.domain.chat.controller;
 
-import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestResponseDto;
-import CamNecT.CamNecT_Server.domain.chat.dto.request.ChatRequestSendDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.request.ChatRequestAcceptDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.response.ChatRequestDetailDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.response.ChatRequestListResponseDto;
+import CamNecT.CamNecT_Server.domain.chat.dto.request.request.ChatRequestSendDto;
+import CamNecT.CamNecT_Server.domain.chat.model.ChatRequest;
 import CamNecT.CamNecT_Server.domain.chat.service.ChatService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
@@ -20,7 +23,7 @@ public class ChatRequestController {
 
     private final ChatService chatService;
 
-    @Operation(summary = "커피챗 요청 보내기", description = "상대방에게 커피챗 요청을 보냅니다.")
+    @Operation(summary = "커피챗 요청 보내기 (커피챗)", description = "상대방에게 커피챗 요청을 보냅니다.")
     @PostMapping("/send")
     public ApiResponse<Void> sendRequest(
             @UserId Long userId,
@@ -40,7 +43,7 @@ public class ChatRequestController {
     @PostMapping("/respond")
     public ApiResponse<Void> respondRequest(
             @UserId Long userId,
-            @RequestBody ChatRequestResponseDto response
+            @RequestBody ChatRequestAcceptDto response
     ) {
         chatService.respondToRequest(
                 response.requestId(),
@@ -50,4 +53,28 @@ public class ChatRequestController {
 
         return ApiResponse.success(null);
     }
+
+    @Operation(summary = "커피챗 요청 목록 조회", description = "요청 타입(COFFEE_CHAT, TEAM_RECRUIT)에 따라 받은 요청 리스트를 조회합니다.")
+    @GetMapping("/list")
+    public ApiResponse<ChatRequestListResponseDto> getRequestList(
+            @UserId Long userId,
+            @RequestParam("type") ChatRequest.RequestType type
+    ) {
+        ChatRequestListResponseDto response = chatService.getChatRequestList(userId, type);
+        return ApiResponse.success(response);
+    }
+
+    @Operation(summary = "커피챗 요청 상세 조회", description = "특정 커피챗 요청의 상세 정보를 조회합니다.")
+    @GetMapping("/{requestId}")
+    public ApiResponse<ChatRequestDetailDto> getRequestDetail(
+            @UserId Long userId,
+            @PathVariable Long requestId
+    ) {
+        log.info("커피챗 요청 상세 조회 - 요청자 ID: {}, 요청서 ID: {}", userId, requestId);
+
+        ChatRequestDetailDto detail = chatService.getChatRequestDetail(requestId, userId);
+
+        return ApiResponse.success(detail);
+    }
+
 }

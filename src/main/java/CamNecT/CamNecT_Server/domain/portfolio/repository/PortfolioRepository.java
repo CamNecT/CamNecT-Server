@@ -18,4 +18,12 @@ public interface PortfolioRepository extends JpaRepository<PortfolioProject, Lon
             "ORDER BY p.createdAt DESC")
     List<PortfolioPreviewResponse> findPreviewsByUserId(@Param("userId") Long userId);
 
+    @Query("""
+    SELECT new CamNecT.CamNecT_Server.domain.portfolio.dto.response.PortfolioPreviewResponse(p.portfolioId, p.title, p.thumbnailUrl, p.isPublic, p.isFavorite)
+    FROM PortfolioProject p
+    WHERE p.userId = :userId AND p.isPublic = true
+    ORDER BY p.createdAt DESC
+    """)
+    List<PortfolioPreviewResponse> findPublicPreviewsByUserId(@Param("userId") Long userId);
+
 }

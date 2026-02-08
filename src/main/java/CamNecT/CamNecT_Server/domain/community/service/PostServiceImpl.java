@@ -23,18 +23,27 @@ import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CommunityErrorCode;
+import CamNecT.CamNecT_Server.global.storage.model.UploadTicket;
+import CamNecT.CamNecT_Server.global.storage.repository.UploadTicketRepository;
+import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
@@ -51,23 +60,25 @@ public class PostServiceImpl implements PostService {
     private final PostsRepository postsRepository;
     private final PostStatsRepository postStatsRepository;
     private final PostTagsRepository postTagsRepository;
-    private final TagRepository tagRepository;
-    private final UserRepository userRepository;
+
 
     private final PostLikesRepository postLikesRepository;
     private final AcceptedCommentsRepository acceptedCommentsRepository;
     private final CommentsRepository commentsRepository;
     private final CommentLikesRepository commentLikesRepository;
-
     private final PostBookmarksRepository postBookmarksRepository;
     private final PostAccessRepository postAccessRepository;
     private final PostAttachmentsRepository postAttachmentsRepository;
 
+    private final TagRepository tagRepository;
+    private final UserRepository userRepository;
+    private final UploadTicketRepository uploadTicketRepository;
+
     private final PostAttachmentsService postAttachmentsService;
     private final PointService pointService;
+    private final PresignEngine presignEngine;
 
     private final ApplicationEventPublisher eventPublisher;
-
     private final AuthorAssembler  authorAssembler;
 
     @Transactional
@@ -231,6 +242,12 @@ public class PostServiceImpl implements PostService {
         Integer requiredPoints = null;
         Integer myPoints = null;
 
+        /// 글쓴이 프로필
+        AuthorDto author = authorAssembler
+                .buildAuthorMap(List.of(post.getUser().getUserId()))
+                .get(post.getUser().getUserId());
+
+        /// 접근권한 관련 설정파트
         if (isQuestion) {
             // 작성자 무료
             if (Objects.equals(userId, post.getUser().getUserId())) {
@@ -249,16 +266,59 @@ public class PostServiceImpl implements PostService {
         } else {
             accessStatus = ContentAccessStatus.GRANTED;
         }
+        String content = (accessStatus == ContentAccessStatus.GRANTED) ? post.getContent() : null;
 
+        /// 첨부파일 내려주는 파트
         List<PostAttachmentItemResponse> attachments = null;
         if (accessStatus == ContentAccessStatus.GRANTED) {
-            attachments = postAttachmentsRepository
-                    .findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(postId)
-                    .stream()
+            List<PostAttachments> atts = postAttachmentsRepository
+                    .findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(postId);
+
+            // fileKey 있는 것만 대상으로
+            List<PostAttachments> validAtts = atts.stream()
+                    .filter(a -> StringUtils.hasText(a.getFileKey()))
+                    .toList();
+
+            // key 목록
+            List<String> keys = validAtts.stream()
+                    .map(PostAttachments::getFileKey)
+                    .distinct()
+                    .toList();
+
+            // ticket bulk
+            Map<String, UploadTicket> ticketMap = keys.isEmpty()
+                    ? Map.of()
+                    : uploadTicketRepository.findAllByStorageKeyIn(keys).stream()
+                    .collect(Collectors.toMap(
+                            UploadTicket::getStorageKey,
+                            t -> t,
+                            (a, b) -> a
+                    ));
+
+            // presign (loop)
+            Map<String, String> urlMap = new HashMap<>();
+            for (String key : keys) {
+                UploadTicket t = ticketMap.get(key);
+                String filename = (t == null) ? null : t.getOriginalFilename();
+                String contentType = (t == null) ? null : t.getContentType();
+
+                try {
+                    String url = presignEngine.presignDownload(key, filename, contentType).downloadUrl();
+                    if (StringUtils.hasText(url)) {
+                        urlMap.put(key, url);
+                    }
+                } catch (Exception e) {
+                    log.warn("presignDownload failed. postId={}, key={}", postId, key, e);
+                }
+            }
+
+            attachments = validAtts.stream()
+                    .filter(a -> StringUtils.hasText(urlMap.get(a.getFileKey())))
                     .map(a -> new PostAttachmentItemResponse(
                             a.getId(),
                             a.getSortOrder(),
                             a.getFileKey(),
+                            urlMap.get(a.getFileKey()),
                             a.getWidth(),
                             a.getHeight(),
                             a.getFileSize()
@@ -266,11 +326,6 @@ public class PostServiceImpl implements PostService {
                     .toList();
         }
 
-        String content = (accessStatus == ContentAccessStatus.GRANTED) ? post.getContent() : null;
-
-        AuthorDto author = authorAssembler
-                .buildAuthorMap(List.of(post.getUser().getUserId()))
-                .get(post.getUser().getUserId());
 
         return new PostDetailResponse(
                 post.getId(),

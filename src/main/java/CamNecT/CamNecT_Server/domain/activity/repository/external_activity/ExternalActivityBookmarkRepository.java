@@ -9,5 +9,5 @@ import java.util.Optional;
 @Repository
 public interface ExternalActivityBookmarkRepository extends JpaRepository<ExternalActivityBookmark, Long> {
 
-    Optional<ExternalActivityBookmark> findByUserIdAndActivityId(Long userId, Long activityId);
+    Optional<ExternalActivityBookmark> findByUser_UserIdAndActivity_ActivityId(Long userId, Long activityId);
 }

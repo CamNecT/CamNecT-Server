@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "external_activity_attachments")
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ExternalActivityAttachment {
 
     @Id
@@ -19,11 +19,12 @@ public class ExternalActivityAttachment {
     @Column(name = "attachment_id")
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "activity_id", nullable = false)
-    private Long externalActivity;
+    private ExternalActivity activity;
 
-    @Column(name = "file_url", nullable = false, length = 500)
-    private String fileUrl;
+    @Column(name = "file_key", nullable = false, length = 500)
+    private String fileKey;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

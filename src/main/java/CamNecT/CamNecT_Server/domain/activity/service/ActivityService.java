@@ -17,16 +17,21 @@ import CamNecT.CamNecT_Server.domain.activity.repository.external_activity.Exter
 import CamNecT.CamNecT_Server.domain.activity.repository.external_activity.ExternalActivityTagRepository;
 import CamNecT.CamNecT_Server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.CamNecT_Server.domain.home.dto.HomeResponse;
+import CamNecT.CamNecT_Server.domain.users.model.Users;
+import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.ActivityErrorCode;
 import CamNecT.CamNecT_Server.global.common.service.GlobalPresignMethods;
 import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
 import CamNecT.CamNecT_Server.global.storage.model.UploadRefType;
+import CamNecT.CamNecT_Server.global.storage.model.UploadTicket;
+import CamNecT.CamNecT_Server.global.storage.repository.UploadTicketRepository;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -36,6 +41,7 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -49,13 +55,14 @@ public class ActivityService {
     private final ExternalActivityBookmarkRepository activityBookmarkRepository;
     private final TagRepository tagRepository;
     private final TeamRecruitmentRepository teamRecruitmentRepository;
+    private final UserRepository userRepository;
 
 
     //S3 관련 의존성 주입
+    private final UploadTicketRepository uploadTicketRepository;
     private final PresignEngine presignEngine;
     private final PublicUrlIssuer publicUrlIssuer;
     private final GlobalPresignMethods globalPresignMethods;
-    private enum FileKind { THUMBNAIL, ATTACHMENT }
 
     public Slice<ActivityPreviewResponse> getActivities(
             Long userId,
@@ -73,16 +80,17 @@ public class ActivityService {
                 a.activityId(),
                 a.title(),
                 a.context(),
-                fileUrlOrNull(a.thumbnailUrl(), FileKind.THUMBNAIL),
+                thumbnailUrlOrNull(a.thumbnailUrl()),
                 a.tags()
         ));
     }
 
     @Transactional
     public ActivityPreviewResponse create(Long userId, ActivityRequest request) {
+        Users userRef = userRepository.getReferenceById(userId);
         // 1. 엔티티 기본 저장
         ExternalActivity saved = activityRepository.save(ExternalActivity.builder()
-                .userId(userId)
+                .user(userRef)
                 .title(request.title())
                 .category(request.category())
                 .context(request.content())
@@ -121,19 +129,19 @@ public class ActivityService {
             );
 
             activityAttachmentRepository.save(ExternalActivityAttachment.builder()
-                    .externalActivity(saved.getActivityId())
-                    .fileUrl(finalKey)
+                    .activity(saved)
+                    .fileKey(finalKey)
                     .build());
         }
 
         // 4. 태그 저장
-        saveTags(saved.getActivityId(), request.tagIds());
+        saveTags(saved, request.tagIds());
 
         return new ActivityPreviewResponse(
                 saved.getActivityId(),
                 saved.getTitle(),
                 saved.getContext(),
-                fileUrlOrNull(saved.getThumbnailUrl(),FileKind.THUMBNAIL),
+                thumbnailUrlOrNull(saved.getThumbnailUrl()),
                 null
         );
     }
@@ -143,7 +151,7 @@ public class ActivityService {
         ExternalActivity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
-        if (!activity.getUserId().equals(userId)) {
+        if (activity.getUser() == null || !Objects.equals(activity.getUser().getUserId(), userId)) {
             throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
         }
 
@@ -175,9 +183,12 @@ public class ActivityService {
         if (request.attachmentKey() != null) {
             // 기존 첨부파일 목록을 Map으로 관리
             Map<String, ExternalActivityAttachment> currentByKey =
-                    activityAttachmentRepository.findAllByExternalActivity(activityId).stream()
-                            .filter(a -> StringUtils.hasText(a.getFileUrl()))
-                            .collect(Collectors.toMap(ExternalActivityAttachment::getFileUrl, a -> a));
+                    activityAttachmentRepository.findAllByActivity_ActivityId(activityId).stream()
+                            .filter(a -> StringUtils.hasText(a.getFileKey()))
+                            .collect(Collectors.toMap(
+                                    ExternalActivityAttachment::getFileKey,
+                                    a -> a, (a, b) -> a
+                            ));
 
             Set<String> keepKeys = new HashSet<>();
             LinkedHashSet<String> reqKeys = new LinkedHashSet<>();
@@ -199,8 +210,8 @@ public class ActivityService {
                 );
 
                 activityAttachmentRepository.save(ExternalActivityAttachment.builder()
-                        .externalActivity(activityId)
-                        .fileUrl(finalKey)
+                        .activity(activity)
+                        .fileKey(finalKey)
                         .build());
 
                 keepKeys.add(finalKey);
@@ -215,7 +226,7 @@ public class ActivityService {
             // DB에서 삭제할 첨부파일 제거
             activityAttachmentRepository.deleteAll(
                     currentByKey.values().stream()
-                            .filter(a -> !keepKeys.contains(a.getFileUrl()))
+                            .filter(a -> !keepKeys.contains(a.getFileKey()))
                             .collect(Collectors.toList())
             );
         }
@@ -224,7 +235,7 @@ public class ActivityService {
         activity.update(request);
 
         // 4. 태그 저장
-        saveTags(activityId, request.tagIds());
+        saveTags(activity, request.tagIds());
 
         // 5. S3 파일 삭제 예약
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
@@ -235,7 +246,7 @@ public class ActivityService {
         ExternalActivity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
-        if (!activity.getUserId().equals(userId)) {
+        if (activity.getUser() == null || !Objects.equals(activity.getUser().getUserId(), userId)) {
             throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
         }
 
@@ -245,8 +256,8 @@ public class ActivityService {
             deleteAfterCommit.add(activity.getThumbnailUrl());
         }
 
-        activityAttachmentRepository.findAllByExternalActivity(activityId)
-                .forEach(a -> { if (StringUtils.hasText(a.getFileUrl())) deleteAfterCommit.add(a.getFileUrl()); });
+        activityAttachmentRepository.findAllByActivity_ActivityId(activityId)
+                .forEach(a -> { if (StringUtils.hasText(a.getFileKey())) deleteAfterCommit.add(a.getFileKey()); });
 
         activityRepository.delete(activity);
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
@@ -254,28 +265,64 @@ public class ActivityService {
 
     @Transactional(readOnly = true)
     public ActivityDetailResponse getActivityDetail(Long userId, Long activityId) {
-
         // 1. 메인 활동 조회
         ExternalActivity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
         // 2. Activity → DTO 변환 + 썸네일 presign
         ExternalActivityDto activityDto = ExternalActivityDto.from(activity)
-                .withThumbnailUrl(fileUrlOrNull(activity.getThumbnailUrl(), FileKind.THUMBNAIL));
+                .withThumbnailUrl(thumbnailUrlOrNull(activity.getThumbnailUrl()));
 
         // 3. 첨부파일 조회 (카테고리 조건)
         List<ExternalActivityAttachmentDto> attachmentDtos = null;
 
         if (activity.getCategory() == ActivityCategory.EXTERNAL || activity.getCategory() == ActivityCategory.RECRUITMENT) {
-            attachmentDtos = activityAttachmentRepository.findAllByExternalActivity(activityId).stream()
-                    .map(a -> ExternalActivityAttachmentDto.from(a)
-                            .withFileUrl(fileUrlOrNull(a.getFileUrl(), FileKind.ATTACHMENT)))
+
+            List<ExternalActivityAttachment> atts =
+                    activityAttachmentRepository.findAllByActivity_ActivityId(activityId);
+
+            // fileKey 목록
+            List<String> keys = atts.stream()
+                    .map(ExternalActivityAttachment::getFileKey)
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .toList();
+
+            // ticket bulk
+            Map<String, UploadTicket> ticketMap = keys.isEmpty()
+                    ? Map.of()
+                    : uploadTicketRepository.findAllByStorageKeyIn(keys).stream()
+                    .collect(Collectors.toMap(UploadTicket::getStorageKey, t -> t, (a,b) -> a));
+
+            // presign (실패는 스킵)
+            Map<String, String> urlMap = new HashMap<>();
+            for (String key : keys) {
+                UploadTicket t = ticketMap.get(key);
+                String filename = (t == null) ? null : t.getOriginalFilename();
+                String contentType = (t == null) ? null : t.getContentType();
+
+                try {
+                    String url = presignEngine.presignDownload(key, filename, contentType).downloadUrl();
+                    if (StringUtils.hasText(url)) urlMap.put(key, url);
+                } catch (Exception e) {
+                    log.warn("activity presignDownload failed. activityId={}, key={}", activityId, key, e);
+                }
+            }
+
+            attachmentDtos = atts.stream()
+                    .filter(a -> StringUtils.hasText(a.getFileKey()))
+                    .map(a -> {
+                        String url = urlMap.get(a.getFileKey());
+                        if (!StringUtils.hasText(url)) return null;
+                        return ExternalActivityAttachmentDto.from(a).withFileUrl(url);
+                    })
+                    .filter(Objects::nonNull)
                     .toList();
         }
 
         // 4. 태그 리스트 조회
-        List<Long> tagIds = activityTagRepository.findAllByActivityId(activityId).stream()
-                .map(ExternalActivityTag::getTagId)
+        List<Long> tagIds = activityTagRepository.findAllByActivity_ActivityId(activityId).stream()
+                .map(t -> t.getTag().getId())
                 .toList();
         List<String> tagNames = tagRepository.findNamesByIds(tagIds);
 
@@ -284,7 +331,7 @@ public class ActivityService {
                 teamRecruitmentRepository.findAllByActivityId(activityId);
 
         // 6. 본인 글 여부
-        boolean isMine = activity.getUserId() == null || activity.getUserId().equals(userId);
+        boolean isMine = activity.getUser() != null && Objects.equals(activity.getUser().getUserId(), userId);
 
         // 7. Response 생성
         return new ActivityDetailResponse(
@@ -305,20 +352,19 @@ public class ActivityService {
 
         // 북마크 존재 여부 확인
         Optional<ExternalActivityBookmark> bookmarkOpt =
-                activityBookmarkRepository.findByUserIdAndActivityId(userId, activityId);
+                activityBookmarkRepository.findByUser_UserIdAndActivity_ActivityId(userId, activityId);
 
         if (bookmarkOpt.isPresent()) {
             // 이미 존재하면 삭제
             activityBookmarkRepository.delete(bookmarkOpt.get());
             return false; // 해제됨을 반환
         } else {
-            // 존재하지 않으면 생성
-            ExternalActivityBookmark newBookmark = ExternalActivityBookmark.builder()
-                    .userId(userId)
-                    .activityId(activityId)
-                    .build();
+            Users userRef = userRepository.getReferenceById(userId);
+            ExternalActivity actRef = activityRepository.getReferenceById(activityId);
+
+            ExternalActivityBookmark newBookmark = ExternalActivityBookmark.of(userRef, actRef);
             activityBookmarkRepository.save(newBookmark);
-            return true; // 등록됨을 반환
+            return true;
         }
     }
 
@@ -339,7 +385,7 @@ public class ActivityService {
                     ExternalActivity a = map.get(id);
                     if (a == null) return null;
 
-                    String thumbUrl = fileUrlOrNull(a.getThumbnailUrl(),FileKind.THUMBNAIL);
+                    String thumbUrl = thumbnailUrlOrNull(a.getThumbnailUrl());
                     return new HomeResponse.ContestSection.ContestCard(
                             a.getActivityId(),
                             a.getTitle(),
@@ -359,26 +405,32 @@ public class ActivityService {
      * thumbnail 전용 URL 제공 메서드
      * CDN 방식
      */
-    private String fileUrlOrNull(String key, FileKind kind) {
+    private String thumbnailUrlOrNull(String key) {
         if (!StringUtils.hasText(key) || DEFAULT_THUMB.equals(key)) return null;
-        // THUMBNAIL은 CDN으로
-        if (kind == FileKind.THUMBNAIL) return publicUrlIssuer.issuePublicUrl(key); // CDN만
-        // ATTACHMENT는 presign만
-        return presignEngine.presignDownload(key, null, null).downloadUrl();
+        try {
+            return publicUrlIssuer.issuePublicUrl(key);
+        } catch (Exception e) {
+            log.warn("issuePublicUrl failed. key={}", key, e);
+            return null;
+        }
     }
-
     /**
      * 활동의 태그 저장
      */
-    private void saveTags(Long activityId, List<Long> tagIds) {
+    private void saveTags(ExternalActivity activity, List<Long> tagIds) {
         if (tagIds != null) {
-            activityTagRepository.deleteByActivityId(activityId);
-            tagIds.forEach(id -> activityTagRepository.save(
-                    ExternalActivityTag.builder()
-                            .activityId(activityId)
-                            .tagId(id)
-                            .build()
-            ));
+            activityTagRepository.deleteByActivity_ActivityId(activity.getActivityId());
+
+            LinkedHashSet<Long> uniq = new LinkedHashSet<>(tagIds);
+            for (Long id : uniq) {
+                Tag tagRef = tagRepository.getReferenceById(id);
+                activityTagRepository.save(
+                        ExternalActivityTag.builder()
+                                .activity(activity)
+                                .tag(tagRef)
+                                .build()
+                );
+            }
         }
     }
 }

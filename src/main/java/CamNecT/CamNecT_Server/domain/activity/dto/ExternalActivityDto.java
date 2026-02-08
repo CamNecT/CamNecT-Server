@@ -17,7 +17,7 @@ public class ExternalActivityDto {
     private final String title;
     private final ActivityCategory category;
     private final String organizer;
-    private final Long userId;
+    private final Long userId; // DTO는 그대로 Long 유지 가능
     private final String region;
     private final String targetDescription;
     private final String thumbnailUrl;
@@ -29,16 +29,15 @@ public class ExternalActivityDto {
     private final LocalDateTime createdAt;
     private final String context;
 
-    /**
-     * 엔티티 → DTO 1:1 매핑
-     */
     public static ExternalActivityDto from(ExternalActivity entity) {
+        Long userId = (entity.getUser() == null) ? null : entity.getUser().getUserId();
+
         return ExternalActivityDto.builder()
                 .activityId(entity.getActivityId())
                 .title(entity.getTitle())
                 .category(entity.getCategory())
                 .organizer(entity.getOrganizer())
-                .userId(entity.getUserId())
+                .userId(userId)
                 .region(entity.getRegion())
                 .targetDescription(entity.getTargetDescription())
                 .thumbnailUrl(entity.getThumbnailUrl())
@@ -52,9 +51,6 @@ public class ExternalActivityDto {
                 .build();
     }
 
-    /**
-     * 썸네일 URL 치환용 (presigned URL 적용 등)
-     */
     public ExternalActivityDto withThumbnailUrl(String thumbnailUrl) {
         return ExternalActivityDto.builder()
                 .activityId(activityId)
