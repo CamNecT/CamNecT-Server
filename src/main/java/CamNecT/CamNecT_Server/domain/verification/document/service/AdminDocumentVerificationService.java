@@ -1,6 +1,5 @@
 package CamNecT.CamNecT_Server.domain.verification.document.service;
 
-import CamNecT.CamNecT_Server.domain.community.event.CommentAcceptedEvent;
 import CamNecT.CamNecT_Server.domain.point.model.PointEvent;
 import CamNecT.CamNecT_Server.domain.point.model.TransactionType;
 import CamNecT.CamNecT_Server.domain.point.service.PointService;
@@ -32,7 +31,6 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
