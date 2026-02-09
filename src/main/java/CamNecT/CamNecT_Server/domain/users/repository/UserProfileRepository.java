@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,7 +20,7 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     Optional<UserProfile> findByUserId(Long userId);
 
     //List<Long> 형식으로 들어오는 유저 id에 해당하는 프로필들 반환
-    List<UserProfile> findAllByUserIdIn(List<Long> userIds);
+    List<UserProfile> findAllByUserIdIn(Collection<Long> userIds);
 
     boolean existsByUserId(Long userId);
 

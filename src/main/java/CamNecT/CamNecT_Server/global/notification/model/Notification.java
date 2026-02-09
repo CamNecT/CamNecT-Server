@@ -34,14 +34,21 @@ public class Notification {
     @Column(nullable = false, length = 50)
     private NotificationType type;
 
+    @Column(nullable = false)
+    private String message;
+
     @Column(name = "post_id")
     private Long postId;
 
     @Column(name = "comment_id")
     private Long commentId;
 
-    @Column(nullable = false, length = 255)
-    private String message;
+    @Column(name = "request_id")
+    private Long requestId;
+
+    @Column(name = "link", length = 500)
+    private String link;
+
 
     @Column(name = "is_read", nullable = false)
     private boolean read;
@@ -55,13 +62,17 @@ public class Notification {
                          NotificationType type,
                          String message,
                          Long postId,
-                         Long commentId) {
+                         Long commentId,
+                         Long requestId,
+                         String link) {
         this.receiverUserId = receiverUserId;
         this.actorUserId = actorUserId;
         this.type = type;
         this.message = message;
         this.postId = postId;
         this.commentId = commentId;
+        this.requestId = requestId;
+        this.link = link;
         this.read = false;
     }
 
@@ -71,8 +82,10 @@ public class Notification {
                                   NotificationType type,
                                   String message,
                                   Long postId,
-                                  Long commentId) {
-        return new Notification(receiverUserId, actorUserId, type, message, postId, commentId);
+                                  Long commentId,
+                                  Long requestId,
+                                  String link) {
+        return new Notification(receiverUserId, actorUserId, type, message, postId, commentId, requestId, link);
     }
 
     public void markRead() {

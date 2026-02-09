@@ -25,7 +25,7 @@ public class UserProfile {
 
     @Column(name = "open_to_coffeechat", nullable = false)
     @Builder.Default
-    private Boolean openToCoffeeChat = false;
+    private Boolean openToCoffeeChat = true;
 
     @Column(name = "is_follower_visible", nullable = false)
     @Builder.Default
