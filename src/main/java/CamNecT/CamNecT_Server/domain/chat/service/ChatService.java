@@ -289,11 +289,15 @@ public class ChatService {
         String majorName = "전공 미입력";
         String profileImgUrl = "/images/default.png";
 
-        if (opProfile != null && opProfile.getMajorId() != null) {
-            majorName = majorRepository.findById(opProfile.getMajorId())
-                    .map(Majors::getMajorNameKor)
-                    .orElse("알 수 없는 전공");
-            profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
+        if (opProfile != null) {
+            if (opProfile.getMajorId() != null) {
+                majorName = majorRepository.findById(opProfile.getMajorId())
+                        .map(Majors::getMajorNameKor)
+                        .orElse("알 수 없는 전공");
+            }
+            if (StringUtils.hasText(opProfile.getProfileImageKey())) {
+                profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
+            }
         }
 
         List<String> tagNames = userTagMapRepository.findAllTagsByUserId(opponent.getUserId())
@@ -583,5 +587,11 @@ public class ChatService {
         );
 
         requests.forEach(ChatRequest::reject);
+    }
+
+    public void outOfChatRoom(Long roomId, Long userId) {
+        ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
+        room.closeRoom();
     }
 }
