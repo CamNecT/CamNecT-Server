@@ -463,13 +463,13 @@ public class ChatService {
         try {
             messagingTemplate.convertAndSend("/sub/chat/room/" + room.getId(), response);
 
-            if (receiverPresent) {
+/*            if (receiverPresent) {
                 messagingTemplate.convertAndSendToUser(
                         sender.getUserId().toString(),
                         "/queue/read",
                         ChatReadEvent.of(room.getId(), chat.getId(), chat.getReadAt().toString())
                 );
-            }
+            }*/
 
             String lastTime = chat.getCreatedAt().toString();
 
