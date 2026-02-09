@@ -2,7 +2,6 @@ package CamNecT.CamNecT_Server.global.notification.controller;
 
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
-import CamNecT.CamNecT_Server.global.notification.dto.response.NotificationItemResponse;
 import CamNecT.CamNecT_Server.global.notification.dto.response.NotificationListResponse;
 import CamNecT.CamNecT_Server.global.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;

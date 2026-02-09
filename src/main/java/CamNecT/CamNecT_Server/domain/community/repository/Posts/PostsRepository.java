@@ -147,5 +147,79 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
             Pageable pageable
     );
 
+    // 북마크 - 최신
+    @Query("""
+  select pb.post
+  from PostBookmarks pb
+  join pb.post p
+  where pb.user.userId = :userId
+    and p.status = :status
+    and (:cursorId is null or p.id < :cursorId)
+  order by p.id desc
+""")
+    Slice<Posts> findBookmarkedPostsLatest(
+            @Param("userId") Long userId,
+            @Param("status") PostStatus status,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable
+    );
 
+    // 북마크 - 추천(hotScore)
+    @Query("""
+  select p
+  from PostBookmarks pb
+  join pb.post p
+  join PostStats ps on ps.post = p
+  where pb.user.userId = :userId
+    and p.status = :status
+    and (
+      :cursorValue is null
+      or ps.hotScore < :cursorValue
+      or (ps.hotScore = :cursorValue and p.id < :cursorId)
+    )
+  order by ps.hotScore desc, p.id desc
+""")
+    Slice<Posts> findBookmarkedPostsRecommended(
+            @Param("userId") Long userId,
+            @Param("status") PostStatus status,
+            @Param("cursorValue") Long cursorValue,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable
+    );
+
+    @Query("""
+  select p
+  from Posts p
+  where p.user.userId = :userId
+    and p.status = :status
+    and (:cursorId is null or p.id < :cursorId)
+  order by p.id desc
+""")
+    Slice<Posts> findMyPostsLatest(
+            @Param("userId") Long userId,
+            @Param("status") PostStatus status,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable
+    );
+
+    @Query("""
+  select p
+  from Posts p
+  join PostStats ps on ps.post = p
+  where p.user.userId = :userId
+    and p.status = :status
+    and (
+      :cursorValue is null
+      or ps.hotScore < :cursorValue
+      or (ps.hotScore = :cursorValue and p.id < :cursorId)
+    )
+  order by ps.hotScore desc, p.id desc
+""")
+    Slice<Posts> findMyPostsRecommended(
+            @Param("userId") Long userId,
+            @Param("status") PostStatus status,
+            @Param("cursorValue") Long cursorValue,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable
+    );
 }

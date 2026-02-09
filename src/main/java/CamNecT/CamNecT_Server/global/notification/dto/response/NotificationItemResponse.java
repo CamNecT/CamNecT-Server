@@ -1,6 +1,5 @@
 package CamNecT.CamNecT_Server.global.notification.dto.response;
 
-import CamNecT.CamNecT_Server.global.notification.model.Notification;
 import CamNecT.CamNecT_Server.global.notification.model.NotificationType;
 
 import java.time.LocalDateTime;

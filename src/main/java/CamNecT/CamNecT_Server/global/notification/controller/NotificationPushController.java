@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.global.notification.controller;
 
+import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
 import CamNecT.CamNecT_Server.global.notification.dto.FCMSendRequest;
 import CamNecT.CamNecT_Server.global.notification.dto.PushTestResponse;
@@ -27,7 +28,7 @@ public class NotificationPushController {
     // 토큰 등록/갱신
     @PostMapping("/tokens")
     public ApiResponse<RegisterPushTokenResponse> registerToken(
-            @RequestHeader("X-User-Id") Long userId,   // TODO: @LoginUser로 교체
+            @UserId Long userId,
             @RequestBody @Valid RegisterPushTokenRequest req
     ) {
         var r = pushDeviceService.register(userId, req);
@@ -37,7 +38,7 @@ public class NotificationPushController {
     // 테스트 발송 (내 토큰들 대상으로)
     @PostMapping("/test")
     public ApiResponse<PushTestResponse> test(
-            @RequestHeader("X-User-Id") Long userId
+            @UserId Long userId
     ) throws Exception {
         return ApiResponse.success(pushTestService.sendTest(userId));
     }

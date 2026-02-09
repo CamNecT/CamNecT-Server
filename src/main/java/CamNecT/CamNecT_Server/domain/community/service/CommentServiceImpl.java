@@ -17,7 +17,10 @@ import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostsRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CommunityErrorCode;
+import CamNecT.CamNecT_Server.global.notification.event.SimpleNotifiableEvent;
+import CamNecT.CamNecT_Server.global.notification.model.NotificationType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +37,7 @@ public class CommentServiceImpl implements CommentService {
     private final PostStatsRepository postStatsRepository;
     private final CommentLikesRepository commentLikesRepository;
     private final AuthorAssembler  authorAssembler;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     @Override
@@ -68,11 +72,35 @@ public class CommentServiceImpl implements CommentService {
         PostStats stats = postStatsRepository.findByPost_Id(postId)
                 .orElseGet(() -> postStatsRepository.save(PostStats.init(post)));
 
+        /// 스탯 관련 조치
         stats.incComment();               // 전체 댓글 수 +1
         if (parent == null) {
             stats.incRootComment();       // 루트 댓글 수(=답변 수) +1
         }
         stats.touch();
+
+        /// 알림 이벤트 발행
+        if (parent == null) {
+            Long receiverId = post.getUser().getUserId();
+            eventPublisher.publishEvent(SimpleNotifiableEvent.of(
+                    receiverId,
+                    userId,
+                    NotificationType.POST_COMMENTED,
+                    "게시글에 댓글이 달렸습니다.",
+                    postId,
+                    saved.getId()
+            ));
+        } else {
+            Long receiverId = parent.getUserId();
+            eventPublisher.publishEvent(SimpleNotifiableEvent.of(
+                    receiverId,
+                    userId,
+                    NotificationType.COMMENT_REPLIED,
+                    "내 댓글에 답글이 달렸습니다.",
+                    postId,
+                    saved.getId()
+            ));
+        }
 
         return new CreateCommentResponse(saved.getId());
     }

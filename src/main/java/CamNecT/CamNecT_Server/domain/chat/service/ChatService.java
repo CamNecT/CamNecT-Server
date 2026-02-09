@@ -26,11 +26,13 @@ import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
+import CamNecT.CamNecT_Server.global.notification.event.CoffeeChatRequestedEvent;
 import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -57,7 +59,9 @@ public class ChatService {
     private final UserProfileRepository userProfileRepository;
     private final UserTagMapRepository userTagMapRepository;
     private final MajorRepository majorRepository;
+
     private final PublicUrlIssuer publicUrlIssuer;
+    private final ApplicationEventPublisher eventPublisher;
 
     /*
       1. 커피챗 요청 보내기
@@ -104,7 +108,15 @@ public class ChatService {
                 .content(content)
                 .build();
 
-        return chatRequestRepository.save(request).getId();
+        Long requestId = chatRequestRepository.save(request).getId();
+
+        eventPublisher.publishEvent(new CoffeeChatRequestedEvent(
+                receiverId,
+                requesterId,
+                requestId
+        ));
+
+        return requestId;
     }
 
 
