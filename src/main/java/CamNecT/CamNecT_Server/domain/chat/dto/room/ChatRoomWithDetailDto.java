@@ -32,6 +32,10 @@ public class ChatRoomWithDetailDto {
     private List<String> requestTags;
     private String requestContent;
 
+    private String recruitmentTitle;
+    private Long activityId;
+    private Long recruitmentId;
+
     private List<ChatMessageResponseDto> chatList;
 
     public static ChatRoomWithDetailDto from(ChatRoom room,
@@ -39,7 +43,10 @@ public class ChatRoomWithDetailDto {
                                              Users opponent,
                                              UserProfile opProfile,
                                              String majorName,
-                                             List<String> tagNames, List<ChatMessageResponseDto> chats) {
+                                             List<String> tagNames, List<ChatMessageResponseDto> chats, String title, String profileImgUrl) {
+        List<String> requestTagNames = (room.getTags() != null)
+                ? room.getTags().stream().map(Tag::getName).toList()
+                : List.of();
 
         return ChatRoomWithDetailDto.builder()
                 .roomId(room.getId())
@@ -50,14 +57,16 @@ public class ChatRoomWithDetailDto {
 
                 .opponentMajor(majorName)
                 .opponentStudentYear(opProfile != null ? opProfile.getYearLevel().toString() : "")
-                .opponentProfileImg(opProfile != null ? opProfile.getProfileImageKey() : "/images/default.png")
+                .opponentProfileImg(profileImgUrl)
                 .opponentTags(tagNames)
 
                 .requestType(room.getRequest().getType().name())
-                .requestTags(room.getTags().stream()
-                        .map(Tag::getName)
-                        .toList())
+                .requestTags(requestTagNames)
                 .requestContent(room.getRequest().getContent())
+
+                .recruitmentTitle(title)
+                .activityId(room.getRequest().getActivityId())
+                .recruitmentId(room.getRequest().getRecruitmentId())
 
                 .chatList(chats)
                 .build();

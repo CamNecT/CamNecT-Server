@@ -57,7 +57,6 @@ public class ActivityService {
     private final TeamRecruitmentRepository teamRecruitmentRepository;
     private final UserRepository userRepository;
 
-
     //S3 관련 의존성 주입
     private final UploadTicketRepository uploadTicketRepository;
     private final PresignEngine presignEngine;
@@ -72,6 +71,8 @@ public class ActivityService {
             String sortType,
             Pageable pageable
     ) {
+        // Repository에서 이미 모든 필드를 포함한 Response를 반환하므로 그대로 반환
+        // 단, thumbnailUrl만 CDN URL로 변환
         var activities = activityRepository.findActivitiesByCondition(
                 userId, category, tagIds, title, sortType, pageable
         );
@@ -81,7 +82,11 @@ public class ActivityService {
                 a.title(),
                 a.context(),
                 thumbnailUrlOrNull(a.thumbnailUrl()),
-                a.tags()
+                a.tags(),
+                a.bookmarkCount(),
+                a.organizer(),
+                a.applyEndDate(),
+                a.createdAt()
         ));
     }
 
@@ -142,7 +147,11 @@ public class ActivityService {
                 saved.getTitle(),
                 saved.getContext(),
                 thumbnailUrlOrNull(saved.getThumbnailUrl()),
-                null
+                null,
+                0L, // 새로 생성된 활동이므로 북마크 수는 0
+                saved.getOrganizer(),
+                saved.getApplyEndDate(),
+                saved.getCreatedAt()
         );
     }
 
@@ -333,13 +342,21 @@ public class ActivityService {
         // 6. 본인 글 여부
         boolean isMine = activity.getUser() != null && Objects.equals(activity.getUser().getUserId(), userId);
 
-        // 7. Response 생성
+        // 7. 북마크 수 조회
+        Long bookmarkCount = activityBookmarkRepository.countByActivity_ActivityId(activityId);
+
+        // 8. 북마크 여부 조회
+        boolean isBookmarked = activityBookmarkRepository.existsByUser_UserIdAndActivity_ActivityId(userId, activityId);
+
+        // 9. Response 생성
         return new ActivityDetailResponse(
                 isMine,
                 activityDto,
                 attachmentDtos,
                 tagNames,
-                recruitmentList
+                recruitmentList,
+                bookmarkCount,
+                isBookmarked
         );
     }
 

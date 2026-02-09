@@ -72,7 +72,24 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                         activity -> activity
                 ));
 
-        // 4. 태그 이름 일괄 조회 (N+1 해결)
+        // 4. 북마크 수 일괄 조회 (N+1 해결)
+        List<Tuple> bookmarkTuples = queryFactory
+                .select(
+                        externalActivityBookmark.activity.activityId,
+                        externalActivityBookmark.id.count()
+                )
+                .from(externalActivityBookmark)
+                .where(externalActivityBookmark.activity.activityId.in(activityIds))
+                .groupBy(externalActivityBookmark.activity.activityId)
+                .fetch();
+
+        Map<Long, Long> bookmarkCountMap = bookmarkTuples.stream()
+                .collect(Collectors.toMap(
+                        tuple -> tuple.get(externalActivityBookmark.activity.activityId),
+                        tuple -> tuple.get(externalActivityBookmark.id.count())
+                ));
+
+        // 5. 태그 이름 일괄 조회 (N+1 해결)
         List<Tuple> tagTuples = queryFactory
                 .select(externalActivityTag.activity.activityId, tag.name)
                 .from(externalActivityTag)
@@ -80,33 +97,38 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                 .where(externalActivityTag.activity.activityId.in(activityIds))
                 .fetch();
 
-        // 5. activityId별로 태그 이름 그룹핑
+        // 6. activityId별로 태그 이름 그룹핑
         Map<Long, List<String>> tagMap = tagTuples.stream()
                 .collect(Collectors.groupingBy(
                         tuple -> tuple.get(externalActivityTag.activity.activityId),
                         Collectors.mapping(
-                                tuple -> tuple.get(tag.name),  // tag.name으로 변경
+                                tuple -> tuple.get(tag.name),
                                 Collectors.toList()
                         )
                 ));
 
-        // 6. 정렬 순서 유지하며 Response 생성
+        // 7. 정렬 순서 유지하며 Response 생성
         List<ActivityPreviewResponse> content = activityIds.stream()
                 .map(id -> {
                     ExternalActivity activity = activityMap.get(id);
-                    List<String> tags = tagMap.getOrDefault(id, Collections.emptyList());  // List<String>
+                    List<String> tags = tagMap.getOrDefault(id, Collections.emptyList());
+                    Long bookmarkCount = bookmarkCountMap.getOrDefault(id, 0L);
 
                     return new ActivityPreviewResponse(
                             activity.getActivityId(),
                             activity.getTitle(),
                             activity.getContext(),
                             activity.getThumbnailUrl(),
-                            tags
+                            tags,
+                            bookmarkCount,
+                            activity.getOrganizer(),
+                            activity.getApplyEndDate(),
+                            activity.getCreatedAt()
                     );
                 })
                 .collect(Collectors.toList());
 
-        // 7. 무한 스크롤 여부 판단
+        // 8. 무한 스크롤 여부 판단
         boolean hasNext = false;
         if (content.size() > pageSize) {
             content.remove(pageSize);
@@ -154,7 +176,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                                 .where(
                                         userTagMap.userId.eq(userId)
                                                 .and(externalActivityTag.activity.activityId.eq(externalActivity.activityId))
-                                        )
+                                )
                 );
                 yield matchCount.desc();
             }
@@ -190,7 +212,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                 .leftJoin(b).on(b.activity.activityId.eq(ea.activityId))
                 .where(
                         category != null ? ea.category.eq(category) : null,
-                        ea.status.eq(ActivityStatus.OPEN) // 홈은 OPEN만 추천 (원치 않으면 제거)
+                        ea.status.eq(ActivityStatus.OPEN)
                 )
                 .groupBy(ea.activityId)
                 .orderBy(

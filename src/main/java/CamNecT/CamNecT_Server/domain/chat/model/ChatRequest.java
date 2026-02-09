@@ -55,6 +55,15 @@ public class ChatRequest {
     @Column(name = "request_type", nullable = false)
     private RequestType type;
 
+    /* 팀원 모집 관련 정보
+     * COFFEE_CHAT일 때는 null, TEAM_RECRUIT일 때만 값이 들어감
+     */
+    @Column(name = "activity_id")
+    private Long activityId; // 대외활동 ID
+
+    @Column(name = "recruitment_id")
+    private Long recruitmentId; // 팀원 모집 공고 ID
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RequestStatus status;
@@ -74,13 +83,16 @@ public class ChatRequest {
     }
 
     @Builder
-    public ChatRequest(Users requester, Users receiver, List<Tag> requestInterest, String content, RequestType type) {
+    public ChatRequest(Users requester, Users receiver, List<Tag> requestInterest, String content, RequestType type, Long activityId, Long recruitmentId) {
         this.requester = requester;
         this.receiver = receiver;
         this.requestInterests = requestInterest;
         this.content = content;
         this.type = (type != null) ? type : RequestType.COFFEE_CHAT; // 기본값 커피챗
         this.status = RequestStatus.WAITING; // 기본값 대기중
+
+        this.activityId = activityId;
+        this.recruitmentId = recruitmentId;
     }
 
     public void accept() {

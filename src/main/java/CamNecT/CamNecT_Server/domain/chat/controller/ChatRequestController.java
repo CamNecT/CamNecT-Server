@@ -77,4 +77,20 @@ public class ChatRequestController {
         return ApiResponse.success(detail);
     }
 
+    @Operation(summary = "커피챗 요청 전체 삭제", description = "내가 받은 모든 커피챗 요청(COFFEE_CHAT)을 삭제합니다.")
+    @DeleteMapping("/all/coffee-chat")
+    public ApiResponse<Void> deleteAllCoffeeChatRequests(@UserId Long userId) {
+        chatService.rejectAllCoffeeChatRequests(userId, ChatRequest.RequestType.COFFEE_CHAT);
+        return ApiResponse.success(null);
+    }
+
+    @Operation(summary = "팀원 모집 요청 전체 삭제 (게시글별)", description = "특정 팀원모집글(Recruitment)과 관련된 모든 팀원 모집 요청을 삭제합니다.")
+    @DeleteMapping("/all/team-recruit/{recruitmentId}")
+    public ApiResponse<Void> deleteAllTeamRecruitRequests(
+            @UserId Long userId,
+            @PathVariable Long recruitmentId
+    ) {
+        chatService.rejectAllTeamRecruitRequestsByRecruitment(userId, recruitmentId);
+        return ApiResponse.success(null);
+    }
 }
