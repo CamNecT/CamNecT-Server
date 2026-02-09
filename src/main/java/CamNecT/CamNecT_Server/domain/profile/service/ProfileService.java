@@ -86,7 +86,7 @@ public class ProfileService {
                 : Collections.emptyList();
 
         List<ExperienceResponse> experienceList = showExperience
-                ? experienceRepository.findAllByUser_UserIdOrderByStartDateDesc(profileUserId)
+                ? experienceRepository.findAllByUserIdWithDetails(profileUserId)
                 .stream().map(ExperienceResponse::from).toList()
                 : Collections.emptyList();
 
