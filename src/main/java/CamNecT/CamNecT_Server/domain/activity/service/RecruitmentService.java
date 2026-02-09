@@ -92,11 +92,11 @@ public class RecruitmentService {
         );
     }
 
+    @Transactional
     public boolean toggleRecruitmentBookmark(Long userId, Long recruitId) {
-        //모집글 확인
-        if (!recruitmentRepository.existsById(recruitId)) {
-            throw new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND);
-        }
+        //모집글 조회 (북마크 카운트 업데이트를 위해 엔티티 조회)
+        TeamRecruitment recruitment = recruitmentRepository.findById(recruitId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
 
         //북마크 존재 여부 확인
         Optional<RecruitmentBookmark> bookmarkOpt = bookmarkRepository.findByUserIdAndRecruitId(userId, recruitId);
@@ -104,6 +104,7 @@ public class RecruitmentService {
         if (bookmarkOpt.isPresent()) {
             // 이미 존재하면 삭제 (북마크 취소)
             bookmarkRepository.delete(bookmarkOpt.get());
+            recruitment.decrementBookmarkCount(); // 북마크 수 감소
             return false; // 북마크 해제됨을 의미
         } else {
             // 존재하지 않으면 생성 (북마크 등록)
@@ -112,6 +113,7 @@ public class RecruitmentService {
                     .recruitId(recruitId)
                     .build();
             bookmarkRepository.save(newBookmark);
+            recruitment.incrementBookmarkCount(); // 북마크 수 증가
             return true;
         }
     }
