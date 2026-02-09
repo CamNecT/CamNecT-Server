@@ -57,7 +57,6 @@ public class ActivityService {
     private final TeamRecruitmentRepository teamRecruitmentRepository;
     private final UserRepository userRepository;
 
-
     //S3 관련 의존성 주입
     private final UploadTicketRepository uploadTicketRepository;
     private final PresignEngine presignEngine;
@@ -72,6 +71,8 @@ public class ActivityService {
             String sortType,
             Pageable pageable
     ) {
+        // Repository에서 이미 모든 필드를 포함한 Response를 반환하므로 그대로 반환
+        // 단, thumbnailUrl만 CDN URL로 변환
         var activities = activityRepository.findActivitiesByCondition(
                 userId, category, tagIds, title, sortType, pageable
         );
@@ -81,7 +82,11 @@ public class ActivityService {
                 a.title(),
                 a.context(),
                 thumbnailUrlOrNull(a.thumbnailUrl()),
-                a.tags()
+                a.tags(),
+                a.bookmarkCount(),
+                a.organizer(),
+                a.applyEndDate(),
+                a.createdAt()
         ));
     }
 
@@ -142,7 +147,11 @@ public class ActivityService {
                 saved.getTitle(),
                 saved.getContext(),
                 thumbnailUrlOrNull(saved.getThumbnailUrl()),
-                null
+                null,
+                0L, // 새로 생성된 활동이므로 북마크 수는 0
+                saved.getOrganizer(),
+                saved.getApplyEndDate(),
+                saved.getCreatedAt()
         );
     }
 
