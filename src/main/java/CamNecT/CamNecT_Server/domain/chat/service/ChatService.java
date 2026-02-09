@@ -434,6 +434,10 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findById(request.roomId())
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
+        if (room.getStatus() == ChatRoom.RoomStatus.CLOSE) {
+            throw new CustomException(CoffeeChatErrorCode.COFFEE_CHAT_CLOSED);
+        }
+
         Users sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
