@@ -12,8 +12,7 @@ import java.util.List;
 public interface EducationRepository extends JpaRepository<Education, Long> {
 
     @Query("SELECT e FROM Education e " +
-            "JOIN FETCH e.institution " +
-            "JOIN FETCH e.major " +
+            "LEFT JOIN FETCH e.institution " +
             "WHERE e.user.userId = :userId " +
             "ORDER BY e.startDate DESC")
     List<Education> findAllByUserIdWithDetails(@Param("userId") Long userId);

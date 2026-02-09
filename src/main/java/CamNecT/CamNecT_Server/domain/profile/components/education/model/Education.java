@@ -31,7 +31,7 @@ public class Education {
     private Institutions institution;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "major_id", nullable = false)
+    @JoinColumn(name = "major_id")
     private Majors major;
 
     @Column(name = "degree", length = 50)
