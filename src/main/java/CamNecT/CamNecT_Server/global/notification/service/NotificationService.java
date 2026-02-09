@@ -1,17 +1,37 @@
 package CamNecT.CamNecT_Server.global.notification.service;
 
+import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
+import CamNecT.CamNecT_Server.domain.users.model.Users;
+import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
+import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
+import CamNecT.CamNecT_Server.global.common.exception.CustomException;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
+import CamNecT.CamNecT_Server.global.notification.dto.response.NotificationItemResponse;
 import CamNecT.CamNecT_Server.global.notification.model.Notification;
 import CamNecT.CamNecT_Server.global.notification.model.NotificationType;
 import CamNecT.CamNecT_Server.global.notification.repository.NotificationRepository;
+import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
+    private final PublicUrlIssuer publicUrlIssuer;
 
     @Transactional
     public void create(Long receiverUserId,
@@ -21,13 +41,105 @@ public class NotificationService {
                        Long postId,
                        Long commentId) {
 
+        create(receiverUserId, actorUserId, type, message, postId, commentId, null, null);
+    }
+
+    @Transactional
+    public void create(Long receiverUserId,
+                       Long actorUserId,
+                       NotificationType type,
+                       String message,
+                       Long postId,
+                       Long commentId,
+                       Long requestId,
+                       String link) {
+
         notificationRepository.save(
-                Notification.of(receiverUserId, actorUserId, type, message, postId, commentId)
+                Notification.of(receiverUserId, actorUserId, type, message, postId, commentId, requestId, link)
         );
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<Notification> list(Long receiverUserId, Long cursorId, int size) {
+        Pageable pageable = PageRequest.of(0, size);
+        if (cursorId == null) {
+            return notificationRepository.findByReceiverUserIdOrderByIdDesc(receiverUserId, pageable);
+        }
+        return notificationRepository.findByReceiverUserIdAndIdLessThanOrderByIdDesc(receiverUserId, cursorId, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<NotificationItemResponse> listItems(Long receiverUserId, Long cursorId, int size) {
+        Slice<Notification> slice = list(receiverUserId, cursorId, size);
+
+        Set<Long> actorIds = slice.getContent().stream()
+                .map(Notification::getActorUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, Users> userMap = actorIds.isEmpty()
+                ? Map.of()
+                : userRepository.findAllById(actorIds).stream()
+                .collect(Collectors.toMap(Users::getUserId, Function.identity()));
+
+        Map<Long, UserProfile> profileMap = actorIds.isEmpty()
+                ? Map.of()
+                : userProfileRepository.findAllByUserIdIn(actorIds).stream()
+                .collect(Collectors.toMap(UserProfile::getUserId, Function.identity()));
+
+        final String defaultImg = "/images/default.png";
+
+        return slice.map(n -> {
+            Long actorId = n.getActorUserId();
+
+            String actorName = "시스템";
+            String actorImg = defaultImg;
+
+            if (actorId != null) {
+                Users u = userMap.get(actorId);
+                if (u != null && u.getName() != null) actorName = u.getName();
+
+                UserProfile p = profileMap.get(actorId);
+                if (p != null && p.getProfileImageKey() != null && !p.getProfileImageKey().isBlank()) {
+                    actorImg = publicUrlIssuer.issuePublicUrl(p.getProfileImageKey());
+                }
+            }
+
+            return new NotificationItemResponse(
+                    n.getId(),
+                    n.getType(),
+                    n.getMessage(),
+                    n.isRead(),
+                    n.getActorUserId(),
+                    actorName,
+                    actorImg,
+                    n.getPostId(),
+                    n.getCommentId(),
+                    n.getRequestId(),
+                    n.getLink(),
+                    n.getCreatedAt()
+            );
+        });
     }
 
     @Transactional(readOnly = true)
     public long countUnread(Long receiverUserId) {
         return notificationRepository.countByReceiverUserIdAndReadFalse(receiverUserId);
+    }
+
+    @Transactional
+    public void markRead(Long receiverUserId, Long notificationId) {
+        Notification n = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.NOTIFICATION_NOT_FOUND));
+
+        if (!n.getReceiverUserId().equals(receiverUserId)) {
+            throw new CustomException(UserErrorCode.NOTIFICATION_NOT_FOUND);
+        }
+        n.markRead();
+    }
+
+    @Transactional
+    public int markAllRead(Long receiverUserId) {
+        return notificationRepository.markAllRead(receiverUserId);
     }
 }

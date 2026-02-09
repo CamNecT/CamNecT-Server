@@ -38,7 +38,7 @@ public enum UserErrorCode implements BaseErrorCode {
     INSTITUTION_NOT_FOUND(HttpStatus.NOT_FOUND, 44407, "해당 학교 정보를 찾을 수 없습니다."),
     MAJOR_NOT_FOUND(HttpStatus.NOT_FOUND, 44408, "해당 전공 정보를 찾을 수 없습니다."),
     PORTFOLIO_NOT_FOUND(HttpStatus.NOT_FOUND, 44410, "해당 포트폴리오가 없습니다."),
-
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, 44420, "해당 알람이 없습니다."),
     // 449xx - 충돌
     USER_CONFLICT(HttpStatus.CONFLICT, 44901, "유저 상태 충돌이 발생했습니다.");
 
