@@ -6,8 +6,8 @@ import java.time.LocalDate;
 
 public record EducationRequest(
         Long institutionId,
-        Long majorId,
-        String degree,
+//        Long majorId,
+//        String degree,
         LocalDate startDate,
         LocalDate endDate,
         EducationStatus status,
