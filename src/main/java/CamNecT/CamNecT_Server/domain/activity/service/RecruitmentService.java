@@ -10,14 +10,20 @@ import CamNecT.CamNecT_Server.domain.activity.repository.external_activity.Exter
 import CamNecT.CamNecT_Server.domain.activity.repository.recruitment.RecruitmentBookmarkRepository;
 import CamNecT.CamNecT_Server.domain.activity.repository.recruitment.TeamApplicationRepository;
 import CamNecT.CamNecT_Server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
+import CamNecT.CamNecT_Server.domain.chat.model.ChatRequest;
+import CamNecT.CamNecT_Server.domain.chat.repository.ChatRequestRepository;
+import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
+import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
+import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
+import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.ActivityErrorCode;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
-import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
-import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +42,8 @@ public class RecruitmentService {
     private final MajorRepository majorRepository;
     private final RecruitmentBookmarkRepository bookmarkRepository;
     private final TeamApplicationRepository teamApplicationRepository;
+    private final UserRepository userRepository;
+    private final ChatRequestRepository chatRequestRepository;
 
     @Transactional
     public TeamRecruitment createRecruitment(Long userId, Long activityId, RecruitmentRequest request) {
@@ -84,11 +92,11 @@ public class RecruitmentService {
         );
     }
 
+    @Transactional
     public boolean toggleRecruitmentBookmark(Long userId, Long recruitId) {
-        //모집글 확인
-        if (!recruitmentRepository.existsById(recruitId)) {
-            throw new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND);
-        }
+        //모집글 조회 (북마크 카운트 업데이트를 위해 엔티티 조회)
+        TeamRecruitment recruitment = recruitmentRepository.findById(recruitId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
 
         //북마크 존재 여부 확인
         Optional<RecruitmentBookmark> bookmarkOpt = bookmarkRepository.findByUserIdAndRecruitId(userId, recruitId);
@@ -96,6 +104,7 @@ public class RecruitmentService {
         if (bookmarkOpt.isPresent()) {
             // 이미 존재하면 삭제 (북마크 취소)
             bookmarkRepository.delete(bookmarkOpt.get());
+            recruitment.decrementBookmarkCount(); // 북마크 수 감소
             return false; // 북마크 해제됨을 의미
         } else {
             // 존재하지 않으면 생성 (북마크 등록)
@@ -104,11 +113,13 @@ public class RecruitmentService {
                     .recruitId(recruitId)
                     .build();
             bookmarkRepository.save(newBookmark);
+            recruitment.incrementBookmarkCount(); // 북마크 수 증가
             return true;
         }
     }
 
-    public Long applyToTeam(Long userId, Long recruitId, RecruitmentApplyRequest request) {
+    @Transactional
+    public Long applyToTeam(Long userId, Long activityId, Long recruitId, RecruitmentApplyRequest request) {
 
         //공고 존재 여부 확인
         TeamRecruitment recruitment = recruitmentRepository.findById(recruitId)
@@ -131,6 +142,38 @@ public class RecruitmentService {
                 .content(request.content())
                 .build();
 
+        // 커피챗 요청 로직
+        Users requester = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+        Users receiver = userRepository.findById(recruitment.getUserId())
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+
+        if (requester.equals(receiver)) {
+            throw new CustomException(CoffeeChatErrorCode.SELF_REQUEST_NOT_ALLOWED);
+        }
+
+        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
+                userId, recruitment.getUserId(), ChatRequest.RequestStatus.WAITING)) {
+            throw new CustomException(CoffeeChatErrorCode.DUPLICATE_REQUEST);
+        }
+
+        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
+                userId, recruitment.getUserId(), ChatRequest.RequestStatus.ACCEPTED)
+                || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
+                recruitment.getUserId(), userId, ChatRequest.RequestStatus.ACCEPTED)) {
+            throw new CustomException(CoffeeChatErrorCode.CHATROOM_ALREADY_EXISTS);
+        }
+
+        ChatRequest chatRequest = ChatRequest.builder()
+                .requester(requester)
+                .receiver(receiver)
+                .content(request.content())
+                .type(ChatRequest.RequestType.TEAM_RECRUIT) //팀원 모집으로 타입 설정하기
+                .activityId(activityId)
+                .recruitmentId(recruitId)
+                .build();
+
+        chatRequestRepository.save(chatRequest);
         return teamApplicationRepository.save(application).getApplicationId();
     }
 

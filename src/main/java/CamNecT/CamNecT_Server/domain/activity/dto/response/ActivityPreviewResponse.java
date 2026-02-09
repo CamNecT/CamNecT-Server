@@ -1,7 +1,7 @@
 package CamNecT.CamNecT_Server.domain.activity.dto.response;
 
-import CamNecT.CamNecT_Server.global.tag.model.Tag;
-
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record ActivityPreviewResponse(
@@ -9,6 +9,10 @@ public record ActivityPreviewResponse(
         String title,
         String context,
         String thumbnailUrl,
-        List<String> tags
+        List<String> tags,
+        Long bookmarkCount,
+        String organizer,
+        LocalDate applyEndDate,
+        LocalDateTime createdAt
 ) {
 }

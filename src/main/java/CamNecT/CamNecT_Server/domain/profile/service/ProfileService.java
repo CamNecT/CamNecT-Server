@@ -36,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -68,23 +69,31 @@ public class ProfileService {
         String profileImageUrl = publicUrlIssuer.issuePublicUrl(userProfile.getProfileImageKey());
 
         boolean isOwner = (loginUserId != null) && loginUserId.equals(profileUserId);
+
         boolean showFollower = isOwner || Boolean.TRUE.equals(userProfile.getIsFollowerVisible());
+        boolean showEducation = isOwner || Boolean.TRUE.equals(userProfile.getIsEducationVisible());
+        boolean showExperience = isOwner || Boolean.TRUE.equals(userProfile.getIsExperienceVisible());
+        boolean showCertificate = isOwner || Boolean.TRUE.equals(userProfile.getIsCertificateVisible());
 
         int following = showFollower ? userFollowRepository.countByFollowingId(profileUserId) : 0;
         int follower = showFollower ? userFollowRepository.countByFollowerId(profileUserId) : 0;
 
         List<PortfolioPreviewResponse> portfolioPreviewResponses = portfolioRepository.findPreviewsByUserId(profileUserId);
 
-        List<EducationResponse> educationResponses = educationRepository.findAllByUserIdWithDetails(profileUserId)
-                .stream()
-                .map(EducationResponse::from)
-                .toList();
-        List<ExperienceResponse> experienceList = experienceRepository.findAllByUser_UserIdOrderByStartDateDesc(profileUserId).stream()
-                .map(ExperienceResponse::from)
-                .toList();
-        List<CertificateResponse> certificateList = certificateRepository.findAllByUser_UserIdOrderByAcquiredDateDesc(profileUserId).stream()
-                .map(CertificateResponse::from)
-                .toList();
+        List<EducationResponse> educationResponses = showEducation
+                ? educationRepository.findAllByUserIdWithDetails(profileUserId)
+                .stream().map(EducationResponse::from).toList()
+                : Collections.emptyList();
+
+        List<ExperienceResponse> experienceList = showExperience
+                ? experienceRepository.findAllByUser_UserIdOrderByStartDateDesc(profileUserId)
+                .stream().map(ExperienceResponse::from).toList()
+                : Collections.emptyList();
+
+        List<CertificateResponse> certificateList = showCertificate
+                ? certificateRepository.findAllByUser_UserIdOrderByAcquiredDateDesc(profileUserId)
+                .stream().map(CertificateResponse::from).toList()
+                : Collections.emptyList();
 
         List<ProfileTagDto> tags = userTagMapRepository.findAllTagsByUserId(profileUserId).stream()
                 .map(t -> new ProfileTagDto(t.getId(), t.getName(), t.getCategory().getCode()))
@@ -94,6 +103,9 @@ public class ProfileService {
                 userProfile.getBio(),
                 userProfile.getOpenToCoffeeChat(),
                 userProfile.getIsFollowerVisible(),
+                userProfile.getIsEducationVisible(),
+                userProfile.getIsExperienceVisible(),
+                userProfile.getIsCertificateVisible(),
                 profileImageUrl,
                 userProfile.getStudentNo(),
 //                userProfile.getYearLevel(),

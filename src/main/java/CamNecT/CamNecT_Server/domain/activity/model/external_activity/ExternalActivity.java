@@ -68,6 +68,9 @@ public class ExternalActivity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "context_title", length = 200)
+    private String contextTitle;
+
     @Lob
     @Column(name = "context", columnDefinition = "TEXT")
     private String context;

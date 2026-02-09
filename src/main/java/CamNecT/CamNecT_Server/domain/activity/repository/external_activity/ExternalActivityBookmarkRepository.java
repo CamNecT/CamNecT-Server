@@ -14,6 +14,9 @@ import java.util.Optional;
 public interface ExternalActivityBookmarkRepository extends JpaRepository<ExternalActivityBookmark, Long> {
 
     Optional<ExternalActivityBookmark> findByUser_UserIdAndActivity_ActivityId(Long userId, Long activityId);
+    Long countByActivity_ActivityId(Long activityId);
+    boolean existsByUser_UserIdAndActivity_ActivityId(Long userId, Long activityId);
+
 
     // =========================
     // 북마크한 대외활동 목록 - 최신순
