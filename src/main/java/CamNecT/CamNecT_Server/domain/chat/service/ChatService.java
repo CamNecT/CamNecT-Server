@@ -75,7 +75,10 @@ public class ChatService {
         }
 
         if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                requesterId, receiverId, ChatRequest.RequestStatus.WAITING)) {
+                requesterId, receiverId, ChatRequest.RequestStatus.WAITING)
+                || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
+                receiverId, requesterId, ChatRequest.RequestStatus.WAITING)
+        ) {
             throw new CustomException(CoffeeChatErrorCode.DUPLICATE_REQUEST);
         }
 
@@ -207,6 +210,15 @@ public class ChatService {
                 .stream()
                 .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
 
+        Set<Long> majorIds = profileMap.values().stream()
+                .map(UserProfile::getMajorId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, String> majorNameMap = majorIds.isEmpty() ? Map.of() :
+                majorRepository.findAllById(majorIds).stream()
+                        .collect(Collectors.toMap(Majors::getMajorId, Majors::getMajorNameKor));
+
         List<ChatRequestListDetailDto> dtoList = requests.stream()
                 .map(request -> {
                     Users opponent = request.getRequester();
@@ -218,9 +230,7 @@ public class ChatService {
 
                     if (opProfile != null) {
                         if (opProfile.getMajorId() != null) {
-                            majorName = majorRepository.findById(opProfile.getMajorId())
-                                    .map(Majors::getMajorNameKor)
-                                    .orElse("알 수 없는 전공");
+                            majorName = majorNameMap.getOrDefault(opProfile.getMajorId(), "알 수 없는 전공");
                         }
 
                         if (StringUtils.hasText(opProfile.getProfileImageKey())) {
@@ -269,7 +279,7 @@ public class ChatService {
 
     @Transactional
     public ChatRoomWithDetailDto getRoomWithDetails(Long roomId, Long userId) {
-        ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId)
+        ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
         Users me = (room.getRequester().getUserId().equals(userId)) ? room.getRequester() : room.getReceiver();

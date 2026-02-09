@@ -53,7 +53,8 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "JOIN FETCH r.receiver " +
             "JOIN FETCH r.request req " +
             "JOIN FETCH req.requestInterests " +
-            "WHERE r.id = :roomId")
-    Optional<ChatRoom> findByUserIdWithDetails(@Param("roomId") Long roomId);
+            "WHERE r.id = :roomId " +
+            "AND (r.requester.userId = :userId OR r.receiver.userId = :userId)")
+    Optional<ChatRoom> findByUserIdWithDetails(@Param("roomId") Long roomId, @Param("userId") Long userId);
 
 }
