@@ -53,4 +53,12 @@ public class ChatRoomController {
         return ApiResponse.success(response);
     }
 
+    @Operation(summary = "채팅방 개별 나가기 (퇴장)", description = "해당 채팅방을 나갑니다.")
+    @PatchMapping("/room/{roomId}/out")
+    public ApiResponse<Void> exitRoom(@Parameter(description = "채팅방 ID") @PathVariable Long roomId, @UserId Long userId) {
+
+        chatService.outOfChatRoom(roomId, userId);
+
+        return ApiResponse.success(null);
+    }
 }

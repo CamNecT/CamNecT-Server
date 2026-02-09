@@ -56,7 +56,7 @@ public class ChatRoomWithDetailDto {
                 .opponentName(opponent.getName())
 
                 .opponentMajor(majorName)
-                .opponentStudentYear(opProfile != null ? opProfile.getYearLevel().toString() : "")
+                .opponentStudentYear(opProfile != null && opProfile.getYearLevel() != null ? opProfile.getYearLevel().toString() : "")
                 .opponentProfileImg(profileImgUrl)
                 .opponentTags(tagNames)
 
