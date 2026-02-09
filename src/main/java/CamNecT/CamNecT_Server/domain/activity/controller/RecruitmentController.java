@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Activity Recruitment", description = "대외활동 내 팀원 모집 및 지원 관련 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/activity/{activityId}/recruitment")
+@RequestMapping("/api/activity/recruitment")
 public class RecruitmentController {
 
     private final RecruitmentService recruitmentService;
@@ -24,17 +24,15 @@ public class RecruitmentController {
     @PostMapping
     public ApiResponse<TeamRecruitment> createRecruitment(
             @UserId Long userId,
-            @PathVariable Long activityId,
             @RequestBody RecruitmentRequest request
     ) {
-        return ApiResponse.success(recruitmentService.createRecruitment(userId, activityId, request));
+        return ApiResponse.success(recruitmentService.createRecruitment(userId, request));
     }
 
     @Operation(summary = "모집글 상세 조회", description = "특정 팀원 모집글의 상세 내용 및 팀 구성 정보를 조회합니다.")
     @GetMapping("/{recruitmentId}")
     public ApiResponse<RecruitmentDetailResponse> getRecruitmentDetail(
             @UserId Long userId,
-            @PathVariable Long activityId,
             @PathVariable Long recruitmentId
     ) {
         return ApiResponse.success(recruitmentService.getRecruitmentDetail(userId, recruitmentId));
@@ -44,7 +42,6 @@ public class RecruitmentController {
     @PostMapping("/{recruitmentId}/bookmark")
     public ApiResponse<String> toggleBookmark(
             @UserId Long userId,
-            @PathVariable Long activityId,
             @PathVariable Long recruitmentId
     ) {
         boolean isBookmarked = recruitmentService.toggleRecruitmentBookmark(userId, recruitmentId);
@@ -56,11 +53,10 @@ public class RecruitmentController {
     @PostMapping("/{recruitmentId}/apply")
     public ApiResponse<Long> applyToTeam(
             @UserId Long userId,
-            @PathVariable Long activityId,
             @PathVariable Long recruitmentId,
             @RequestBody RecruitmentApplyRequest request
     ) {
-        Long applicationId = recruitmentService.applyToTeam(userId, activityId, recruitmentId, request);
+        Long applicationId = recruitmentService.applyToTeam(userId, recruitmentId, request);
         return ApiResponse.success(applicationId);
     }
 

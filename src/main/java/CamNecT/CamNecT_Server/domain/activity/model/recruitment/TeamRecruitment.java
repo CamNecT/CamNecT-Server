@@ -42,11 +42,23 @@ public class TeamRecruitment {
     private Integer recruitCount = 1;
 
     @Builder.Default
-    private Integer commentCount = 0;
+    private Integer bookmarkCount = 0;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    // 북마크 수 증가
+    public void incrementBookmarkCount() {
+        this.bookmarkCount++;
+    }
+
+    // 북마크 수 감소
+    public void decrementBookmarkCount() {
+        if (this.bookmarkCount > 0) {
+            this.bookmarkCount--;
+        }
+    }
 }

@@ -342,13 +342,21 @@ public class ActivityService {
         // 6. 본인 글 여부
         boolean isMine = activity.getUser() != null && Objects.equals(activity.getUser().getUserId(), userId);
 
-        // 7. Response 생성
+        // 7. 북마크 수 조회
+        Long bookmarkCount = activityBookmarkRepository.countByActivity_ActivityId(activityId);
+
+        // 8. 북마크 여부 조회
+        boolean isBookmarked = activityBookmarkRepository.existsByUser_UserIdAndActivity_ActivityId(userId, activityId);
+
+        // 9. Response 생성
         return new ActivityDetailResponse(
                 isMine,
                 activityDto,
                 attachmentDtos,
                 tagNames,
-                recruitmentList
+                recruitmentList,
+                bookmarkCount,
+                isBookmarked
         );
     }
 

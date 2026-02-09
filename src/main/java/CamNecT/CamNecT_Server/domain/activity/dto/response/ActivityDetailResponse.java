@@ -12,6 +12,8 @@ public record ActivityDetailResponse(
         ExternalActivityDto activity,
         List<ExternalActivityAttachmentDto> attachment,
         List<String> tagList,
-        List<TeamRecruitment> recruitmentList
+        List<TeamRecruitment> recruitmentList,
+        Long bookmarkCount,
+        boolean isBookmarked
         ) {
 }
