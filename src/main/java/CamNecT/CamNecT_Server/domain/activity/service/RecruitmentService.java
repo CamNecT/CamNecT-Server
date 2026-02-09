@@ -138,7 +138,7 @@ public class RecruitmentService {
 
         //요청 가능 상태인지 확인
         if(recruitment.getRecruitStatus() == RecruitStatus.CLOSED)
-            throw new CustomException(ActivityErrorCode.)
+            throw new CustomException(ActivityErrorCode.RECRUITMENT_CLOSED);
 
         //신청 객체 생성 및 저장
         TeamApplication application = TeamApplication.builder()
