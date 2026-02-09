@@ -12,4 +12,5 @@ public interface ExternalActivityTagRepository extends JpaRepository<ExternalAct
     void deleteByActivity_ActivityId(Long activityId);
 
     List<ExternalActivityTag> findAllByActivity_ActivityId(Long activityId);
+    List<ExternalActivityTag> findAllByActivity_ActivityIdIn(List<Long> activityIds);
 }
