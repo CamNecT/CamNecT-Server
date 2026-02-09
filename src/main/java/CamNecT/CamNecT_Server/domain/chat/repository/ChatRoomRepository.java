@@ -31,6 +31,8 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
     @Query("SELECT r FROM ChatRoom r " +
             "JOIN FETCH r.request " +
+            "JOIN FETCH r.requester " +
+            "JOIN FETCH r.receiver " +
             "WHERE r.requester.userId = :userId OR r.receiver.userId = :userId " +
             "ORDER BY r.lastMessageAt DESC")
     List<ChatRoom> findAllByUserIdWithBasicInfo(@Param("userId") Long userId);
@@ -38,6 +40,8 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     // 타입별 조회
     @Query("SELECT r FROM ChatRoom r " +
             "JOIN FETCH r.request req " +
+            "JOIN FETCH r.requester " +
+            "JOIN FETCH r.receiver " +
             "WHERE (r.requester.userId = :userId OR r.receiver.userId = :userId) " +
             "AND req.type = :type " +
             "ORDER BY r.lastMessageAt DESC")

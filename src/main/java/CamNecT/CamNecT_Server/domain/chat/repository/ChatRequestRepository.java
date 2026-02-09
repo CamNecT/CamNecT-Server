@@ -53,10 +53,38 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
             Pageable pageable
     );
 
+    @Query("SELECT cr FROM ChatRequest cr " +
+            "JOIN FETCH cr.requester " +
+            "WHERE cr.receiver.userId = :userId AND cr.type = :type AND cr.status = :status " +
+            "ORDER BY cr.createdAt DESC")
     List<ChatRequest> findAllByReceiver_UserIdAndTypeAndStatusOrderByCreatedAtDesc(
-            Long receiverId,
-            ChatRequest.RequestType type,
-            ChatRequest.RequestStatus status
+            @Param("userId") Long userId,
+            @Param("type") ChatRequest.RequestType type,
+            @Param("status") ChatRequest.RequestStatus status
+    );
+
+    @Query("SELECT cr FROM ChatRequest cr " +
+            "JOIN FETCH cr.requester " +
+            "WHERE cr.receiver.userId = :userId " +
+            "AND cr.type = :type " +
+            "AND cr.status = :status")
+    List<ChatRequest> findAllByReceiver_UserIdAndTypeAndStatus(
+            @Param("userId") Long userId,
+            @Param("type") ChatRequest.RequestType type,
+            @Param("status") ChatRequest.RequestStatus status
+    );
+
+    @Query("SELECT cr FROM ChatRequest cr " +
+            "JOIN FETCH cr.requester " +
+            "WHERE cr.receiver.userId = :userId " +
+            "AND cr.type = :type " +
+            "AND cr.recruitmentId = :recruitmentId " +
+            "AND cr.status = :status")
+    List<ChatRequest> findAllByReceiver_UserIdAndTypeAndRecruitmentIdAndStatus(
+            @Param("userId") Long userId,
+            @Param("type") ChatRequest.RequestType type,
+            @Param("recruitmentId") Long recruitmentId,
+            @Param("status") ChatRequest.RequestStatus status
     );
 }
 
