@@ -28,6 +28,7 @@ public class ChatRoomWithDetailDto {
     private String opponentProfileImg;
     private List<String> opponentTags;
 
+    private String requestAt;
     private String requestType;
     private List<String> requestTags;
     private String requestContent;
@@ -60,6 +61,7 @@ public class ChatRoomWithDetailDto {
                 .opponentProfileImg(profileImgUrl)
                 .opponentTags(tagNames)
 
+                .requestAt(room.getRequest().getCreatedAt() != null ? room.getRequest().getCreatedAt().toString() : "")
                 .requestType(room.getRequest().getType().name())
                 .requestTags(requestTagNames)
                 .requestContent(room.getRequest().getContent())

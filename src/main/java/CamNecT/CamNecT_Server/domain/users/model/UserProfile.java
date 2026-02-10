@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.users.model;
 
+import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -57,6 +58,11 @@ public class UserProfile {
 
     @Column(name = "major_id")
     private Long majorId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "major_id", referencedColumnName = "major_id",
+            insertable = false, updatable = false)
+    private Majors major;
 
     public void updateOnboardingProfile(String bio, String profileImageKey) {
         updateBio(bio);

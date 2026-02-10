@@ -124,7 +124,7 @@ public class DocumentVerificationController {
             @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content),
             @ApiResponse(responseCode = "404", description = "대상 제출/파일 없음", content = @Content)
     })
-    @GetMapping("/{submissionId}/files/{fileId}/download-url")
+    @GetMapping("/{submissionId}/download-url")
     public PresignDownloadResponse myDownloadUrl(
             @UserId Long userId,
             @PathVariable Long submissionId

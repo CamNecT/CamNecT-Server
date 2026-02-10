@@ -9,8 +9,6 @@ import org.springframework.context.annotation.Configuration;
 
 @OpenAPIDefinition(
         info = @Info(
-                title = "",
-                description = "",
                 version = "v1.0.0"
         )
 )

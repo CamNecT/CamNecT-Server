@@ -27,12 +27,6 @@ public class S3FileStorage implements FileStorage {
     private final S3Client s3;
     private final S3Props props;
 
-//    private static final Map<String, String> EXT_BY_CONTENT_TYPE = Map.of(
-//            "application/pdf", ".pdf",
-//            "image/jpeg", ".jpg",
-//            "image/png", ".png"
-//    );
-
     @Override
     public String save(String prefix, MultipartFile file) {
         validatePrefix(prefix);

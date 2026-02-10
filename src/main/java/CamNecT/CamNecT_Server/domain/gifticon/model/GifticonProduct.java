@@ -44,9 +44,6 @@ public class GifticonProduct {
     @Column(name = "image_url", nullable = false, length = 500)
     private String imageUrl;
 
-    @Column(name = "detail_image_url", length = 500)
-    private String detailImageUrl;
-
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
@@ -83,10 +80,6 @@ public class GifticonProduct {
                 .filter(StringUtils::hasText)
                 .ifPresent(s -> this.imageUrl = s);
 
-        Optional.ofNullable(v.detailImageUrl())
-                .filter(StringUtils::hasText)
-                .ifPresent(s -> this.detailImageUrl = s);
-
         Optional.ofNullable(v.sortScore())
                 .ifPresent(s -> this.sortScore = s);
 
@@ -105,7 +98,6 @@ public class GifticonProduct {
             String productName,
             Integer pricePoints,
             String imageUrl,
-            String detailImageUrl,
             Integer sortScore
     ) {}
 }

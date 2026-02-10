@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.profile.service;
 
+import CamNecT.CamNecT_Server.domain.point.service.PointService;
 import CamNecT.CamNecT_Server.domain.profile.components.certificate.dto.response.CertificateResponse;
 import CamNecT.CamNecT_Server.domain.profile.components.certificate.repository.CertificateRepository;
 import CamNecT.CamNecT_Server.domain.profile.components.education.dto.response.EducationResponse;
@@ -57,6 +58,7 @@ public class ProfileService {
     private final PresignEngine presignEngine;
     private final PublicUrlIssuer publicUrlIssuer;
     private final GlobalPresignMethods globalPresignMethods;
+    private final PointService pointService;
 
     @Transactional(readOnly = true)
     public ProfileResponse getUserProfile(Long loginUserId, Long profileUserId) {
@@ -75,8 +77,9 @@ public class ProfileService {
         boolean showExperience = isOwner || Boolean.TRUE.equals(userProfile.getIsExperienceVisible());
         boolean showCertificate = isOwner || Boolean.TRUE.equals(userProfile.getIsCertificateVisible());
 
-        int following = showFollower ? userFollowRepository.countByFollowingId(profileUserId) : 0;
-        int follower = showFollower ? userFollowRepository.countByFollowerId(profileUserId) : 0;
+        int following = showFollower ? userFollowRepository.countByFollowerId(profileUserId) : 0;
+        int follower = showFollower ? userFollowRepository.countByFollowingId(profileUserId) : 0;
+        int myPoints = isOwner ? pointService.getBalance(profileUserId) : 0;
 
         List<PortfolioPreviewResponse> portfolioPreviewResponses = portfolioRepository.findPreviewsByUserId(profileUserId);
 
@@ -119,6 +122,7 @@ public class ProfileService {
                 basicProfile,
                 following,
                 follower,
+                myPoints,
                 portfolioPreviewResponses,
                 educationResponses,
                 experienceList,
