@@ -11,10 +11,13 @@ import java.util.List;
 
 public interface UserTagMapRepository extends JpaRepository<UserTagMap, Long> {
 
-    @Query("SELECT utm.userId, t FROM UserTagMap utm " +
-            "JOIN Tag t ON utm.tagId = t.id " +
-            "WHERE utm.userId IN :userIds AND t.active = true")
-    List<Object[]> findTagsWithUserIdByUserIdIn(@Param("userIds") List<Long> userIds);
+    @Query("""
+    SELECT utm.userId, t.name
+    FROM UserTagMap utm
+    JOIN Tag t ON utm.tagId = t.id
+    WHERE utm.userId IN :userIds AND t.active = true
+""")
+    List<Object[]> findTagNamesWithUserIdByUserIdIn(@Param("userIds") List<Long> userIds);
 
     @Modifying
     @Query("DELETE FROM UserTagMap utm WHERE utm.userId = :userId")

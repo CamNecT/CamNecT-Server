@@ -11,12 +11,10 @@ import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserTagMapRepository;
-import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
-import CamNecT.CamNecT_Server.global.tag.model.Tag;
+import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -30,8 +28,8 @@ public class AlumniService {
     private final UserTagMapRepository userTagMapRepository;
     private final UserProfileRepository userProfileRepository;
     private final AlumniRepository alumniRepository;
-    private final UserRepository usersRepository; // Users Repository 추가
-    private final PresignEngine presignEngine;
+    private final UserRepository usersRepository;
+    private final PublicUrlIssuer publicUrlIssuer;
 
     @Transactional(readOnly = true)
     public List<AlumniPreviewResponse> searchAlumni(Long userId, String name, List<Long> tagIdList) {
@@ -50,25 +48,26 @@ public class AlumniService {
                 .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
 
         // 3. 태그 정보 조회 및 Map 변환 (통합 로직)
-        List<Object[]> tagResults = userTagMapRepository.findTagsWithUserIdByUserIdIn(targetIds);
+        List<Object[]> tagResults = userTagMapRepository.findTagNamesWithUserIdByUserIdIn(targetIds);
         Map<Long, List<String>> tagMap = tagResults.stream()
                 .collect(Collectors.groupingBy(
                         row -> (Long) row[0], // userId
                         Collectors.mapping(
-                                row -> ((Tag) row[1]).getName(),
-                                Collectors.toList())
+                                row -> (String) row[1], // tag name
+                                Collectors.toList()
+                        )
                 ));
 
-        // 4. targetIds의 정렬 순서를 유지하며 최종 DTO 생성 (프로필 이미지 presigned URL 적용)
+        // 4. targetIds의 정렬 순서를 유지하며 최종 DTO 생성 (프로필 이미지 CDN URL 적용)
         return targetIds.stream()
                 .map(id -> {
                     Users user = usersMap.get(id);
                     UserProfile profile = profileMap.get(id);
 
-                    // UserProfile 엔티티 → DTO 변환 + 프로필 이미지 presigned URL 적용
+                    // UserProfile 엔티티 → DTO 변환 + 프로필 이미지 CDN URL 적용
                     UserProfileDto profileDto = UserProfileDto.from(profile)
                             .withProfileImageUrl(
-                                    presignOrNull(profile.getProfileImageKey(), "profile-image", "image/jpeg")
+                                    publicUrlIssuer.issuePublicUrl(profile.getProfileImageKey())
                             );
 
                     return new AlumniPreviewResponse(
@@ -79,21 +78,6 @@ public class AlumniService {
                     );
                 })
                 .toList();
-    }
-
-
-
-    /**
-     * S3 key를 presigned download URL로 변환
-     * Portfolio/Activity 방식과 동일한 로직
-     */
-    private String presignOrNull(String key, String filename, String contentType) {
-        if (!StringUtils.hasText(key)) return null;
-        try {
-            return presignEngine.presignDownload(key, filename, contentType).downloadUrl();
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     @Transactional(readOnly = true)
@@ -112,12 +96,13 @@ public class AlumniService {
         Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdInWithUser(topIds).stream()
                 .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
 
-        // 3) 태그 맵 (userId -> tags)
-        Map<Long, List<Tag>> tagMap = userTagMapRepository.findTagsWithUserIdByUserIdIn(topIds).stream()
-                .collect(Collectors.groupingBy(
-                        row -> (Long) row[0],
-                        Collectors.mapping(row -> (Tag) row[1], Collectors.toList())
-                ));
+        Map<Long, List<String>> tagMap =
+                userTagMapRepository.findTagNamesWithUserIdByUserIdIn(topIds).stream()
+                        .collect(Collectors.groupingBy(
+                                row -> (Long) row[0],
+                                Collectors.mapping(row -> (String) row[1], Collectors.toList())
+                        ));
+
 
         // 4) 정렬 유지하면서 AlumniHomeResponse 생성
         List<AlumniHomeResponse> items = topIds.stream()

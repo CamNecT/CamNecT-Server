@@ -124,7 +124,6 @@ public class PostServiceImpl implements PostService {
             postTagsRepository.deleteByPost_Id(postId);
             replaceTags(post, req.tagIds());
         }
-
         if (req.attachments() != null) {
             postAttachmentsService.replace(post, userId, req.attachments());
         }
@@ -477,14 +476,13 @@ public class PostServiceImpl implements PostService {
         if (ids.isEmpty()) return;
 
         List<Tag> tags = tagRepository.findAllById(ids);
-        if (tags.size() != ids.size()) {
-            throw new CustomException(CommunityErrorCode.INVALID_TAG_IDS);
-        }
+        if (tags.size() != ids.size()) throw new CustomException(CommunityErrorCode.INVALID_TAG_IDS);
 
-        for (Tag t : tags) {
-            if (!t.isActive()) throw new CustomException(CommunityErrorCode.INACTIVE_TAG);
-            postTagsRepository.save(PostTags.link(post, t));
-        }
+
+        for (Tag t : tags) if (!t.isActive()) throw new CustomException(CommunityErrorCode.INACTIVE_TAG);
+        List<PostTags> links = tags.stream().map(t -> PostTags.link(post, t)).toList();
+
+        postTagsRepository.saveAll(links);
     }
 
     private void touchStats(Long postId) {
