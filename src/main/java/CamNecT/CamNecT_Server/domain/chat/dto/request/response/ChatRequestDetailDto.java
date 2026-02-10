@@ -14,6 +14,7 @@ public record ChatRequestDetailDto(
         Long opponentId,
         String opponentName,
         String opponentMajor,
+        String opponentStudentYear,
         String opponentProfileImg,
         List<String> opponentTags,
 
@@ -32,6 +33,7 @@ public record ChatRequestDetailDto(
                                             Users opponent,
                                             ChatRequest request,
                                             String majorName,
+                                            String StudentNo,
                                             List<String> opTagNames,
                                             String profileImgUrl, String title) {
 
@@ -41,6 +43,7 @@ public record ChatRequestDetailDto(
                 .opponentId(opponent.getUserId())
                 .opponentName(opponent.getName())
                 .opponentMajor(majorName)
+                .opponentStudentYear(StudentNo)
                 .opponentProfileImg(profileImgUrl)
                 .opponentTags(opTagNames)
                 
