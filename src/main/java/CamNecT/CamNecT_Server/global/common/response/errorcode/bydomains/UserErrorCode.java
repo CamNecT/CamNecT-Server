@@ -15,7 +15,7 @@ public enum UserErrorCode implements BaseErrorCode {
     INVALID_TAG_IDS(HttpStatus.BAD_REQUEST, 44030, "유효하지 않은 태그가 포함되어 있습니다."),
     PORTFOLIO_THUMBNAIL_REQUIRED(HttpStatus.BAD_REQUEST, 44020, "썸네일 파일이 필요합니다."),
     PORTFOLIO_ATTACHMENT_EMPTY(HttpStatus.BAD_REQUEST, 44021, "빈 첨부파일은 업로드할 수 없습니다."),
-
+    SELF_FOLLOW_NOT_ALLOWED(HttpStatus.BAD_REQUEST, 44040, "자기 자신을 팔로우할 수 없습니다."),
 
     // 441xx - 인증/토큰
     INSUFFICIENT_POINT(HttpStatus.BAD_REQUEST, 44101, "포인트 잔액이 부족합니다."),
@@ -28,6 +28,7 @@ public enum UserErrorCode implements BaseErrorCode {
     CERTIFICATE_FORBIDDEN(HttpStatus.FORBIDDEN, 44305, "해당 자격증 정보에 대한 수정/삭제 권한이 없습니다."),
     EDUCATION_FORBIDDEN(HttpStatus.FORBIDDEN, 44306, "해당 학력 정보에 대한 수정/삭제 권한이 없습니다."),
     PORTFOLIO_FORBIDDEN(HttpStatus.FORBIDDEN, 44310, "포트폴리오에 대한 권한이 없습니다."),
+    FOLLOW_LIST_PRIVACY_RESTRICTED(HttpStatus.FORBIDDEN, 44311, "해당 사용자의 팔로워 목록 조회 권한이 없습니다."),
 
     // 444xx - 리소스
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, 44401, "유저를 찾을 수 없습니다."),
@@ -38,9 +39,11 @@ public enum UserErrorCode implements BaseErrorCode {
     INSTITUTION_NOT_FOUND(HttpStatus.NOT_FOUND, 44407, "해당 학교 정보를 찾을 수 없습니다."),
     MAJOR_NOT_FOUND(HttpStatus.NOT_FOUND, 44408, "해당 전공 정보를 찾을 수 없습니다."),
     PORTFOLIO_NOT_FOUND(HttpStatus.NOT_FOUND, 44410, "해당 포트폴리오가 없습니다."),
+    FOLLOW_NOT_FOUND(HttpStatus.NOT_FOUND, 44411, "팔로우 관계를 찾을 수 없습니다."),
 
     // 449xx - 충돌
-    USER_CONFLICT(HttpStatus.CONFLICT, 44901, "유저 상태 충돌이 발생했습니다.");
+    USER_CONFLICT(HttpStatus.CONFLICT, 44901, "유저 상태 충돌이 발생했습니다."),
+    ALREADY_FOLLOWING(HttpStatus.CONFLICT, 44902, "이미 팔로우 중인 사용자입니다.");
 
     private final HttpStatus httpStatus;
     private final int code;

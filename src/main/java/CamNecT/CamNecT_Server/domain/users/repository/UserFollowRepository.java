@@ -5,12 +5,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserFollowRepository extends JpaRepository<UserFollow, Long> {
 
-    //팔로잉 수 조회
+    // 내가 팔로우하는 사람 수 (팔로잉)
     int countByFollowerId(Long userId);
 
-    //팔로워 수 조회
+    // 나를 팔로우하는 사람 수 (팔로워)
     int countByFollowingId(Long userId);
 
     //팔로잉 여부 조회
     boolean existsByFollowerIdAndFollowingId(Long followerId, Long followingId);
+
+    // 팔로우 취소 (언팔)
+    void deleteByFollowerIdAndFollowingId(Long followerId, Long followingId);
+
 }
