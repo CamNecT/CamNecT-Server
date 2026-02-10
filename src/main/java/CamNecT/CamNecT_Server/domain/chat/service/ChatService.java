@@ -42,10 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -208,7 +205,7 @@ public class ChatService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<Long, String> recruitmentTitleMap = recruitmentIds.isEmpty() ? Map.of() :
+        Map<Long, String> recruitmentTitleMap = recruitmentIds.isEmpty() ? new HashMap<>() :
                 recruitmentRepository.findAllById(recruitmentIds).stream()
                         .collect(Collectors.toMap(TeamRecruitment::getRecruitId, TeamRecruitment::getTitle));
 
@@ -226,7 +223,7 @@ public class ChatService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<Long, String> majorNameMap = majorIds.isEmpty() ? Map.of() :
+        Map<Long, String> majorNameMap = majorIds.isEmpty() ? new HashMap<>() :
                 majorRepository.findAllById(majorIds).stream()
                         .collect(Collectors.toMap(Majors::getMajorId, Majors::getMajorNameKor));
 
