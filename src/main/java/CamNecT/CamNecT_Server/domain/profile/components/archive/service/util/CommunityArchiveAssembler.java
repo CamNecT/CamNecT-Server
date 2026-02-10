@@ -7,9 +7,7 @@ import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostAttachmentsR
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostStatsRepository;
 import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostTagsRepository;
 import CamNecT.CamNecT_Server.domain.profile.components.archive.dto.response.MyArchiveResponse;
-import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
-import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
-import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
+import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -31,7 +29,6 @@ public class CommunityArchiveAssembler {
     private final PostAttachmentsRepository postAttachmentsRepository;
 
     private final UserProfileRepository userProfileRepository;
-    private final MajorRepository majorRepository;
 
     private final ArchiveUtils archiveUtils;
 
@@ -69,16 +66,8 @@ public class CommunityArchiveAssembler {
                 .distinct()
                 .toList();
 
-        Map<Long, UserProfile> profileMap = userProfileRepository.findAllById(authorIds).stream()
-                .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
-
-        Set<Long> majorIds = profileMap.values().stream()
-                .map(UserProfile::getMajorId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        Map<Long, String> majorNameMap = majorRepository.findAllById(majorIds).stream()
-                .collect(Collectors.toMap(Majors::getMajorId, Majors::getMajorNameKor));
+        Map<Long, ProfileGlobalDto> authorGlobalMap = userProfileRepository.findGlobalsByUserIdIn(authorIds).stream()
+                .collect(Collectors.toMap(ProfileGlobalDto::userId, it -> it));
 
         // build items
         List<MyArchiveResponse.Item> items = new ArrayList<>(posts.size());
@@ -96,13 +85,9 @@ public class CommunityArchiveAssembler {
                 thumbUrl = archiveUtils.thumbnailUrlOrNull(thumbKey);
             }
 
-            UserProfile prof = profileMap.get(p.getUser().getUserId());
-            String majorName = null;
-            Integer yearLevel = null;
-            if (prof != null) {
-                if (prof.getMajorId() != null) majorName = majorNameMap.get(prof.getMajorId());
-                yearLevel = prof.getYearLevel();
-            }
+            ProfileGlobalDto g = authorGlobalMap.get(p.getUser().getUserId());
+            String majorName = (g != null && StringUtils.hasText(g.majorName())) ? g.majorName() : null;
+
 
             items.add(new MyArchiveResponse.CommunityItem(
                     p.getId(),
@@ -111,8 +96,7 @@ public class CommunityArchiveAssembler {
                     new MyArchiveResponse.Author(
                             p.getUser().getUserId(),
                             p.getUser().getName(),
-                            majorName,
-                            yearLevel
+                            majorName
                     ),
                     p.getTitle(),
                     preview,

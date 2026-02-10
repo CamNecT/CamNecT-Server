@@ -84,7 +84,6 @@ public class GifticonService {
                 p.getProductName(),
                 p.getPricePoints(),
                 p.getImageUrl(),
-                p.getDetailImageUrl(),
                 bookmarked,
                 Boolean.TRUE.equals(p.getIsActive())
         );
@@ -150,7 +149,6 @@ public class GifticonService {
                         .productName(v.productName())
                         .pricePoints(v.pricePoints())
                         .imageUrl(v.imageUrl())
-                        .detailImageUrl(v.detailImageUrl())
                         .isActive(true)
                         .sortScore(v.sortScore() == null ? 0 : v.sortScore())
                         .lastSyncedAt(syncedAt)

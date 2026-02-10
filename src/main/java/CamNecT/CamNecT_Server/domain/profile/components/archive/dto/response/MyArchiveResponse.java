@@ -37,8 +37,7 @@ public record MyArchiveResponse(
     public record Author(
             Long userId,
             String name,
-            String majorName,
-            Integer yearLevel
+            String majorName
     ) {}
 
     // 대외활동 카드

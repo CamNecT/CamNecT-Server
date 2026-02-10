@@ -20,11 +20,6 @@ public class Majors {
     @Column(name = "major_id")
     private Long majorId;
 
-/*
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "college_id", nullable = false)
-    private Colleges college;
-*/
     @ManyToOne(fetch = FetchType.LAZY) // 지연 로딩 적용
     @JoinColumn(name = "institution_id", nullable = false)
     private Institutions institution;

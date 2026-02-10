@@ -3,12 +3,14 @@ package CamNecT.CamNecT_Server.domain.gifticon.scheduler;
 import CamNecT.CamNecT_Server.domain.gifticon.service.GifticonService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-@Slf4j
+@ConditionalOnProperty(prefix = "app.gifticon.vendor", name = "enabled", havingValue = "true")
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class GifticonCatalogSyncScheduler {
 
     private final GifticonService gifticonService;

@@ -29,8 +29,6 @@ app:
         subject: "CamNecT 이메일 인증번호"
   verification:
     document:
-      #storage: s3 #local | s3
-      storage-dir: /var/app/uploads/verifications
       max-file-size-mb: 10
       max-files: 3
       allowed-content-types:
@@ -38,6 +36,8 @@ app:
         - image/jpeg
         - image/png
         - image/webp
+      # storage-dir는 storage=local 일 때만 사용됨
+      storage-dir: /var/app/uploads/verifications
   community:
     attachments:
       max-files: 3

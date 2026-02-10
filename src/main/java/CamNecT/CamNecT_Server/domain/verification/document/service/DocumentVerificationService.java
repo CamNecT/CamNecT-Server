@@ -159,7 +159,7 @@ public class DocumentVerificationService {
         DocumentVerificationSubmission r = submissionRepo.findByIdAndUserId(submissionId, userId)
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.SUBMISSION_NOT_FOUND));
 
-        if (!org.springframework.util.StringUtils.hasText(r.getStorageKey())) {
+        if (!StringUtils.hasText(r.getStorageKey())) {
             throw new CustomException(VerificationErrorCode.FILE_NOT_FOUND);
         }
 

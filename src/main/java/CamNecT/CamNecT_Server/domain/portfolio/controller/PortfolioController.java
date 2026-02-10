@@ -50,14 +50,14 @@ public class PortfolioController {
 
     @Operation(summary = "포트폴리오 수정", description = "기존 포트폴리오의 정보를 수정합니다.")
     @PatchMapping("/{portfolioId}")
-    public ApiResponse<PortfolioPreviewResponse> updatePortfolio (@UserId Long userId, @PathVariable Long portfolioId, @RequestBody @Valid PortfolioRequest portfolioRequest){
-        return ApiResponse.success(portfolioService.update(userId, portfolioId,portfolioRequest));
+    public ApiResponse<PortfolioPreviewResponse> updatePortfolio (@UserId Long userId, @PathVariable Long portfolioId, @PathVariable Long portfolioUserId, @RequestBody @Valid PortfolioRequest portfolioRequest){
+        return ApiResponse.success(portfolioService.update(userId, portfolioUserId, portfolioId,portfolioRequest));
     }
 
     @Operation(summary = "포트폴리오 삭제", description = "특정 포트폴리오를 삭제합니다.")
     @DeleteMapping("/{portfolioId}")
-    public ApiResponse<String> deletePortfolio(@UserId Long userId, @PathVariable Long portfolioId){
-        portfolioService.delete(userId, portfolioId);
+    public ApiResponse<String> deletePortfolio(@UserId Long userId, @PathVariable Long portfolioUserId, @PathVariable Long portfolioId){
+        portfolioService.delete(userId, portfolioUserId, portfolioId);
         return ApiResponse.success("포트폴리오가 삭제되었습니다.");
     }
 
@@ -66,9 +66,10 @@ public class PortfolioController {
     @PatchMapping("/{portfolioId}/public")
     public ApiResponse<Boolean> togglePublic(
             @UserId Long userId,
+            @PathVariable Long portfolioUserId,
             @PathVariable Long portfolioId
     ) {
-        return ApiResponse.success(portfolioService.togglePublic(userId, portfolioId));
+        return ApiResponse.success(portfolioService.togglePublic(userId, portfolioUserId, portfolioId));
     }
 
     // 즐겨찾기 설정
@@ -76,9 +77,10 @@ public class PortfolioController {
     @PatchMapping("/{portfolioId}/favorite")
     public ApiResponse<Boolean> toggleFavorite(
             @UserId Long userId,
+            @PathVariable Long portfolioUserId,
             @PathVariable Long portfolioId
     ) {
-        return ApiResponse.success(portfolioService.toggleFavorite(userId, portfolioId));
+        return ApiResponse.success(portfolioService.toggleFavorite(userId, portfolioUserId, portfolioId));
     }
 
     @Operation(summary = "썸네일 업로드용 Presigned URL 발급", description = "포트폴리오 대표 이미지를 업로드하기 위한 Presigned URL을 발급합니다. (이미지 파일만 허용)")

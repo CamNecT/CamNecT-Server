@@ -10,6 +10,8 @@ import CamNecT.CamNecT_Server.domain.portfolio.model.PortfolioAsset;
 import CamNecT.CamNecT_Server.domain.portfolio.model.PortfolioProject;
 import CamNecT.CamNecT_Server.domain.portfolio.repository.PortfolioAssetRepository;
 import CamNecT.CamNecT_Server.domain.portfolio.repository.PortfolioRepository;
+import CamNecT.CamNecT_Server.domain.users.model.UserRole;
+import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.CamNecT_Server.global.storage.model.UploadTicket;
@@ -32,6 +34,7 @@ import java.util.stream.Collectors;
 public class PortfolioService {
     private static final String DEFAULT_THUMB = "기본이미지";
 
+    private final UserRepository userRepository;
     private final PortfolioRepository portfolioRepository;
     private final PortfolioAssetRepository portfolioAssetRepository;
     private final UploadTicketRepository uploadTicketRepository;
@@ -42,35 +45,37 @@ public class PortfolioService {
 
     public PortfolioResponse<List<PortfolioPreviewResponse>> portfolioPreview(Long userId, Long portfolioUserId) {
         boolean isMine = Objects.equals(userId, portfolioUserId);
+
         List<PortfolioPreviewResponse> rows = isMine
                 ? portfolioRepository.findPreviewsByUserId(portfolioUserId)
                 : portfolioRepository.findPublicPreviewsByUserId(portfolioUserId);
 
         List<PortfolioPreviewResponse> resultList =  rows.stream()
-                .map(r -> {
-                    String key = r.thumbnailUrl(); // DB에 저장된 건 key
-                    String url = cdnOrNull(key);
-                    return new PortfolioPreviewResponse(r.portfolioId(), r.title(), url, r.isPublic(), r.isFavorite());
-                })
+                .map(r -> new PortfolioPreviewResponse(
+                        r.portfolioId(),
+                        r.title(),
+                        cdnOrNull(r.thumbnailUrl()),
+                        r.isPublic(),
+                        r.isFavorite()
+                ))
                 .toList();
 
         return PortfolioResponse.of(isMine, resultList);
     }
 
     public PortfolioResponse<PortfolioDetailResponse> portfolioDetail(Long userId, Long portfolioUserId, Long portfolioId) {
-
-        PortfolioProject portfolio = portfolioRepository.findById(portfolioId)
+        PortfolioProject project = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
 
-        if (!Objects.equals(portfolio.getUserId(), portfolioUserId)) throw new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND);
+        assertPathUserMatchesOwner(portfolioUserId, project);
 
-        boolean isMine = Objects.equals(userId, portfolio.getUserId());
-        if (!isMine && !portfolio.isPublic()) {
+        boolean isMine = Objects.equals(userId, project.getUserId());
+        if (!isMine && !project.isPublic()) {
             throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
         }
 
-        String thumbUrl = cdnOrNull(portfolio.getThumbnailUrl());
-        PortfolioProjectDto projectDto = PortfolioProjectDto.from(portfolio, thumbUrl);
+        String thumbUrl = cdnOrNull(project.getThumbnailUrl());
+        PortfolioProjectDto projectDto = PortfolioProjectDto.from(project, thumbUrl);
 
         List<PortfolioAsset> assets = portfolioAssetRepository.findAssetsByPortfolioId(portfolioId);
 
@@ -151,11 +156,12 @@ public class PortfolioService {
     }
 
     @Transactional
-    public PortfolioPreviewResponse update(Long userId, Long portfolioId, PortfolioRequest request) {
+    public PortfolioPreviewResponse update(Long userId, Long portfolioUserId, Long portfolioId, PortfolioRequest request) {
         PortfolioProject project = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
 
-        validateOwnership(userId, project);
+        assertPathUserMatchesOwner(portfolioUserId, project);
+        assertOwner(userId, project);
 
         project.updateInfo(
                 request.projectTitle(),
@@ -183,43 +189,56 @@ public class PortfolioService {
     }
 
     @Transactional
-    public void delete(Long userId, Long portfolioId) {
+    public void delete(Long userId, Long portfolioUserId, Long portfolioId) {
         PortfolioProject project = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
 
-        validateOwnership(userId, project);
+        assertPathUserMatchesOwner(portfolioUserId, project);
+
+        boolean isAdmin = userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
+        boolean isOwner = Objects.equals(project.getUserId(), userId);
+
+        if (!isOwner && !isAdmin) throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
 
         portfolioAttachmentService.deleteAllFilesAfterCommit(project);
-
         portfolioRepository.delete(project);
     }
 
     @Transactional
-    public boolean togglePublic(Long userId, Long portfolioId) {
+    public boolean togglePublic(Long userId, Long portfolioUserId, Long portfolioId) {
         PortfolioProject project = portfolioRepository.findById(portfolioId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND)); // 포트폴리오를 찾을 수 없습니다.
+                .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
 
-        validateOwnership(userId, project);
+        assertPathUserMatchesOwner(portfolioUserId, project);
+        assertOwner(userId, project);
 
         project.setPublic(!project.isPublic());
+        project.setUpdatedAt(LocalDate.now());
         return project.isPublic();
     }
 
     @Transactional
-    public boolean toggleFavorite(Long userId, Long portfolioId) {
+    public boolean toggleFavorite(Long userId, Long portfolioUserId, Long portfolioId) {
         PortfolioProject project = portfolioRepository.findById(portfolioId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND)); // 포트폴리오를 찾을 수 없습니다.
+                .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
 
-        validateOwnership(userId, project);
+        assertPathUserMatchesOwner(portfolioUserId, project);
+        assertOwner(userId, project);
 
         project.setFavorite(!project.isFavorite());
+        project.setUpdatedAt(LocalDate.now());
         return project.isFavorite();
     }
 
-    private void validateOwnership(Long userId, PortfolioProject project) {
-        if (!project.getUserId().equals(userId)) {
-            throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN); // 수정 권한이 없습니다.
-        }
+    /* util
+    */
+
+    private void assertPathUserMatchesOwner(Long portfolioUserId, PortfolioProject project) {
+        if (!Objects.equals(project.getUserId(), portfolioUserId)) throw new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND);
+    }
+
+    private void assertOwner(Long userId, PortfolioProject project) {
+        if (!Objects.equals(project.getUserId(), userId)) throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
     }
 
     private String cdnOrNull(String key) {
