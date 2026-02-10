@@ -2,13 +2,23 @@ package CamNecT.CamNecT_Server.global.tag.repository;
 
 import CamNecT.CamNecT_Server.global.tag.model.TagCategory;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface TagCategoryRepository extends JpaRepository<TagCategory, Long> {
-    List<TagCategory> findAllByActiveTrueOrderBySortOrderAscIdAsc();
-    Optional<TagCategory> findByCodeAndActiveTrue(String code);
+
+    List<TagCategory> findAllByActiveTrueAndCodeInOrderBySortOrderAscIdAsc(List<String> codes);
+
+    @Query("""
+        SELECT c.code
+        FROM TagCategory c
+        WHERE c.active = true
+          AND c.code NOT IN :excludedCodes
+        ORDER BY c.sortOrder ASC, c.id ASC
+    """)
+    List<String> findBaseCategoryCodesExcluding(@Param("excludedCodes") List<String> excludedCodes);
 }

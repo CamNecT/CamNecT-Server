@@ -6,8 +6,11 @@ import CamNecT.CamNecT_Server.domain.point.repository.PointWalletRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
+import CamNecT.CamNecT_Server.global.notification.event.SimpleNotifiableEvent;
+import CamNecT.CamNecT_Server.global.notification.model.NotificationType;
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,7 @@ public class PointService {
 
     private final PointWalletRepository walletRepository;
     private final PointTransactionRepository transactionRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     //채택댓글 포인트 획득
     @Transactional
@@ -74,6 +78,21 @@ public class PointService {
 
             transactionRepository.save(tx);
             walletRepository.flush();
+
+            /// 알림 이벤트 발행 (저장 성공 시점)
+            NotificationType nType = (type == TransactionType.EARN) ? NotificationType.POINT_EARNED : NotificationType.POINT_SPENT;
+
+            String msg = (type == TransactionType.EARN) ? amount + "P가 지급되었습니다." : amount + "P를 사용했습니다.";
+
+            // postId는 event에 있을 수도 있으니 그대로 연결
+            eventPublisher.publishEvent(SimpleNotifiableEvent.ofAllowSelf(
+                    userId,      // receiver
+                    null,        // actor (시스템)
+                    nType,
+                    msg,
+                    event.postId(),
+                    null
+            ));
 
         } catch (OptimisticLockException e) {
             throw new CustomException(ErrorCode.CONFLICT);

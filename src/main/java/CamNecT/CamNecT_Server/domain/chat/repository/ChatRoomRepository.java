@@ -16,7 +16,7 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "JOIN FETCH r.request " +
             "JOIN FETCH r.requester " +
             "JOIN FETCH r.receiver " +
-            "WHERE r.requester.userId = :userId OR r.receiver.userId = :userId " +
+            "WHERE (r.requester.userId = :userId OR r.receiver.userId = :userId) " +
             "AND r.status = 'OPEN' " +
             "ORDER BY r.lastMessageAt DESC")
     List<ChatRoom> findAllByUserIdWithBasicInfo(@Param("userId") Long userId);

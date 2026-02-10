@@ -4,7 +4,6 @@ import CamNecT.CamNecT_Server.domain.community.dto.AuthorDto;
 import CamNecT.CamNecT_Server.domain.community.dto.request.CreatePostRequest;
 import CamNecT.CamNecT_Server.domain.community.dto.request.UpdatePostRequest;
 import CamNecT.CamNecT_Server.domain.community.dto.response.*;
-import CamNecT.CamNecT_Server.domain.community.event.CommentAcceptedEvent;
 import CamNecT.CamNecT_Server.domain.community.model.*;
 import CamNecT.CamNecT_Server.domain.community.model.Comments.AcceptedComments;
 import CamNecT.CamNecT_Server.domain.community.model.Comments.Comments;
@@ -23,6 +22,8 @@ import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CommunityErrorCode;
+import CamNecT.CamNecT_Server.global.notification.event.SimpleNotifiableEvent;
+import CamNecT.CamNecT_Server.global.notification.model.NotificationType;
 import CamNecT.CamNecT_Server.global.storage.model.UploadTicket;
 import CamNecT.CamNecT_Server.global.storage.repository.UploadTicketRepository;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
@@ -384,7 +385,14 @@ public class PostServiceImpl implements PostService {
         if (receiverId != null && !Objects.equals(receiverId, userId)) {
             pointService.earnPointByCommentSelection(receiverId, postId, commentId, rewardAcceptedComment);
 
-            eventPublisher.publishEvent(new CommentAcceptedEvent(receiverId, postId, commentId, userId));
+            eventPublisher.publishEvent(SimpleNotifiableEvent.of(
+                    receiverId,
+                    userId,
+                    NotificationType.COMMENT_ACCEPTED,
+                    "작성하신 댓글이 채택되었습니다.",
+                    postId,
+                    commentId
+            ));
         }
     }
 
