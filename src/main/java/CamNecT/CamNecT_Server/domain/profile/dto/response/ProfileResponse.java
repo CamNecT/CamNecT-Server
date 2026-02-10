@@ -13,6 +13,7 @@ public record ProfileResponse(
         ProfileBasicsDto basics,
         int following,
         int follower,
+        Integer myPoint,
         List<PortfolioPreviewResponse> portfolioProjectList,
         List<EducationResponse> educations,
         List<ExperienceResponse> experience,

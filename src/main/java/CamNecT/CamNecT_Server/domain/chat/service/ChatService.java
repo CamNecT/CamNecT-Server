@@ -42,10 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
@@ -196,9 +193,8 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public ChatRequestListResponseDto getChatRequestList(Long userId, ChatRequest.RequestType type) {
-        List<ChatRequest> requests = chatRequestRepository
-                .findAllByReceiver_UserIdAndTypeAndStatusOrderByCreatedAtDesc(
-                        userId, type, ChatRequest.RequestStatus.WAITING);
+        List<ChatRequest> requests = chatRequestRepository.findRequestsWithRequester(
+                userId, type, ChatRequest.RequestStatus.WAITING);
 
         if (requests.isEmpty()) {
             return new ChatRequestListResponseDto(List.of());
@@ -209,7 +205,7 @@ public class ChatService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<Long, String> recruitmentTitleMap = recruitmentIds.isEmpty() ? Map.of() :
+        Map<Long, String> recruitmentTitleMap = recruitmentIds.isEmpty() ? new HashMap<>() :
                 recruitmentRepository.findAllById(recruitmentIds).stream()
                         .collect(Collectors.toMap(TeamRecruitment::getRecruitId, TeamRecruitment::getTitle));
 
@@ -227,7 +223,7 @@ public class ChatService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<Long, String> majorNameMap = majorIds.isEmpty() ? Map.of() :
+        Map<Long, String> majorNameMap = majorIds.isEmpty() ? new HashMap<>() :
                 majorRepository.findAllById(majorIds).stream()
                         .collect(Collectors.toMap(Majors::getMajorId, Majors::getMajorNameKor));
 
@@ -386,10 +382,10 @@ public class ChatService {
 
                     String majorName = "전공 미입력";
                     String studentYear = "";
-                    String profileImgUrl = "";
+                    String profileImgUrl = "/images/default.png";
 
                     if (opProfile != null) {
-                        studentYear = opProfile.getYearLevel().toString();
+                        studentYear = (opProfile.getYearLevel() != null) ? opProfile.getYearLevel().toString() : "미입력";
                         if (opProfile.getMajorId() != null) {
                             majorName = majorRepository.findById(opProfile.getMajorId())
                                     .map(Majors::getMajorNameKor)
