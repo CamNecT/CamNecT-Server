@@ -127,6 +127,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                             bookmarkCount,
                             activity.getOrganizer(),
                             activity.getApplyEndDate(),
+                            activity.getStatus(),
                             activity.getCreatedAt()
                     );
                 })
