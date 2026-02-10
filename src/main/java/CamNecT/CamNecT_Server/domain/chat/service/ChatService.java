@@ -370,10 +370,10 @@ public class ChatService {
 
                     String majorName = "전공 미입력";
                     String studentYear = "";
-                    String profileImgUrl = "";
+                    String profileImgUrl = "/images/default.png";
 
                     if (opProfile != null) {
-                        studentYear = opProfile.getYearLevel().toString();
+                        studentYear = (opProfile.getYearLevel() != null) ? opProfile.getYearLevel().toString() : "미입력";
                         if (opProfile.getMajorId() != null) {
                             majorName = majorRepository.findById(opProfile.getMajorId())
                                     .map(Majors::getMajorNameKor)
