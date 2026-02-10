@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.users.repository;
 
+import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,26 +24,6 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     List<UserProfile> findAllByUserIdIn(Collection<Long> userIds);
 
     boolean existsByUserId(Long userId);
-
-
-    @Query("SELECT DISTINCT up FROM UserProfile up " +
-            "JOIN UserTagMap utm ON up.userId = utm.userId " +
-            "WHERE utm.tagId IN :tagIds")
-    Page<UserProfile> findByAnyTagIds(@Param("tagIds") List<Long> tagIds, Pageable pageable);
-
-    @Query("SELECT up FROM UserProfile up JOIN FETCH up.user WHERE up.userId = :userId")
-    Optional<UserProfile> findByUserIdWithUser(Long userId);
-
-    @Query("""
-        SELECT up FROM UserProfile up
-        WHERE EXISTS ( SELECT 1 FROM UserTagMap utm
-        WHERE utm.userId = up.userId
-        AND utm.tagId IN :tagIds GROUP BY utm.userId
-        HAVING COUNT(DISTINCT utm.tagId) = :tagCount
-        )
-    """)
-    Slice<UserProfile> findByAllTagIds(List<Long> tagIds, Long tagCount, Pageable pageable);
-
     boolean existsByUserIdAndOpenToCoffeeChatTrue(Long userId);
 
     @Query("""
@@ -52,4 +33,20 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     where up.userId in :userIds
 """)
     List<UserProfile> findAllByUserIdInWithUser(@Param("userIds") List<Long> userIds);
+
+    @Query("""
+    select new CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto(
+        p.userId,
+        u.name,
+        m.majorNameKor,
+        p.studentNo,
+        p.profileImageKey
+    )
+    from UserProfile p
+    join p.user u
+    left join p.major m
+    where p.userId in :userIds
+    """)
+    List<ProfileGlobalDto> findGlobalsByUserIdIn(@Param("userIds") List<Long> userIds);
+
 }

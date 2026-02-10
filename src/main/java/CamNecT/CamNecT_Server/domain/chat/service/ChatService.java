@@ -19,6 +19,7 @@ import CamNecT.CamNecT_Server.domain.chat.repository.ChatRepository;
 import CamNecT.CamNecT_Server.domain.chat.repository.ChatRequestRepository;
 import CamNecT.CamNecT_Server.domain.chat.repository.ChatRoomRepository;
 import CamNecT.CamNecT_Server.domain.home.dto.HomeResponse;
+import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
@@ -188,7 +189,7 @@ public class ChatService {
                 .map(Tag::getName)
                 .toList();
 
-        return ChatRequestDetailDto.from(me, opponent, opProfile, request, majorName, opTagNames, profileImgUrl, title);
+        return ChatRequestDetailDto.from(me, opponent, request, majorName, opTagNames, profileImgUrl, title);
     }
 
     @Transactional(readOnly = true)
@@ -214,37 +215,29 @@ public class ChatService {
                 .distinct()
                 .toList();
 
-        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(opponentIds)
-                .stream()
+        Map<Long, ProfileGlobalDto> globalMap = userProfileRepository.findGlobalsByUserIdIn(opponentIds).stream()
+                .collect(Collectors.toMap(ProfileGlobalDto::userId, it -> it));
+
+        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(opponentIds).stream()
                 .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
-
-        Set<Long> majorIds = profileMap.values().stream()
-                .map(UserProfile::getMajorId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        Map<Long, String> majorNameMap = majorIds.isEmpty() ? new HashMap<>() :
-                majorRepository.findAllById(majorIds).stream()
-                        .collect(Collectors.toMap(Majors::getMajorId, Majors::getMajorNameKor));
 
         List<ChatRequestListDetailDto> dtoList = requests.stream()
                 .map(request -> {
                     Users opponent = request.getRequester();
+                    ProfileGlobalDto g = globalMap.get(opponent.getUserId());
                     UserProfile opProfile = profileMap.get(opponent.getUserId());
 
                     String majorName = "전공 미입력";
-                    String profileImgUrl = "/images/default.png";
-                    String title = recruitmentTitleMap.getOrDefault(request.getRecruitmentId(), "커피챗 요청");
-
-                    if (opProfile != null) {
-                        if (opProfile.getMajorId() != null) {
-                            majorName = majorNameMap.getOrDefault(opProfile.getMajorId(), "알 수 없는 전공");
-                        }
-
-                        if (StringUtils.hasText(opProfile.getProfileImageKey())) {
-                            profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
-                        }
+                    if (g != null && StringUtils.hasText(g.majorName())) {
+                        majorName = g.majorName();
                     }
+
+                    String profileImgUrl = "/images/default.png";
+                    if (g != null && StringUtils.hasText(g.profileImageKey())) {
+                        profileImgUrl = publicUrlIssuer.issuePublicUrl(g.profileImageKey());
+                    }
+
+                    String title = recruitmentTitleMap.getOrDefault(request.getRecruitmentId(), "커피챗 요청");
 
                     return ChatRequestListDetailDto.from(
                             opponent,
@@ -537,41 +530,24 @@ public class ChatService {
 
         List<Long> senderIds = latest.stream()
                 .map(cr -> cr.getRequester().getUserId())
-                .distinct()
-                .toList();
+                .distinct().toList();
 
-        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(senderIds).stream()
-                .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
-
-        Set<Long> majorIds = profileMap.values().stream()
-                .map(UserProfile::getMajorId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        Map<Long, String> majorNameMap = majorIds.isEmpty()
-                ? Map.of()
-                : majorRepository.findAllById(majorIds).stream()
-                .collect(Collectors.toMap(Majors::getMajorId, Majors::getMajorNameKor));
+        Map<Long, ProfileGlobalDto> globalMap =
+                userProfileRepository.findGlobalsByUserIdIn(senderIds).stream()
+                        .collect(Collectors.toMap(ProfileGlobalDto::userId, it -> it));
 
         List<HomeResponse.CoffeeChatSection.CoffeeChatPreview> previews = latest.stream()
                 .map(cr -> {
                     Users sender = cr.getRequester();
-                    UserProfile p = profileMap.get(sender.getUserId());
+                    ProfileGlobalDto g = globalMap.get(sender.getUserId());
 
-                    String majorName = null;
-                    String studentNo = null;
-
-                    if (p != null) {
-                        if (p.getMajorId() != null) {
-                            majorName = majorNameMap.get(p.getMajorId()); // 없으면 null
-                        }
-                        studentNo = (StringUtils.hasText(p.getStudentNo()) ? p.getStudentNo() : null);
-                    }
+                    String majorName = (g != null ? g.majorName() : null);
+                    String studentNo = (g != null && StringUtils.hasText(g.studentNo()) ? g.studentNo() : null);
 
                     return new HomeResponse.CoffeeChatSection.CoffeeChatPreview(
                             cr.getId(),
                             sender.getUserId(),
-                            sender.getName(),
+                            sender.getName(), // 이름은 sender에서 그대로
                             majorName,
                             studentNo
                     );

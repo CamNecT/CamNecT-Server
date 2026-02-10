@@ -91,7 +91,6 @@ public class GifticonVendorClientImpl implements GifticonVendorClient {
                         i.goodsName,               // productName
                         i.salePrice,               // pricePoints (1포인트=1원 가정)
                         i.goodsImg,                // imageUrl
-                        null,                      // detailImageUrl
                         0                          // sortScore
                 ))
                 .toList();
