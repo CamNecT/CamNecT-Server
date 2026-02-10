@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.profile.controller;
 
+import CamNecT.CamNecT_Server.domain.profile.dto.response.FollowListResponse;
 import CamNecT.CamNecT_Server.domain.profile.service.FollowService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
@@ -40,5 +41,24 @@ public class FollowController {
     ) {
         followService.unfollow(userId, followingId);
         return ApiResponse.success(null);
+    }
+
+
+    @Operation(
+            summary = "팔로워 목록 조회",
+            description = "나를 팔로우하는 유저들의 목록을 반환합니다."
+    )
+    @GetMapping("/me/followers")
+    public ApiResponse<FollowListResponse> getMyFollowers(@UserId Long userId) {
+        return ApiResponse.success(followService.getFollowerList(userId));
+    }
+
+    @Operation(
+            summary = "팔로잉 목록 조회",
+            description = "내가 팔로우하는 유저들의 목록을 반환합니다."
+    )
+    @GetMapping("/me/followings")
+    public ApiResponse<FollowListResponse> getMyFollowings(@UserId Long userId) {
+        return ApiResponse.success(followService.getFollowingList(userId));
     }
 }
