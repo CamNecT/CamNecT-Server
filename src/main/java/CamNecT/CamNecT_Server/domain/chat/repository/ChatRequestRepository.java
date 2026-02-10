@@ -1,6 +1,7 @@
 package CamNecT.CamNecT_Server.domain.chat.repository;
 
 import CamNecT.CamNecT_Server.domain.chat.model.ChatRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -84,6 +85,40 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
             @Param("userId") Long userId,
             @Param("type") ChatRequest.RequestType type,
             @Param("recruitmentId") Long recruitmentId,
+            @Param("status") ChatRequest.RequestStatus status
+    );
+
+    @Query("SELECT DISTINCT cr FROM ChatRequest cr " +
+            "JOIN FETCH cr.requester " +
+            "LEFT JOIN FETCH cr.requestInterests " +
+            "WHERE cr.receiver.userId = :userId " +
+            "AND cr.type = :type " +
+            "AND cr.status = :status " +
+            "ORDER BY cr.createdAt DESC")
+    List<ChatRequest> findAllWithDetails(
+            @Param("userId") Long userId,
+            @Param("type") ChatRequest.RequestType type,
+            @Param("status") ChatRequest.RequestStatus status
+    );
+
+    @Query(value = "SELECT cr FROM ChatRequest cr JOIN FETCH cr.requester " +
+            "WHERE cr.receiver.userId = :userId AND cr.status = :status",
+            countQuery = "SELECT count(cr) FROM ChatRequest cr WHERE cr.receiver.userId = :userId AND cr.status = :status")
+    Page<ChatRequest> findLatestWithRequester(
+            @Param("userId") Long userId,
+            @Param("status") ChatRequest.RequestStatus status,
+            Pageable pageable
+    );
+
+    @Query("SELECT cr FROM ChatRequest cr " +
+            "JOIN FETCH cr.requester " +
+            "WHERE cr.receiver.userId = :userId " +
+            "AND cr.type = :type " +
+            "AND cr.status = :status " +
+            "ORDER BY cr.createdAt DESC")
+    List<ChatRequest> findRequestsWithRequester(
+            @Param("userId") Long userId,
+            @Param("type") ChatRequest.RequestType type,
             @Param("status") ChatRequest.RequestStatus status
     );
 }
