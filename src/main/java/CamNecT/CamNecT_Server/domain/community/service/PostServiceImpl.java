@@ -326,7 +326,7 @@ public class PostServiceImpl implements PostService {
                     ))
                     .toList();
         }
-
+        boolean exists = postBookmarksRepository.existsByPost_IdAndUser_UserId(postId, userId);
 
         return new PostDetailResponse(
                 post.getId(),
@@ -341,6 +341,7 @@ public class PostServiceImpl implements PostService {
                 tagIds,
                 attachments,
                 accessStatus,
+                exists,
                 requiredPoints,
                 myPoints,
                 author
