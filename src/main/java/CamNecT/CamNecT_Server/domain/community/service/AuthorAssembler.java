@@ -1,7 +1,6 @@
 package CamNecT.CamNecT_Server.domain.community.service;
 
 import CamNecT.CamNecT_Server.domain.community.dto.AuthorDto;
-import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
@@ -19,7 +18,6 @@ import java.util.stream.Collectors;
 public class AuthorAssembler {
 
     private final UserProfileRepository userProfileRepository;
-    private final MajorRepository majorRepository;
     private final PublicUrlIssuer publicUrlIssuer;
 
     public Map<Long, AuthorDto> buildAuthorMap(List<Long> userIds) {

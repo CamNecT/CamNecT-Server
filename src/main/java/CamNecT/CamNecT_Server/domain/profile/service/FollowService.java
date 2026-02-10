@@ -1,12 +1,8 @@
 package CamNecT.CamNecT_Server.domain.profile.service;
 
-import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
-import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.FollowListResponse;
 import CamNecT.CamNecT_Server.domain.users.model.UserFollow;
-import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
-import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserFollowRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
@@ -28,7 +24,6 @@ public class FollowService {
     private final UserFollowRepository followRepository;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
-    private final MajorRepository majorRepository;
     private final PublicUrlIssuer publicUrlIssuer;
 
     @Transactional

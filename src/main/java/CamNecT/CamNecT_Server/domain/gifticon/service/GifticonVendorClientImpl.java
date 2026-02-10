@@ -105,25 +105,16 @@ public class GifticonVendorClientImpl implements GifticonVendorClient {
 
         public static class Result {
             public String returnCode;
-            public String returnMsg;
         }
 
         public static class Item {
-            public String mid;
             public String goodsId;
             public String brand;
             public String goodsName;
             public String goodsImg;
-            public Integer orgPrice;
             public Integer salePrice;
-            public Double offer;
-            public Integer expiry;
             public String displayYN;
-            public String limitDate;
             public String description;
-            public String category1;
-            public String category2;
-            public String brandCategory;
         }
     }
 }
