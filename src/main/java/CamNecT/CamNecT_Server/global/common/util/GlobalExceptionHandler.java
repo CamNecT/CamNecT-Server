@@ -26,11 +26,4 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ec.getHttpStatus())
                 .body(new ErrorResponse(ec.getHttpStatus().value(), ec.getCode(), ec.getMessage()));
     }
-
-//    @ExceptionHandler(Exception.class)
-//    public ResponseEntity<ErrorResponse> handleEtc(Exception e) {
-//        ErrorCode ec = ErrorCode.INTERNAL_ERROR;
-//        return ResponseEntity.status(ec.getHttpStatus())
-//                .body(new ErrorResponse(ec.getHttpStatus().value(), ec.getCode(), ec.getMessage()));
-//    }
 }

@@ -71,7 +71,6 @@ public class EmailVerificationToken {
         this.user = user;
     }
 
-    public boolean isUsed() { return usedAt != null; }
     public boolean isExpired() { return LocalDateTime.now().isAfter(expiresAt); }
     public boolean isLocked() { return attemptCount >= MAX_ATTEMPTS; }
 

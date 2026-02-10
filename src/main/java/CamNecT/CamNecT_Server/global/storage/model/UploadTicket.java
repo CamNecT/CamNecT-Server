@@ -44,7 +44,7 @@ public class UploadTicket {
     @Column(name = "storage_key", nullable = false, length = 500)
     private String storageKey;
 
-    @Column(name = "original_filename", length = 255)
+    @Column(name = "original_filename")
     private String originalFilename;
 
     @Column(name = "content_type", nullable = false, length = 100)
