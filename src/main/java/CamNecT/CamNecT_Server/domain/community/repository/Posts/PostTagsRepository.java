@@ -2,6 +2,7 @@ package CamNecT.CamNecT_Server.domain.community.repository.Posts;
 
 import CamNecT.CamNecT_Server.domain.community.model.Posts.PostTags;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -12,6 +13,8 @@ public interface PostTagsRepository extends JpaRepository<PostTags, Long> {
 
     List<PostTags> findByPost_Id(Long postId);
 
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from PostTags pt where pt.post.id = :postId")
     void deleteByPost_Id(Long postId);
 
     boolean existsByPost_IdAndTag_Id(Long postId, Long tagId);
