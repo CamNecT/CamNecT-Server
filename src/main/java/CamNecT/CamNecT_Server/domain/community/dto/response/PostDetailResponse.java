@@ -19,6 +19,7 @@ public record PostDetailResponse(
         List<Long> tagIds,
         List<PostAttachmentItemResponse> attachments,
         ContentAccessStatus accessStatus,
+        boolean bookmarked,
         Integer requiredPoints,
         Integer myPoints,
         AuthorDto author
