@@ -9,6 +9,7 @@ import lombok.Getter;
 @Builder
 public class ChatRoomListDetailDto {
     private Long roomId;
+    private Long opponentId;
     private String opponentName;
     private String opponentProfileImgUrl;
 
@@ -28,6 +29,7 @@ public class ChatRoomListDetailDto {
 
         return ChatRoomListDetailDto.builder()
                 .roomId(room.getId())
+                .opponentId(opponent.getUserId())
                 .opponentName(opponent.getName())
                 .opponentProfileImgUrl(profileImgUrl)
 
