@@ -13,6 +13,7 @@ import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -39,15 +40,15 @@ public class FollowService {
             throw new CustomException(UserErrorCode.USER_NOT_FOUND);
         }
 
-        if (followRepository.existsByFollowerIdAndFollowingId(followerId, followingId)) {
+        try {
+            UserFollow follow = UserFollow.builder()
+                    .followerId(followerId)
+                    .followingId(followingId)
+                    .build();
+            followRepository.saveAndFlush(follow);
+        } catch (DataIntegrityViolationException e) {
             throw new CustomException(UserErrorCode.ALREADY_FOLLOWING);
         }
-
-        UserFollow follow = UserFollow.builder()
-                .followerId(followerId)
-                .followingId(followingId)
-                .build();
-        followRepository.save(follow);
     }
 
     @Transactional
