@@ -18,12 +18,4 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(ec.getHttpStatus())
                 .body(new ErrorResponse(ec.getHttpStatus().value(), ec.getCode(), ec.getMessage()));
     }
-
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValid(MethodArgumentNotValidException e) {
-        // 원하면 필드 메시지를 만들 수도 있고, 일단은 BAD_REQUEST로 통일해도 됨
-        ErrorCode ec = ErrorCode.BAD_REQUEST;
-        return ResponseEntity.status(ec.getHttpStatus())
-                .body(new ErrorResponse(ec.getHttpStatus().value(), ec.getCode(), ec.getMessage()));
-    }
 }
