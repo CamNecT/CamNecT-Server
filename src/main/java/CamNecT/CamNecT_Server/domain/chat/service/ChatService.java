@@ -196,9 +196,8 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public ChatRequestListResponseDto getChatRequestList(Long userId, ChatRequest.RequestType type) {
-        List<ChatRequest> requests = chatRequestRepository
-                .findAllByReceiver_UserIdAndTypeAndStatusOrderByCreatedAtDesc(
-                        userId, type, ChatRequest.RequestStatus.WAITING);
+        List<ChatRequest> requests = chatRequestRepository.findRequestsWithRequester(
+                userId, type, ChatRequest.RequestStatus.WAITING);
 
         if (requests.isEmpty()) {
             return new ChatRequestListResponseDto(List.of());

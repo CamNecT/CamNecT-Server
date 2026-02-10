@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -40,6 +41,7 @@ public class ChatRequest {
         @JoinColumn(name = "request_interests", nullable = false)
         private List<Tag> requestInterests;*/
 
+    @BatchSize(size = 100)
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "chat_request_interests",
