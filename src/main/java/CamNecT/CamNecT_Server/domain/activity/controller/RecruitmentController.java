@@ -60,4 +60,14 @@ public class RecruitmentController {
         return ApiResponse.success(applicationId);
     }
 
+    @Operation(summary = "팀원 모집 마감", description = "팀원 모집을 마감합니다. 작성자만 마감할 수 있습니다.")
+    @PatchMapping("/{recruitmentId}/close")
+    public ApiResponse<String> closeRecruitment(
+            @PathVariable Long recruitmentId,
+            @UserId Long userId
+    ) {
+        recruitmentService.closeRecruitment(userId, recruitmentId);
+        return ApiResponse.success("팀원 모집이 성공적으로 마감되었습니다.");
+    }
+
 }
