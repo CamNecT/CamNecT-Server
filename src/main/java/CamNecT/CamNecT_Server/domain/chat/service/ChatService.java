@@ -174,6 +174,7 @@ public class ChatService {
                 .orElse(null);
 
         String majorName = "전공 미입력";
+        String studentNo = "학번 미입력";
         String profileImgUrl = "/images/default.png";
         if (opProfile != null) {
             if (opProfile.getMajorId() != null) {
@@ -181,6 +182,7 @@ public class ChatService {
                         .map(Majors::getMajorNameKor)
                         .orElse("알 수 없는 전공");
             }
+            studentNo = opProfile.getStudentNo();
             profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
         }
 
@@ -189,7 +191,7 @@ public class ChatService {
                 .map(Tag::getName)
                 .toList();
 
-        return ChatRequestDetailDto.from(me, opponent, request, majorName, opTagNames, profileImgUrl, title);
+        return ChatRequestDetailDto.from(me, opponent, request, majorName, studentNo, opTagNames, profileImgUrl, title);
     }
 
     @Transactional(readOnly = true)
