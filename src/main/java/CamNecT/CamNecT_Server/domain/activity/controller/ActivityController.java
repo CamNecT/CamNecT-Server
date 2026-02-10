@@ -1,6 +1,7 @@
 package CamNecT.CamNecT_Server.domain.activity.controller;
 
 import CamNecT.CamNecT_Server.domain.activity.dto.request.ActivityRequest;
+import CamNecT.CamNecT_Server.domain.activity.dto.request.AdminActivityRequest;
 import CamNecT.CamNecT_Server.domain.activity.dto.response.ActivityDetailResponse;
 import CamNecT.CamNecT_Server.domain.activity.dto.response.ActivityPreviewResponse;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityCategory;
@@ -87,6 +88,16 @@ public class ActivityController {
         return ApiResponse.success(activityId);
     }
 
+    @Operation(summary = "대외활동 모집 마감", description = "대외활동 모집을 마감합니다. 스터디/동아리만 마감할 수 있으며, 작성자만 마감할 수 있습니다.")
+    @PatchMapping("/{activityId}/close")
+    public ApiResponse<String> closeActivity(
+            @PathVariable Long activityId,
+            @UserId Long userId
+    ){
+        activityService.closeActivity(userId, activityId);
+        return ApiResponse.success("대외활동이 성공적으로 모집 완료되었습니다.");
+    }
+
     @Operation(summary = "대외활동 북마크 설정 (토글 방식)", description = "활동의 북마크 상태를 반전(Toggle)시킵니다. 등록 시 등록 메시지, 해제 시 해제 메시지를 반환합니다.")
     @PostMapping("/{activityId}/bookmark")
     public ApiResponse<String> toggleBookmark(
@@ -99,6 +110,31 @@ public class ActivityController {
 
         return ApiResponse.success(message);
     }
+
+    // --- 관리자 API ---
+    @Operation(
+            summary = "[관리자] 대외활동/취업정보 등록",
+            description = "관리자가 대외활동 또는 취업정보 게시글을 작성합니다. EXTERNAL(대외활동) 또는 RECRUITMENT(취업정보) 카테고리만 가능합니다."
+    )
+    @PostMapping("/admin")
+    public ApiResponse<ActivityPreviewResponse> createAdmin(
+            @RequestBody @Valid AdminActivityRequest request
+    ){
+        return ApiResponse.success(activityService.createAdmin(request));
+    }
+
+    @Operation(
+            summary = "[관리자] 대외활동/취업정보 모집 마감",
+            description = "관리자가 작성한 대외활동 또는 취업정보 게시글을 마감합니다."
+    )
+    @PatchMapping("/admin/{activityId}/close")
+    public ApiResponse<String> closeActivityAdmin(
+            @PathVariable Long activityId
+    ){
+        activityService.closeActivityAdmin(activityId);
+        return ApiResponse.success("대외활동이 성공적으로 모집 완료되었습니다.");
+    }
+
 
     // --- S3 Presign URL 발급 API 추가 ---
     @Operation(summary = "대외활동 썸네일 업로드용 Presigned URL 발급")

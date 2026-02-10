@@ -30,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -182,4 +183,23 @@ public class RecruitmentService {
         return teamApplicationRepository.save(application).getApplicationId();
     }
 
+    @Transactional
+    public void closeRecruitment(Long userId, Long recruitId) {
+        // 1. 모집글 조회
+        TeamRecruitment recruitment = recruitmentRepository.findById(recruitId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
+
+        // 2. 작성자 본인 확인
+        if (!Objects.equals(recruitment.getUserId(), userId)) {
+            throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
+        }
+
+        // 3. 이미 마감된 경우
+        if (recruitment.getRecruitStatus() == RecruitStatus.CLOSED) {
+            throw new CustomException(ActivityErrorCode.ALREADY_CLOSED);
+        }
+
+        // 4. 상태를 CLOSED로 변경 (더티 체킹으로 자동 업데이트)
+        recruitment.close();
+    }
 }
