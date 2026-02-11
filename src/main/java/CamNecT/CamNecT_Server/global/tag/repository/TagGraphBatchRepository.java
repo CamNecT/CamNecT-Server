@@ -19,6 +19,9 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
         INSERT INTO tag_stats(context, tag_id, doc_count, updated_at)
         SELECT 'PROFILE', utm.tag_id, COUNT(DISTINCT utm.user_id), NOW(6)
         FROM user_tag_map utm
+        JOIN tags t ON t.tag_id = utm.tag_id
+        WHERE t.tag_category_id NOT IN (7,8)
+          AND t.active = 1
         GROUP BY utm.tag_id
         ON DUPLICATE KEY UPDATE
           doc_count = VALUES(doc_count),
@@ -33,7 +36,11 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
         SELECT 'POST_COMMUNITY', pt.tag_id, COUNT(DISTINCT pt.post_id), NOW(6)
         FROM post_tags pt
         JOIN posts p ON p.post_id = pt.post_id
-        WHERE p.board_code IN ('INFO','QUESTION')
+        JOIN boards b ON b.board_id = p.board_id
+        JOIN tags t ON t.tag_id = pt.tag_id
+        WHERE b.code IN ('INFO','QUESTION')
+          AND t.tag_category_id NOT IN (7,8)
+          AND t.active = 1
         GROUP BY pt.tag_id
         ON DUPLICATE KEY UPDATE
           doc_count = VALUES(doc_count),
@@ -47,6 +54,9 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
         INSERT INTO tag_stats(context, tag_id, doc_count, updated_at)
         SELECT 'POST_ACTIVITY', eat.tag_id, COUNT(DISTINCT eat.activity_id), NOW(6)
         FROM external_activity_tags eat
+        JOIN tags t ON t.tag_id = eat.tag_id
+        WHERE t.tag_category_id NOT IN (7,8)
+          AND t.active = 1
         GROUP BY eat.tag_id
         ON DUPLICATE KEY UPDATE
           doc_count = VALUES(doc_count),
@@ -56,27 +66,35 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
 
     // -------------------------
     // 2) TagRelation upsert (Cosine + minEvidence + threshold + TopK)
-    //    - 파라미터: :minEvidence, :threshold, :topK
     // -------------------------
 
+    // PROFILE
     @Modifying
     @Transactional
-    @Query(value =
-        """
+    @Query(value = """
         WITH
         tag_cnt AS (
-          SELECT tag_id, COUNT(DISTINCT user_id) AS cnt
-          FROM user_tag_map
-          GROUP BY tag_id
+          SELECT utm.tag_id, COUNT(DISTINCT utm.user_id) AS cnt
+          FROM user_tag_map utm
+          JOIN tags t ON t.tag_id = utm.tag_id
+          WHERE t.tag_category_id NOT IN (7,8)
+            AND t.active = 1
+          GROUP BY utm.tag_id
         ),
         pairs AS (
           SELECT a.tag_id AS tag_a,
                  b.tag_id AS tag_b,
                  COUNT(DISTINCT a.user_id) AS co
           FROM user_tag_map a
+          JOIN tags ta ON ta.tag_id = a.tag_id
           JOIN user_tag_map b
             ON a.user_id = b.user_id
            AND a.tag_id < b.tag_id
+          JOIN tags tb ON tb.tag_id = b.tag_id
+          WHERE ta.tag_category_id NOT IN (7,8)
+            AND tb.tag_category_id NOT IN (7,8)
+            AND ta.active = 1
+            AND tb.active = 1
           GROUP BY a.tag_id, b.tag_id
           HAVING co >= :minEvidence
         ),
@@ -113,6 +131,7 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
             @Param("topK") int topK
     );
 
+    // POST_COMMUNITY
     @Modifying
     @Transactional
     @Query(value = """
@@ -121,7 +140,11 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
           SELECT pt.post_id AS doc_id, pt.tag_id
           FROM post_tags pt
           JOIN posts p ON p.post_id = pt.post_id
-          WHERE p.board_code IN ('INFO','QUESTION')
+          JOIN boards b ON b.board_id = p.board_id
+          JOIN tags t ON t.tag_id = pt.tag_id
+          WHERE b.code IN ('INFO','QUESTION')
+            AND t.tag_category_id NOT IN (7,8)
+            AND t.active = 1
         ),
         tag_cnt AS (
           SELECT tag_id, COUNT(DISTINCT doc_id) AS cnt
@@ -172,23 +195,33 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
             @Param("topK") int topK
     );
 
+    // POST_ACTIVITY
     @Modifying
     @Transactional
     @Query(value = """
         WITH
         tag_cnt AS (
-          SELECT tag_id, COUNT(DISTINCT activity_id) AS cnt
-          FROM external_activity_tags
-          GROUP BY tag_id
+          SELECT eat.tag_id, COUNT(DISTINCT eat.activity_id) AS cnt
+          FROM external_activity_tags eat
+          JOIN tags t ON t.tag_id = eat.tag_id
+          WHERE t.tag_category_id NOT IN (7,8)
+            AND t.active = 1
+          GROUP BY eat.tag_id
         ),
         pairs AS (
           SELECT a.tag_id AS tag_a,
                  b.tag_id AS tag_b,
                  COUNT(DISTINCT a.activity_id) AS co
           FROM external_activity_tags a
+          JOIN tags ta ON ta.tag_id = a.tag_id
           JOIN external_activity_tags b
             ON a.activity_id = b.activity_id
            AND a.tag_id < b.tag_id
+          JOIN tags tb ON tb.tag_id = b.tag_id
+          WHERE ta.tag_category_id NOT IN (7,8)
+            AND tb.tag_category_id NOT IN (7,8)
+            AND ta.active = 1
+            AND tb.active = 1
           GROUP BY a.tag_id, b.tag_id
           HAVING co >= :minEvidence
         ),
@@ -224,4 +257,31 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
             @Param("threshold") double threshold,
             @Param("topK") int topK
     );
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+    DELETE FROM tag_relation
+    WHERE context = 'PROFILE'
+      AND updated_at < :cutoff
+    """, nativeQuery = true)
+    int cleanupProfileRelations(@Param("cutoff") java.sql.Timestamp cutoff);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+    DELETE FROM tag_relation
+    WHERE context = 'POST_COMMUNITY'
+      AND updated_at < :cutoff
+    """, nativeQuery = true)
+    int cleanupPostCommunityRelations(@Param("cutoff") java.sql.Timestamp cutoff);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+    DELETE FROM tag_relation
+    WHERE context = 'POST_ACTIVITY'
+      AND updated_at < :cutoff
+    """, nativeQuery = true)
+    int cleanupPostActivityRelations(@Param("cutoff") java.sql.Timestamp cutoff);
 }
