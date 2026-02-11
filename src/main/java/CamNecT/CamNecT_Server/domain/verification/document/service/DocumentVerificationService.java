@@ -12,6 +12,7 @@ import CamNecT.CamNecT_Server.domain.verification.document.model.DocumentVerific
 import CamNecT.CamNecT_Server.domain.verification.document.model.VerificationStatus;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.VerificationErrorCode;
+import CamNecT.CamNecT_Server.global.common.service.GlobalPresignMethods;
 import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadRequest;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignDownloadResponse;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadResponse;
@@ -31,6 +32,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +46,7 @@ public class DocumentVerificationService {
     private final PresignEngine presignEngine;
     private final UploadTicketRepository ticketRepo;
     private final FileStorage fileStorage;
+    private final GlobalPresignMethods globalPresignMethods;
 
     // ===== presign upload =====
     @Transactional
@@ -131,6 +134,7 @@ public class DocumentVerificationService {
             String oldKey = oldPending.getStorageKey();
             if (!StringUtils.hasText(oldKey)) throw new CustomException(VerificationErrorCode.OLD_PENDING_INVALID);
 
+            globalPresignMethods.deleteAfterCommit(Set.of(oldKey));
             oldPending.cancel();
         }
 
