@@ -19,11 +19,6 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
             "ORDER BY c.createdAt ASC")
     List<Chat> findAllByRoomId(@Param("roomId") Long roomId);
 
-    @Modifying(clearAutomatically = true)
-    @Query("UPDATE Chat c SET c.isRead = true, c.readAt = CURRENT_TIMESTAMP " +
-            "WHERE c.room.id = :roomId AND c.receiver.userId = :userId AND c.isRead = false")
-    void bulkReadMessages(@Param("roomId") Long roomId, @Param("userId") Long userId);
-
     // 내가 받은 안 읽은 메시지
     @Query("""
                 select c
@@ -33,16 +28,6 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
                   and c.isRead = false
             """)
     List<Chat> findUnreadMessages(@Param("roomId") Long roomId, @Param("userId") Long userId);
-
-    // unread count
-/*    @Query("""
-                select count(c)
-                from Chat c
-                where c.room.id = :roomId
-                  and c.receiver.userId = :userId
-                  and c.isRead = false
-            """)
-    long countUnread(Long roomId, Long userId);*/
 
     long countByRoom_IdAndReceiver_UserIdAndIsReadFalse(Long roomId, Long receiverId);
 

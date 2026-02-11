@@ -10,33 +10,22 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> {
-//    // 받은 요청 목록
-//    List<ChatRequest> findAllByReceiverIdOrderByCreatedAtDesc(Long receiverId);
-//
-//    // 보낸 요청 목록
-//    List<ChatRequest> findAllByRequesterIdOrderByCreatedAtDesc(Long requesterId);
-//
-//    // 중복 신청 방지
-//    boolean existsByRequesterIdAndReceiverIdAndStatus(Long requesterId, Long receiverId, ChatRequest.RequestStatus status);
-
-
-    @Query("SELECT cr FROM ChatRequest cr " +
-            "JOIN FETCH cr.requester " +
-            "JOIN FETCH cr.requestInterests " +
-            "WHERE cr.receiver.userId = :userId AND cr.status = :status")
-    List<ChatRequest> findAllByReceiver_UserIdAndStatusOrderByCreatedAtDesc(
-            @Param("userId") Long userId,
-            @Param("status") ChatRequest.RequestStatus status
-    );
-
-
-    //    List<ChatRequest> findAllByReceiver_UserIdAndStatusOrderByCreatedAtDesc(Long userId, ChatRequest.RequestStatus status);
-
-    // 내가 보낸 요청 목록
-    List<ChatRequest> findAllByRequester_UserIdOrderByCreatedAtDesc(Long userId);
 
     // 중복 신청 방지
-    boolean existsByRequester_UserIdAndReceiver_UserIdAndStatus(Long requesterId, Long receiverId, ChatRequest.RequestStatus status);
+    boolean existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
+            Long requesterId,
+            Long receiverId,
+            ChatRequest.RequestStatus status,
+            ChatRequest.RequestType type
+    );
+
+    boolean existsByRequester_UserIdAndReceiver_UserIdAndStatusAndTypeAndRecruitmentId(
+            Long requesterId,
+            Long receiverId,
+            ChatRequest.RequestStatus status,
+            ChatRequest.RequestType type,
+            Long recruitmentId
+    );
 
     long countByReceiver_UserIdAndStatus(Long userId, ChatRequest.RequestStatus status);
 
@@ -52,16 +41,6 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
             @Param("userId") Long userId,
             @Param("status") ChatRequest.RequestStatus status,
             Pageable pageable
-    );
-
-    @Query("SELECT cr FROM ChatRequest cr " +
-            "JOIN FETCH cr.requester " +
-            "WHERE cr.receiver.userId = :userId AND cr.type = :type AND cr.status = :status " +
-            "ORDER BY cr.createdAt DESC")
-    List<ChatRequest> findAllByReceiver_UserIdAndTypeAndStatusOrderByCreatedAtDesc(
-            @Param("userId") Long userId,
-            @Param("type") ChatRequest.RequestType type,
-            @Param("status") ChatRequest.RequestStatus status
     );
 
     @Query("SELECT cr FROM ChatRequest cr " +
@@ -88,28 +67,6 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
             @Param("status") ChatRequest.RequestStatus status
     );
 
-    @Query("SELECT DISTINCT cr FROM ChatRequest cr " +
-            "JOIN FETCH cr.requester " +
-            "LEFT JOIN FETCH cr.requestInterests " +
-            "WHERE cr.receiver.userId = :userId " +
-            "AND cr.type = :type " +
-            "AND cr.status = :status " +
-            "ORDER BY cr.createdAt DESC")
-    List<ChatRequest> findAllWithDetails(
-            @Param("userId") Long userId,
-            @Param("type") ChatRequest.RequestType type,
-            @Param("status") ChatRequest.RequestStatus status
-    );
-
-    @Query(value = "SELECT cr FROM ChatRequest cr JOIN FETCH cr.requester " +
-            "WHERE cr.receiver.userId = :userId AND cr.status = :status",
-            countQuery = "SELECT count(cr) FROM ChatRequest cr WHERE cr.receiver.userId = :userId AND cr.status = :status")
-    Page<ChatRequest> findLatestWithRequester(
-            @Param("userId") Long userId,
-            @Param("status") ChatRequest.RequestStatus status,
-            Pageable pageable
-    );
-
     @Query("SELECT cr FROM ChatRequest cr " +
             "JOIN FETCH cr.requester " +
             "WHERE cr.receiver.userId = :userId " +
@@ -124,13 +81,13 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
 
     //팀원모집 마감에서 미승인자들 일괄 모집 마감 알림 발송용
     @Query("""
-    select cr
-    from ChatRequest cr
-    join fetch cr.requester req
-    where cr.type = :type
-      and cr.recruitmentId = :recruitmentId
-      and cr.status <> :accepted
-    """)
+            select cr
+            from ChatRequest cr
+            join fetch cr.requester req
+            where cr.type = :type
+              and cr.recruitmentId = :recruitmentId
+              and cr.status <> :accepted
+            """)
     List<ChatRequest> findAllNonAcceptedTeamRecruitFetchRequester(
             @Param("type") ChatRequest.RequestType type,
             @Param("recruitmentId") Long recruitmentId,

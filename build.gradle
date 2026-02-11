@@ -70,8 +70,6 @@ dependencies {
 
     // WebSocket
     implementation("org.springframework.boot:spring-boot-starter-websocket")
-    // 타임리프 (이게 없으면 HTML 파일을 못 찾고 순환 에러가 남) -> 웹소켓 테스트용
-    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 
     //QueryDsl
     implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'

@@ -78,18 +78,18 @@ public class ChatService {
             throw new CustomException(CoffeeChatErrorCode.SELF_REQUEST_NOT_ALLOWED);
         }
 
-        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                requesterId, receiverId, ChatRequest.RequestStatus.WAITING)
-                || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                receiverId, requesterId, ChatRequest.RequestStatus.WAITING)
+        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
+                requesterId, receiverId, ChatRequest.RequestStatus.WAITING, ChatRequest.RequestType.COFFEE_CHAT)
+                || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
+                receiverId, requesterId, ChatRequest.RequestStatus.WAITING, ChatRequest.RequestType.COFFEE_CHAT)
         ) {
             throw new CustomException(CoffeeChatErrorCode.DUPLICATE_REQUEST);
         }
 
-        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                requesterId, receiverId, ChatRequest.RequestStatus.ACCEPTED)
-                || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                receiverId, requesterId, ChatRequest.RequestStatus.ACCEPTED)) {
+        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
+                requesterId, receiverId, ChatRequest.RequestStatus.ACCEPTED, ChatRequest.RequestType.COFFEE_CHAT)
+                || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
+                receiverId, requesterId, ChatRequest.RequestStatus.ACCEPTED, ChatRequest.RequestType.COFFEE_CHAT)) {
             throw new CustomException(CoffeeChatErrorCode.CHATROOM_ALREADY_EXISTS);
         }
 
