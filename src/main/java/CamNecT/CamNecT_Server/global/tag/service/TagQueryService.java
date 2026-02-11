@@ -4,7 +4,7 @@ import CamNecT.CamNecT_Server.global.tag.dto.TagCategoryDto;
 import CamNecT.CamNecT_Server.global.tag.dto.TagDto;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.global.tag.model.TagCategory;
-import CamNecT.CamNecT_Server.global.tag.model.TagScope;
+import CamNecT.CamNecT_Server.global.tag.model.enums.TagScope;
 import CamNecT.CamNecT_Server.global.tag.repository.TagCategoryRepository;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;

@@ -25,11 +25,15 @@ import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.Activit
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
+import CamNecT.CamNecT_Server.global.notification.event.SimpleNotifiableEvent;
+import CamNecT.CamNecT_Server.global.notification.model.NotificationType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -46,6 +50,8 @@ public class RecruitmentService {
     private final TeamApplicationRepository teamApplicationRepository;
     private final UserRepository userRepository;
     private final ChatRequestRepository chatRequestRepository;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public TeamRecruitment createRecruitment(Long userId, RecruitmentRequest request) {
@@ -138,7 +144,7 @@ public class RecruitmentService {
         }
 
         //요청 가능 상태인지 확인
-        if(recruitment.getRecruitStatus() == RecruitStatus.CLOSED)
+        if (recruitment.getRecruitStatus() == RecruitStatus.CLOSED)
             throw new CustomException(ActivityErrorCode.RECRUITMENT_CLOSED);
 
         //신청 객체 생성 및 저장
@@ -147,6 +153,18 @@ public class RecruitmentService {
                 .userId(userId)
                 .content(request.content())
                 .build();
+
+        // 모집글 작성자에게 알림
+        eventPublisher.publishEvent(SimpleNotifiableEvent.of(
+                recruitment.getUserId(),                 // receiver = 모집글 작성자
+                userId,                                  // actor = 지원자
+                NotificationType.TEAM_APPLICATION_RECEIVED,
+                "팀원 모집에 지원이 도착했습니다.",
+                null,
+                null,
+                recruitId,                               // requestId에 recruitId 넣어서 FE가 이동 처리 가능
+                null
+        ));
 
         // 커피챗 요청 로직
         Users requester = userRepository.findById(userId)
@@ -158,15 +176,15 @@ public class RecruitmentService {
             throw new CustomException(CoffeeChatErrorCode.SELF_REQUEST_NOT_ALLOWED);
         }
 
-        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                userId, recruitment.getUserId(), ChatRequest.RequestStatus.WAITING)) {
+        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndTypeAndRecruitmentId(
+                userId, recruitment.getUserId(), ChatRequest.RequestStatus.WAITING, ChatRequest.RequestType.TEAM_RECRUIT, recruitId)) {
             throw new CustomException(CoffeeChatErrorCode.DUPLICATE_REQUEST);
         }
 
-        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                userId, recruitment.getUserId(), ChatRequest.RequestStatus.ACCEPTED)
-                || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                recruitment.getUserId(), userId, ChatRequest.RequestStatus.ACCEPTED)) {
+        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndTypeAndRecruitmentId(
+                userId, recruitment.getUserId(), ChatRequest.RequestStatus.ACCEPTED, ChatRequest.RequestType.TEAM_RECRUIT, recruitId)
+                || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndTypeAndRecruitmentId(
+                recruitment.getUserId(), userId, ChatRequest.RequestStatus.ACCEPTED, ChatRequest.RequestType.TEAM_RECRUIT, recruitId)) {
             throw new CustomException(CoffeeChatErrorCode.CHATROOM_ALREADY_EXISTS);
         }
 
@@ -180,6 +198,8 @@ public class RecruitmentService {
                 .build();
 
         chatRequestRepository.save(chatRequest);
+
+
         return teamApplicationRepository.save(application).getApplicationId();
     }
 
@@ -201,5 +221,28 @@ public class RecruitmentService {
 
         // 4. 상태를 CLOSED로 변경 (더티 체킹으로 자동 업데이트)
         recruitment.close();
+
+        // 5. 대기중인 TEAM_RECRUIT 요청들 전부 거절 처리 + 알림
+        List<ChatRequest> targets = chatRequestRepository.findAllNonAcceptedTeamRecruitFetchRequester(
+                ChatRequest.RequestType.TEAM_RECRUIT,
+                recruitId,
+                ChatRequest.RequestStatus.ACCEPTED
+        );
+
+        String title = recruitment.getTitle() != null ? recruitment.getTitle() : "팀원 모집";
+
+        for (ChatRequest r : targets) {
+            if (r.getStatus() == ChatRequest.RequestStatus.WAITING) r.reject();
+
+            eventPublisher.publishEvent(SimpleNotifiableEvent.of(
+                    r.getRequester().getUserId(),                // receiver = 지원자
+                    userId,                                      // actor = 모집글 작성자
+                    NotificationType.TEAM_RECRUIT_CLOSED,
+                    "모집이 마감되었습니다. (" + title + ")",
+                    null, null,
+                    r.getId(),                                   // requestId = chat_request.request_id
+                    null
+            ));
+        }
     }
 }
