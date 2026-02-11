@@ -18,6 +18,7 @@ public enum VerificationErrorCode implements BaseErrorCode {
     CODE_EXPIRED_OR_USED(HttpStatus.BAD_REQUEST, 42031, "인증 코드가 만료되었거나 이미 사용되었습니다."),
     INVALID_CODE(HttpStatus.BAD_REQUEST, 42032, "인증 코드가 올바르지 않습니다."),
     APPROVE_FIELDS_REQUIRED(HttpStatus.BAD_REQUEST, 42033, "승인에 필요한 학생 정보가 누락되었습니다."),
+    OLD_PENDING_INVALID(HttpStatus.BAD_REQUEST,42034,"기존 pending파일이 올바르지 않습니다."),
 
     // 421xx - 업로드 포맷/사이즈
     FILE_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, 42123, "파일 크기가 제한을 초과했습니다."),

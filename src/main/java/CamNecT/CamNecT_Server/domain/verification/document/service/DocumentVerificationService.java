@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.verification.document.service;
 
+import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.domain.verification.document.repository.DocumentVerificationSubmissionRepository;
 import CamNecT.CamNecT_Server.domain.verification.document.config.DocumentVerificationProperties;
 import CamNecT.CamNecT_Server.domain.verification.document.dto.DocumentVerificationDetailResponse;
@@ -38,6 +39,7 @@ public class DocumentVerificationService {
     private final DocumentVerificationProperties props;
 
     private final DocumentVerificationSubmissionRepository submissionRepo;
+    private final UserRepository userRepository;
 
     private final PresignEngine presignEngine;
     private final UploadTicketRepository ticketRepo;
@@ -75,9 +77,11 @@ public class DocumentVerificationService {
             throw new CustomException(VerificationErrorCode.DOCUMENTS_REQUIRED);
         }
 
-        if (submissionRepo.existsByUserIdAndStatus(userId, VerificationStatus.PENDING)) {
-            throw new CustomException(VerificationErrorCode.PENDING_ALREADY_EXISTS);
-        }
+        userRepository.lockUserRow(userId);
+
+        DocumentVerificationSubmission oldPending = submissionRepo
+                .findTopByUserIdAndStatusOrderBySubmittedAtDesc(userId, VerificationStatus.PENDING)
+                .orElse(null);
 
         UploadTicket t = ticketRepo.findByStorageKey(documentKey)
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.FILE_NOT_FOUND));
@@ -122,6 +126,13 @@ public class DocumentVerificationService {
         );
 
         sub.replaceStorageKey(finalKey);
+
+        if (oldPending != null && !oldPending.getId().equals(sub.getId())) {
+            String oldKey = oldPending.getStorageKey();
+            if (!StringUtils.hasText(oldKey)) throw new CustomException(VerificationErrorCode.OLD_PENDING_INVALID);
+
+            oldPending.cancel();
+        }
 
         return new SubmitDocumentVerificationResponse(sub.getId(), sub.getStatus(), sub.getSubmittedAt());
     }

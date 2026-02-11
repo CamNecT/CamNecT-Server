@@ -11,7 +11,6 @@ import java.util.Optional;
 
 public interface DocumentVerificationSubmissionRepository extends JpaRepository<DocumentVerificationSubmission, Long> {
 
-    boolean existsByUserIdAndStatus(Long userId, VerificationStatus status);
 
     List<DocumentVerificationSubmission> findByUserIdOrderBySubmittedAtDesc(Long userId);
 
@@ -20,4 +19,6 @@ public interface DocumentVerificationSubmissionRepository extends JpaRepository<
     Page<DocumentVerificationSubmission> findByStatusOrderBySubmittedAtDesc(VerificationStatus status, Pageable pageable);
 
     Optional<DocumentVerificationSubmission> findTopByUserIdOrderBySubmittedAtDesc(Long userId);
+
+    Optional<DocumentVerificationSubmission> findTopByUserIdAndStatusOrderBySubmittedAtDesc(Long userId, VerificationStatus status);
 }
