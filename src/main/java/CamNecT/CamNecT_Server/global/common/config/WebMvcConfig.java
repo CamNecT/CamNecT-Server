@@ -45,7 +45,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         }
         if (adminEnabled) {
             registry.addInterceptor(adminRoleInterceptor)
-                    .addPathPatterns("/api/admin/**");
+                    .addPathPatterns("/api/admin/**")
+                    .addPathPatterns("/api/activity/admin/**");
         }
     }
 }
