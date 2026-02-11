@@ -144,7 +144,7 @@ public class RecruitmentService {
         }
 
         //요청 가능 상태인지 확인
-        if(recruitment.getRecruitStatus() == RecruitStatus.CLOSED)
+        if (recruitment.getRecruitStatus() == RecruitStatus.CLOSED)
             throw new CustomException(ActivityErrorCode.RECRUITMENT_CLOSED);
 
         //신청 객체 생성 및 저장
@@ -176,15 +176,15 @@ public class RecruitmentService {
             throw new CustomException(CoffeeChatErrorCode.SELF_REQUEST_NOT_ALLOWED);
         }
 
-        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                userId, recruitment.getUserId(), ChatRequest.RequestStatus.WAITING)) {
+        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndTypeAndRecruitmentId(
+                userId, recruitment.getUserId(), ChatRequest.RequestStatus.WAITING, ChatRequest.RequestType.TEAM_RECRUIT, recruitId)) {
             throw new CustomException(CoffeeChatErrorCode.DUPLICATE_REQUEST);
         }
 
-        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                userId, recruitment.getUserId(), ChatRequest.RequestStatus.ACCEPTED)
-                || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatus(
-                recruitment.getUserId(), userId, ChatRequest.RequestStatus.ACCEPTED)) {
+        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndTypeAndRecruitmentId(
+                userId, recruitment.getUserId(), ChatRequest.RequestStatus.ACCEPTED, ChatRequest.RequestType.TEAM_RECRUIT, recruitId)
+                || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndTypeAndRecruitmentId(
+                recruitment.getUserId(), userId, ChatRequest.RequestStatus.ACCEPTED, ChatRequest.RequestType.TEAM_RECRUIT, recruitId)) {
             throw new CustomException(CoffeeChatErrorCode.CHATROOM_ALREADY_EXISTS);
         }
 
