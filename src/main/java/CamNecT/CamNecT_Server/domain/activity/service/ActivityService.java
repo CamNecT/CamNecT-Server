@@ -88,6 +88,7 @@ public class ActivityService {
                 a.bookmarkCount(),
                 a.organizer(),
                 a.applyEndDate(),
+                a.status(),
                 a.createdAt()
         ));
     }
@@ -153,6 +154,7 @@ public class ActivityService {
                 0L, // 새로 생성된 활동이므로 북마크 수는 0
                 saved.getOrganizer(),
                 saved.getApplyEndDate(),
+                saved.getStatus(),
                 saved.getCreatedAt()
         );
     }
@@ -204,6 +206,7 @@ public class ActivityService {
                 0L,
                 saved.getOrganizer(),
                 saved.getApplyEndDate(),
+                saved.getStatus(),
                 saved.getCreatedAt()
         );
     }
