@@ -31,9 +31,9 @@ public class CommunityHomeServiceImpl implements CommunityHomeService {
 
         var recommended = (tagId == null)
                 ? empty()
-                : postQueryService.getPostsByTag(tagId, null, null, 10); // 여기 "추천순" 기본인지 확인 필요
+                : postQueryService.getPostsByTag(userId, tagId, null, null, 10); // 여기 "추천순" 기본인지 확인 필요
 
-        var waiting = postQueryService.getWaitingQuestions(3);
+        var waiting = postQueryService.getWaitingQuestions(userId,3);
 
         return new CommunityHomeResponse(
                 tagId,

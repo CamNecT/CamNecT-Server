@@ -2,6 +2,7 @@ package CamNecT.CamNecT_Server.domain.community.dto.response;
 
 import CamNecT.CamNecT_Server.domain.community.dto.AuthorDto;
 import CamNecT.CamNecT_Server.domain.community.model.enums.BoardCode;
+import CamNecT.CamNecT_Server.domain.community.model.enums.ContentAccessStatus;
 import CamNecT.CamNecT_Server.domain.community.model.enums.PostAccessType;
 
 import java.time.LocalDateTime;
@@ -21,5 +22,6 @@ public record PostSummaryResponse(
         List<String> tags,
         AuthorDto author,
         String thumbnailUrl,   // 일단 null 가능
-        PostAccessType accessType
+        PostAccessType accessType,
+        ContentAccessStatus accessStatus
 ) {}
