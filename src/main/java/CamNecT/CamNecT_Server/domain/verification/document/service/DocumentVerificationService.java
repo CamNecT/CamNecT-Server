@@ -86,6 +86,8 @@ public class DocumentVerificationService {
                 .findTopByUserIdAndStatusOrderBySubmittedAtDesc(userId, VerificationStatus.PENDING)
                 .orElse(null);
 
+        if(oldPending != null) throw new CustomException(VerificationErrorCode.PENDING_ALREADY_EXISTS);
+
         UploadTicket t = ticketRepo.findByStorageKey(documentKey)
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.FILE_NOT_FOUND));
 
@@ -130,13 +132,15 @@ public class DocumentVerificationService {
 
         sub.replaceStorageKey(finalKey);
 
-        if (oldPending != null && !oldPending.getId().equals(sub.getId())) {
-            String oldKey = oldPending.getStorageKey();
-            if (!StringUtils.hasText(oldKey)) throw new CustomException(VerificationErrorCode.OLD_PENDING_INVALID);
+        /// 제출대기 상태에서 재제출은 일단 로직 중단(프론트 거부사항) -> 기존의 대기상태에서의 재제출 금지 유지
+//        if (oldPending != null && !oldPending.getId().equals(sub.getId())) {
+//            String oldKey = oldPending.getStorageKey();
+//            if (!StringUtils.hasText(oldKey)) throw new CustomException(VerificationErrorCode.OLD_PENDING_INVALID);
+//
+//            globalPresignMethods.deleteAfterCommit(Set.of(oldKey));
+//            oldPending.cancel();
+//        }
 
-            globalPresignMethods.deleteAfterCommit(Set.of(oldKey));
-            oldPending.cancel();
-        }
 
         return new SubmitDocumentVerificationResponse(sub.getId(), sub.getStatus(), sub.getSubmittedAt());
     }
