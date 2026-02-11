@@ -8,18 +8,18 @@ import CamNecT.CamNecT_Server.domain.community.model.Posts.PostStats;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.PostTags;
 import CamNecT.CamNecT_Server.domain.community.model.Posts.Posts;
 import CamNecT.CamNecT_Server.domain.community.model.enums.BoardCode;
+import CamNecT.CamNecT_Server.domain.community.model.enums.ContentAccessStatus;
 import CamNecT.CamNecT_Server.domain.community.model.enums.PostAccessType;
 import CamNecT.CamNecT_Server.domain.community.model.enums.PostStatus;
 import CamNecT.CamNecT_Server.domain.community.repository.Comments.AcceptedCommentsRepository;
-import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostAttachmentsRepository;
-import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostStatsRepository;
-import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostTagsRepository;
-import CamNecT.CamNecT_Server.domain.community.repository.Posts.PostsRepository;
+import CamNecT.CamNecT_Server.domain.community.repository.Posts.*;
+import CamNecT.CamNecT_Server.domain.point.service.PointService;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CommunityErrorCode;
 import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -37,12 +37,18 @@ public class PostQueryServiceImpl implements PostQueryService {
     private final PostStatsRepository postStatsRepository;
     private final PostAttachmentsRepository postAttachmentsRepository;
     private final PostTagsRepository postTagsRepository;
+    private final PostAccessRepository postAccessRepository;
     private final AcceptedCommentsRepository acceptedCommentsRepository;
+
+    private final PointService pointService;
     private final PublicUrlIssuer  publicUrlIssuer;
     private final AuthorAssembler  authorAssembler;
 
+    @Value("${app.point.cost.question-view:100}")
+    private int questionViewCost;
+
     @Override
-    public PostListResponse getPosts(Tab tab, Sort sort, Long tagId, String keyword,
+    public PostListResponse getPosts(Long userId, Tab tab, Sort sort, Long tagId, String keyword,
                                      Long cursorId, Long cursorValue, int size) {
         int limit = Math.min(Math.max(size, 1), 50);
 
@@ -83,11 +89,11 @@ public class PostQueryServiceImpl implements PostQueryService {
             );
         };
 
-        return mapToListResponse(slice, sort);
+        return mapToListResponse(userId, slice, sort);
     }
 
     @Override
-    public PostListResponse getPostsByTag(Long tagId, Long cursorValue, Long cursorId, int size) {
+    public PostListResponse getPostsByTag(Long userId, Long tagId, Long cursorValue, Long cursorId, int size) {
         int limit = Math.min(Math.max(size, 1), 50);
 
         Slice<Posts> slice = postsRepository.findFeedRecommended(
@@ -100,21 +106,21 @@ public class PostQueryServiceImpl implements PostQueryService {
                 PageRequest.of(0, limit)
         );
 
-        return mapToListResponse(slice, Sort.RECOMMENDED);
+        return mapToListResponse(userId, slice, Sort.RECOMMENDED);
     }
 
     @Override
-    public PostListResponse getWaitingQuestions(int size) {
+    public PostListResponse getWaitingQuestions(Long userId,int size) {
         Slice<Posts> slice = postsRepository.findWaitingQuestions(
                 PostStatus.PUBLISHED,
                 BoardCode.QUESTION,
                 PageRequest.of(0, size)
         );
-        return mapToListResponse(slice, Sort.LATEST);
+        return mapToListResponse(userId, slice, Sort.LATEST);
     }
 
-    private PostListResponse mapToListResponse(Slice<Posts> slice, Sort sort) {
-        int MAX_CONTENT = 80;
+    private PostListResponse mapToListResponse(Long userId, Slice<Posts> slice, Sort sort) {
+        final int MAX_CONTENT = 80;
 
         List<Posts> posts = slice.getContent();
         if (posts.isEmpty()) return PostListResponse.of(List.of(), slice.hasNext(), null);
@@ -130,8 +136,8 @@ public class PostQueryServiceImpl implements PostQueryService {
         // tags bulk
         Map<Long, List<String>> tagsMap = new HashMap<>();
         for (PostTags pt : postTagsRepository.findAllByPostIdsWithTag(postIds)) {
-            Long postId = pt.getPost().getId();
-            tagsMap.computeIfAbsent(postId, k -> new ArrayList<>()).add(pt.getTag().getName());
+            Long pid = pt.getPost().getId();
+            tagsMap.computeIfAbsent(pid, k -> new ArrayList<>()).add(pt.getTag().getName());
         }
 
         // accepted bulk
@@ -145,15 +151,37 @@ public class PostQueryServiceImpl implements PostQueryService {
                 thumbKeyMap.put(pid, a.getFileKey());
             }
         }
-        List<PostSummaryResponse> items = new ArrayList<>(posts.size());
 
+        // author bulk
         List<Long> authorIds = posts.stream()
                 .map(p -> p.getUser().getUserId())
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-
         Map<Long, AuthorDto> authorMap = authorAssembler.buildAuthorMap(authorIds);
+
+        // ===== access bulk 준비 =====
+        List<Long> paywalledIds = posts.stream()
+                .filter(p -> p.getAccessType() == PostAccessType.POINT_REQUIRED)
+                .map(Posts::getId)
+                .toList();
+
+        Set<Long> grantedSet = (userId != null && !paywalledIds.isEmpty())
+                ? new HashSet<>(postAccessRepository.findGrantedPostIds(userId, paywalledIds))
+                : Set.of();
+
+        Integer myPoints = null;
+        boolean needBalance = (userId != null) && posts.stream().anyMatch(p ->
+                p.getAccessType() == PostAccessType.POINT_REQUIRED
+                        && !Objects.equals(userId, p.getUser().getUserId())
+                        && !grantedSet.contains(p.getId())
+        );
+        if (needBalance) {
+            myPoints = pointService.getBalance(userId);
+        }
+        // ===========================
+
+        List<PostSummaryResponse> items = new ArrayList<>(posts.size());
 
         for (Posts p : posts) {
             PostStats ps = statsMap.get(p.getId());
@@ -163,14 +191,36 @@ public class PostQueryServiceImpl implements PostQueryService {
             long answerCount = ps == null ? 0 : ps.getRootCommentCount();
             long bookmarkCount = ps == null ? 0 : ps.getBookmarkCount();
 
-            String preview = makePreview(p.getContent(), MAX_CONTENT);
+            // accessStatus 계산
+            ContentAccessStatus accessStatus;
+            boolean paywalled = p.getAccessType() == PostAccessType.POINT_REQUIRED;
+
+            if (!paywalled) {
+                accessStatus = ContentAccessStatus.GRANTED;
+            } else if (userId == null) {
+                accessStatus = ContentAccessStatus.LOGIN_REQUIRED;
+            } else if (Objects.equals(userId, p.getUser().getUserId()) || grantedSet.contains(p.getId())) {
+                accessStatus = ContentAccessStatus.GRANTED;
+            } else {
+                // myPoints는 needBalance일 때만 조회됨
+                int balance = (myPoints == null) ? 0 : myPoints;
+                accessStatus = (balance >= questionViewCost)
+                        ? ContentAccessStatus.NEED_PURCHASE
+                        : ContentAccessStatus.INSUFFICIENT_POINTS;
+            }
+
+            // preview 누출 방지: 구매 전/미로그인 상태에서는 null
+            String preview = (accessStatus == ContentAccessStatus.GRANTED)
+                    ? makePreview(p.getContent(), MAX_CONTENT)
+                    : null;
 
             String thumbUrl = null;
             String thumbKey = thumbKeyMap.get(p.getId());
             // paywall 글은 CDN 썸네일 null (보안)
-            if (p.getAccessType() != PostAccessType.POINT_REQUIRED) {
+            if (!paywalled) {
                 thumbUrl = thumbnailUrlOrNull(thumbKey);
             }
+
             AuthorDto author = authorMap.get(p.getUser().getUserId());
 
             items.add(new PostSummaryResponse(
@@ -187,7 +237,8 @@ public class PostQueryServiceImpl implements PostQueryService {
                     tagsMap.getOrDefault(p.getId(), List.of()),
                     author,
                     thumbUrl,
-                    p.getAccessType()
+                    p.getAccessType(),
+                    accessStatus
             ));
         }
 

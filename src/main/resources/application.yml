@@ -12,6 +12,8 @@ app:
       download-expiration-seconds: 300 # 5분
   upload-ticket:
     expire-job-delay-ms: 900000  # 15분
+  cdn:
+    base-url: https://cdn.camnect.site
 
   activity:
     attachments:
@@ -29,8 +31,6 @@ app:
         subject: "CamNecT 이메일 인증번호"
   verification:
     document:
-      #storage: s3 #local | s3
-      storage-dir: /var/app/uploads/verifications
       max-file-size-mb: 10
       max-files: 3
       allowed-content-types:
@@ -38,6 +38,8 @@ app:
         - image/jpeg
         - image/png
         - image/webp
+      # storage-dir는 storage=local 일 때만 사용됨
+      storage-dir: /var/app/uploads/verifications
   community:
     attachments:
       max-files: 3
@@ -64,8 +66,6 @@ app:
       first-three-likes : 100
     cost:
       question-view: 100
-  cdn:
-    base-url: https://cdn.camnect.site
   gifticon:
     catalog-sync-cron: "0 0 3 * * *"   # 매일 03:00
     export-cron: "0 10 3 * * *"        # 매일 03:10
@@ -82,6 +82,14 @@ app:
       secret-key: ${SENDB_SECRET_KEY:}
       cipher: ${SENDB_CIPHER:AES/ECB/PKCS5Padding}
       iv: ${SENDB_IV:}
+  tag-relation:
+    top-k: 15
+    min-evidence: 2
+    score-threshold: 0.15
+    alpha: 0.6
+  tag-batch:
+    enabled: true
+    cron: "0 15 4 * * *"   # 매일 04:15 (원하는대로)
 
 
 

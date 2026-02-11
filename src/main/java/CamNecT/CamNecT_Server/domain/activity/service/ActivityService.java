@@ -3,9 +3,11 @@ package CamNecT.CamNecT_Server.domain.activity.service;
 import CamNecT.CamNecT_Server.domain.activity.dto.ExternalActivityAttachmentDto;
 import CamNecT.CamNecT_Server.domain.activity.dto.ExternalActivityDto;
 import CamNecT.CamNecT_Server.domain.activity.dto.request.ActivityRequest;
+import CamNecT.CamNecT_Server.domain.activity.dto.request.AdminActivityRequest;
 import CamNecT.CamNecT_Server.domain.activity.dto.response.ActivityDetailResponse;
 import CamNecT.CamNecT_Server.domain.activity.dto.response.ActivityPreviewResponse;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityCategory;
+import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityStatus;
 import CamNecT.CamNecT_Server.domain.activity.model.external_activity.ExternalActivity;
 import CamNecT.CamNecT_Server.domain.activity.model.external_activity.ExternalActivityAttachment;
 import CamNecT.CamNecT_Server.domain.activity.model.external_activity.ExternalActivityBookmark;
@@ -86,6 +88,7 @@ public class ActivityService {
                 a.bookmarkCount(),
                 a.organizer(),
                 a.applyEndDate(),
+                a.status(),
                 a.createdAt()
         ));
     }
@@ -151,6 +154,59 @@ public class ActivityService {
                 0L, // 새로 생성된 활동이므로 북마크 수는 0
                 saved.getOrganizer(),
                 saved.getApplyEndDate(),
+                saved.getStatus(),
+                saved.getCreatedAt()
+        );
+    }
+
+    @Transactional
+    public ActivityPreviewResponse createAdmin(AdminActivityRequest request) {
+        // 1. 관리자는 대외활동과 취업정보만 작성 가능
+        if (request.category() != ActivityCategory.EXTERNAL && request.category() != ActivityCategory.RECRUITMENT) {
+            throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
+        }
+
+        // 2. 엔티티 생성 및 저장 (user는 null - 관리자가 작성)
+        ExternalActivity saved = activityRepository.save(ExternalActivity.builder()
+                .user(null)  // 관리자 게시글은 user null
+                .title(request.title())
+                .category(request.category())
+                .organizer(request.organizer())
+                .targetDescription(request.targetDescription())
+                .applyStartDate(request.applyStartDate())
+                .applyEndDate(request.applyEndDate())
+                .resultAnnounceDate(request.resultAnnounceDate())
+                .officialUrl(request.officialUrl())
+                .contextTitle(request.contextTitle())
+                .context(request.content())
+                .thumbnailUrl(DEFAULT_THUMB)
+                .build());
+
+        // 3. 썸네일 처리 (관리자용은 userId를 0L 또는 특정 관리자 ID로 설정)
+        String finalThumbPrefix = "activity/activities/activity-" + saved.getActivityId() + "/attachments/thumbnail";
+
+        if (StringUtils.hasText(request.thumbnailKey())) {
+            String finalKey = presignEngine.consume(
+                    0L,  // 관리자용 userId (실제 관리자 ID로 변경 가능)
+                    UploadPurpose.ACTIVITY_THUMBNAIL,
+                    UploadRefType.ACTIVITY,
+                    saved.getActivityId(),
+                    request.thumbnailKey(),
+                    finalThumbPrefix
+            );
+            saved.updateThumbnail(finalKey);
+        }
+
+        return new ActivityPreviewResponse(
+                saved.getActivityId(),
+                saved.getTitle(),
+                saved.getContext(),
+                thumbnailUrlOrNull(saved.getThumbnailUrl()),
+                null,
+                0L,
+                saved.getOrganizer(),
+                saved.getApplyEndDate(),
+                saved.getStatus(),
                 saved.getCreatedAt()
         );
     }
@@ -358,6 +414,56 @@ public class ActivityService {
                 bookmarkCount,
                 isBookmarked
         );
+    }
+
+    @Transactional
+    public void closeActivity(Long userId, Long activityId) {
+        // 1. 대외활동 조회
+        ExternalActivity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        // 2. 스터디와 동아리만 모집 마감 가능 (대외활동, 취업정보는 불가)
+        if (activity.getCategory() != ActivityCategory.STUDY && activity.getCategory() != ActivityCategory.CLUB) {
+            throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
+        }
+
+        // 3. 작성자 본인 확인
+        if (activity.getUser() == null || !Objects.equals(activity.getUser().getUserId(), userId)) {
+            throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
+        }
+
+        // 4. 이미 마감된 경우 예외 처리
+        if (activity.getStatus() == ActivityStatus.CLOSED) {
+            throw new CustomException(ActivityErrorCode.ALREADY_CLOSED);
+        }
+
+        // 5. 상태를 CLOSED로 변경 (더티 체킹으로 자동 업데이트)
+        activity.close();
+    }
+
+    @Transactional
+    public void closeActivityAdmin(Long activityId) {
+        // 1. 대외활동 조회
+        ExternalActivity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        // 2. 대외활동과 취업정보만 마감 가능 (관리자가 작성한 것만)
+        if (activity.getCategory() != ActivityCategory.EXTERNAL && activity.getCategory() != ActivityCategory.RECRUITMENT) {
+            throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
+        }
+
+        // 3. 관리자 게시글 확인 (user가 null인 경우)
+        if (activity.getUser() != null) {
+            throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
+        }
+
+        // 4. 이미 마감된 경우 예외 처리
+        if (activity.getStatus() == ActivityStatus.CLOSED) {
+            throw new CustomException(ActivityErrorCode.ALREADY_CLOSED);
+        }
+
+        // 5. 상태를 CLOSED로 변경
+        activity.close();
     }
 
     @Transactional

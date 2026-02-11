@@ -12,12 +12,12 @@ public interface PostQueryService {
         ALL, INFO, QUESTION
     }
 
-    PostListResponse getPosts(Tab tab, Sort sort, Long tagId, String keyword,
+    PostListResponse getPosts(Long userId, Tab tab, Sort sort, Long tagId, String keyword,
                               Long cursorId, Long cursorValue, int size);
 
     // 관심태그 기반 추천(게시판 상관없이)
-    PostListResponse getPostsByTag(Long tagId, Long cursorValue, Long cursorId, int size);
+    PostListResponse getPostsByTag(Long userId, Long tagId, Long cursorValue, Long cursorId, int size);
 
     // 답변대기 질문(QUESTION + rootCommentCount==0)
-    PostListResponse getWaitingQuestions(int size);
+    PostListResponse getWaitingQuestions(Long userId, int size);
 }

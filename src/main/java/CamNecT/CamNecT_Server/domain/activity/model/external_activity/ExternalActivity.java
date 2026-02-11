@@ -84,4 +84,8 @@ public class ExternalActivity {
         this.category = request.category();
         this.context = request.content();
     }
+
+    public void close() {
+        this.status = ActivityStatus.CLOSED;
+    }
 }

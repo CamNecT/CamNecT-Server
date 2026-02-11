@@ -61,4 +61,9 @@ public class TeamRecruitment {
             this.bookmarkCount--;
         }
     }
+
+    // 모집 마감
+    public void close() {
+        this.recruitStatus = RecruitStatus.CLOSED;
+    }
 }

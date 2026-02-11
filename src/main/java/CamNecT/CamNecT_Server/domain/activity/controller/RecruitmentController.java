@@ -60,4 +60,20 @@ public class RecruitmentController {
         return ApiResponse.success(applicationId);
     }
 
+    /*
+    * 팀 지원에 대한 승인은
+    * ChatController에서 담당합니다!
+    * (Coffechat요청과 recruitment 지원은 같은 형식에 type enum만 다름)
+    */
+
+    @Operation(summary = "팀원 모집 마감", description = "팀원 모집을 마감합니다. 작성자만 마감할 수 있습니다.")
+    @PatchMapping("/{recruitmentId}/close")
+    public ApiResponse<String> closeRecruitment(
+            @PathVariable Long recruitmentId,
+            @UserId Long userId
+    ) {
+        recruitmentService.closeRecruitment(userId, recruitmentId);
+        return ApiResponse.success("팀원 모집이 성공적으로 마감되었습니다.");
+    }
+
 }

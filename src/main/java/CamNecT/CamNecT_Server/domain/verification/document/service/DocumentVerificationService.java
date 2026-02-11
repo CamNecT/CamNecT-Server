@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.verification.document.service;
 
+import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.domain.verification.document.repository.DocumentVerificationSubmissionRepository;
 import CamNecT.CamNecT_Server.domain.verification.document.config.DocumentVerificationProperties;
 import CamNecT.CamNecT_Server.domain.verification.document.dto.DocumentVerificationDetailResponse;
@@ -11,6 +12,7 @@ import CamNecT.CamNecT_Server.domain.verification.document.model.DocumentVerific
 import CamNecT.CamNecT_Server.domain.verification.document.model.VerificationStatus;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.VerificationErrorCode;
+import CamNecT.CamNecT_Server.global.common.service.GlobalPresignMethods;
 import CamNecT.CamNecT_Server.global.storage.dto.request.PresignUploadRequest;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignDownloadResponse;
 import CamNecT.CamNecT_Server.global.storage.dto.response.PresignUploadResponse;
@@ -30,6 +32,7 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -38,10 +41,12 @@ public class DocumentVerificationService {
     private final DocumentVerificationProperties props;
 
     private final DocumentVerificationSubmissionRepository submissionRepo;
+    private final UserRepository userRepository;
 
     private final PresignEngine presignEngine;
     private final UploadTicketRepository ticketRepo;
     private final FileStorage fileStorage;
+    private final GlobalPresignMethods globalPresignMethods;
 
     // ===== presign upload =====
     @Transactional
@@ -75,9 +80,13 @@ public class DocumentVerificationService {
             throw new CustomException(VerificationErrorCode.DOCUMENTS_REQUIRED);
         }
 
-        if (submissionRepo.existsByUserIdAndStatus(userId, VerificationStatus.PENDING)) {
-            throw new CustomException(VerificationErrorCode.PENDING_ALREADY_EXISTS);
-        }
+        userRepository.lockUserRow(userId);
+
+        DocumentVerificationSubmission oldPending = submissionRepo
+                .findTopByUserIdAndStatusOrderBySubmittedAtDesc(userId, VerificationStatus.PENDING)
+                .orElse(null);
+
+        if(oldPending != null) throw new CustomException(VerificationErrorCode.PENDING_ALREADY_EXISTS);
 
         UploadTicket t = ticketRepo.findByStorageKey(documentKey)
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.FILE_NOT_FOUND));
@@ -123,6 +132,16 @@ public class DocumentVerificationService {
 
         sub.replaceStorageKey(finalKey);
 
+        /// 제출대기 상태에서 재제출은 일단 로직 중단(프론트 거부사항) -> 기존의 대기상태에서의 재제출 금지 유지
+//        if (oldPending != null && !oldPending.getId().equals(sub.getId())) {
+//            String oldKey = oldPending.getStorageKey();
+//            if (!StringUtils.hasText(oldKey)) throw new CustomException(VerificationErrorCode.OLD_PENDING_INVALID);
+//
+//            globalPresignMethods.deleteAfterCommit(Set.of(oldKey));
+//            oldPending.cancel();
+//        }
+
+
         return new SubmitDocumentVerificationResponse(sub.getId(), sub.getStatus(), sub.getSubmittedAt());
     }
 
@@ -159,7 +178,7 @@ public class DocumentVerificationService {
         DocumentVerificationSubmission r = submissionRepo.findByIdAndUserId(submissionId, userId)
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.SUBMISSION_NOT_FOUND));
 
-        if (!org.springframework.util.StringUtils.hasText(r.getStorageKey())) {
+        if (!StringUtils.hasText(r.getStorageKey())) {
             throw new CustomException(VerificationErrorCode.FILE_NOT_FOUND);
         }
 

@@ -46,6 +46,7 @@ public class PostController {
     )
     @GetMapping
     public ApiResponse<PostListResponse> list(
+            @UserId Long userId,
             @RequestParam(defaultValue = "ALL") Tab tab,
             @RequestParam(defaultValue = "RECOMMENDED") Sort sort,
             @RequestParam(required = false) Long tagId,
@@ -54,7 +55,7 @@ public class PostController {
             @RequestParam(required = false) Long cursorValue,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return ApiResponse.success(postQueryService.getPosts(tab, sort, tagId, keyword, cursorId, cursorValue, size));
+        return ApiResponse.success(postQueryService.getPosts(userId, tab, sort, tagId, keyword, cursorId, cursorValue, size));
     }
 
     @Operation(summary = "게시글 수정", description = "본인이 작성한 게시글의 내용을 수정합니다.")

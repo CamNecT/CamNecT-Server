@@ -114,15 +114,20 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                     List<String> tags = tagMap.getOrDefault(id, Collections.emptyList());
                     Long bookmarkCount = bookmarkCountMap.getOrDefault(id, 0L);
 
+                    String contextDisplay = (activity.getCategory() == ActivityCategory.RECRUITMENT)
+                            ? activity.getContextTitle() // RECRUITMENT일 때만 호출
+                            : activity.getContext();
+
                     return new ActivityPreviewResponse(
                             activity.getActivityId(),
                             activity.getTitle(),
-                            activity.getContext(),
+                            contextDisplay,
                             activity.getThumbnailUrl(),
                             tags,
                             bookmarkCount,
                             activity.getOrganizer(),
                             activity.getApplyEndDate(),
+                            activity.getStatus(),
                             activity.getCreatedAt()
                     );
                 })

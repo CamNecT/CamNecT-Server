@@ -1,7 +1,6 @@
 package CamNecT.CamNecT_Server.domain.chat.dto.request.response;
 
 import CamNecT.CamNecT_Server.domain.chat.model.ChatRequest;
-import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import lombok.Builder;
@@ -32,9 +31,9 @@ public record ChatRequestDetailDto(
 
     public static ChatRequestDetailDto from(Users me,
                                             Users opponent,
-                                            UserProfile opProfile,
                                             ChatRequest request,
                                             String majorName,
+                                            String StudentNo,
                                             List<String> opTagNames,
                                             String profileImgUrl, String title) {
 
@@ -44,7 +43,7 @@ public record ChatRequestDetailDto(
                 .opponentId(opponent.getUserId())
                 .opponentName(opponent.getName())
                 .opponentMajor(majorName)
-                .opponentStudentYear(opProfile != null && opProfile.getYearLevel() != null ? opProfile.getYearLevel().toString() : "")
+                .opponentStudentYear(StudentNo)
                 .opponentProfileImg(profileImgUrl)
                 .opponentTags(opTagNames)
                 

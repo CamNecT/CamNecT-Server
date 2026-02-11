@@ -1,11 +1,8 @@
 package CamNecT.CamNecT_Server.domain.profile.service;
 
-import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
-import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
+import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.CamNecT_Server.domain.profile.dto.response.FollowListResponse;
 import CamNecT.CamNecT_Server.domain.users.model.UserFollow;
-import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
-import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserFollowRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
@@ -27,7 +24,6 @@ public class FollowService {
     private final UserFollowRepository followRepository;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
-    private final MajorRepository majorRepository;
     private final PublicUrlIssuer publicUrlIssuer;
 
     @Transactional
@@ -85,51 +81,34 @@ public class FollowService {
             return new FollowListResponse(List.of(), 0);
         }
 
-        Map<Long, Users> userMap = userRepository.findAllById(targetIds).stream()
-                .collect(Collectors.toMap(Users::getUserId, u -> u));
-
-        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(targetIds).stream()
-                .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
-
-        Set<Long> majorIds = profileMap.values().stream()
-                .map(UserProfile::getMajorId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        Map<Long, String> majorNameMap = majorIds.isEmpty() ? Collections.emptyMap() :
-                majorRepository.findAllById(majorIds).stream()
-                        .collect(Collectors.toMap(
-                                Majors::getMajorId,
-                                m -> m.getMajorNameKor() != null ? m.getMajorNameKor() : "알 수 없는 전공"
-                        ));
+        Map<Long, ProfileGlobalDto> globalMap =
+                userProfileRepository.findGlobalsByUserIdIn(targetIds).stream()
+                        .collect(Collectors.toMap(ProfileGlobalDto::userId, it -> it));
 
         List<FollowListResponse.FollowUserDetailDto> dtoList = targetIds.stream()
                 .map(id -> {
-                    Users user = userMap.get(id);
-                    if (user == null) return null;
+                    ProfileGlobalDto g = globalMap.get(id);
+                    if (g == null) return null;
 
-                    UserProfile profile = profileMap.get(id);
-
-                    String majorName = "전공 미입력";
-                    if (profile != null && profile.getMajorId() != null) {
-                        majorName = majorNameMap.getOrDefault(profile.getMajorId(), "알 수 없는 전공");
-                    }
+                    String majorName = StringUtils.hasText(g.majorName()) ? g.majorName() : "전공 미입력";
+                    String studentNo = StringUtils.hasText(g.studentNo()) ? g.studentNo() : "학번 미입력";
 
                     String imgUrl = "/images/default.png";
-                    if (profile != null && StringUtils.hasText(profile.getProfileImageKey())) {
-                        imgUrl = publicUrlIssuer.issuePublicUrl(profile.getProfileImageKey());
+                    if (StringUtils.hasText(g.profileImageKey())) {
+                        imgUrl = publicUrlIssuer.issuePublicUrl(g.profileImageKey());
                     }
 
                     return new FollowListResponse.FollowUserDetailDto(
                             id,
-                            user.getName(),
+                            g.userName(),
                             majorName,
-                            (profile != null && profile.getStudentNo() != null) ? profile.getStudentNo() : "학번 미입력",
+                            studentNo,
                             imgUrl
                     );
                 })
                 .filter(Objects::nonNull)
                 .toList();
+
 
         return new FollowListResponse(dtoList, dtoList.size());
     }
