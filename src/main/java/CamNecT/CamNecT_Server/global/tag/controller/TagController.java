@@ -2,7 +2,7 @@ package CamNecT.CamNecT_Server.global.tag.controller;
 
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
 import CamNecT.CamNecT_Server.global.tag.dto.TagCategoryDto;
-import CamNecT.CamNecT_Server.global.tag.model.TagScope;
+import CamNecT.CamNecT_Server.global.tag.model.enums.TagScope;
 import CamNecT.CamNecT_Server.global.tag.service.TagQueryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
