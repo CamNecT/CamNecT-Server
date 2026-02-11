@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -39,21 +38,22 @@ public class TagGraphBatchService {
         int minEvidence = props.getMinEvidence();
         double threshold = props.getScoreThreshold();
 
-        // 배치 시작 시각(컷오프)
-        Timestamp cutoff = Timestamp.valueOf(LocalDateTime.now());
+        Timestamp cutoff = batchRepository.now6();
+
 
         log.info("[TagGraphBatch] start topK={}, minEvidence={}, threshold={}, cutoff={}",
                 topK, minEvidence, threshold, cutoff);
 
         // 1) stats
-        int s1 = batchRepository.upsertProfileTagStats();
-        int s2 = batchRepository.upsertPostCommunityTagStats();
-        int s3 = batchRepository.upsertPostActivityTagStats();
+        int s1 = batchRepository.upsertProfileTagStats(cutoff);
+        int s2 = batchRepository.upsertPostCommunityTagStats(cutoff);
+        int s3 = batchRepository.upsertPostActivityTagStats(cutoff);
 
         // 2) relation upsert
-        int r1 = batchRepository.upsertProfileTagRelation(minEvidence, threshold, topK);
-        int r2 = batchRepository.upsertPostCommunityTagRelation(minEvidence, threshold, topK);
-        int r3 = batchRepository.upsertPostActivityTagRelation(minEvidence, threshold, topK);
+        int r1 = batchRepository.upsertProfileTagRelation(minEvidence, threshold, topK, cutoff);
+        int r2 = batchRepository.upsertPostCommunityTagRelation(minEvidence, threshold, topK, cutoff);
+        int r3 = batchRepository.upsertPostActivityTagRelation(minEvidence, threshold, topK, cutoff);
+
 
         // 3) relation cleanup (이번 배치에서 갱신되지 않은 오래된 것 삭제)
         int c1 = batchRepository.cleanupProfileRelations(cutoff);

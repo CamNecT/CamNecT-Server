@@ -7,68 +7,91 @@ import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
+
 public interface TagGraphBatchRepository extends Repository<TagRelation, TagRelation.TagRelationId> {
 
+    // DB 시간 기준 컷오프 (JVM-DB 시간 불일치 방지)
+    @Query(value = "SELECT NOW(6)", nativeQuery = true)
+    Timestamp now6();
+
     // -------------------------
-    // 1) TagStats upsert
+    // 1) TagStats upsert (VALUES() 제거)
     // -------------------------
 
     @Modifying
     @Transactional
     @Query(value = """
         INSERT INTO tag_stats(context, tag_id, doc_count, updated_at)
-        SELECT 'PROFILE', utm.tag_id, COUNT(DISTINCT utm.user_id), NOW(6)
-        FROM user_tag_map utm
-        JOIN tags t ON t.tag_id = utm.tag_id
-        WHERE t.tag_category_id NOT IN (7,8)
-          AND t.active = 1
-        GROUP BY utm.tag_id
+        SELECT dt.context, dt.tag_id, dt.ins_doc_count, dt.ins_updated_at
+        FROM (
+            SELECT 'PROFILE' AS context,
+                   utm.tag_id AS tag_id,
+                   COUNT(DISTINCT utm.user_id) AS ins_doc_count,
+                   :now AS ins_updated_at
+            FROM user_tag_map utm
+            JOIN tags t ON t.tag_id = utm.tag_id
+            WHERE t.tag_category_id NOT IN (7,8)
+              AND t.active = 1
+            GROUP BY utm.tag_id
+        ) dt
         ON DUPLICATE KEY UPDATE
-          doc_count = VALUES(doc_count),
-          updated_at = VALUES(updated_at)
+          doc_count = ins_doc_count,
+          updated_at = ins_updated_at
         """, nativeQuery = true)
-    int upsertProfileTagStats();
+    int upsertProfileTagStats(@Param("now") Timestamp now);
 
     @Modifying
     @Transactional
     @Query(value = """
         INSERT INTO tag_stats(context, tag_id, doc_count, updated_at)
-        SELECT 'POST_COMMUNITY', pt.tag_id, COUNT(DISTINCT pt.post_id), NOW(6)
-        FROM post_tags pt
-        JOIN posts p ON p.post_id = pt.post_id
-        JOIN boards b ON b.board_id = p.board_id
-        JOIN tags t ON t.tag_id = pt.tag_id
-        WHERE b.code IN ('INFO','QUESTION')
-          AND t.tag_category_id NOT IN (7,8)
-          AND t.active = 1
-        GROUP BY pt.tag_id
+        SELECT dt.context, dt.tag_id, dt.ins_doc_count, dt.ins_updated_at
+        FROM (
+            SELECT 'POST_COMMUNITY' AS context,
+                   pt.tag_id AS tag_id,
+                   COUNT(DISTINCT pt.post_id) AS ins_doc_count,
+                   :now AS ins_updated_at
+            FROM post_tags pt
+            JOIN posts p ON p.post_id = pt.post_id
+            JOIN boards b ON b.board_id = p.board_id
+            JOIN tags t ON t.tag_id = pt.tag_id
+            WHERE b.code IN ('INFO','QUESTION')
+              AND t.tag_category_id NOT IN (7,8)
+              AND t.active = 1
+            GROUP BY pt.tag_id
+        ) dt
         ON DUPLICATE KEY UPDATE
-          doc_count = VALUES(doc_count),
-          updated_at = VALUES(updated_at)
+          doc_count = ins_doc_count,
+          updated_at = ins_updated_at
         """, nativeQuery = true)
-    int upsertPostCommunityTagStats();
+    int upsertPostCommunityTagStats(@Param("now") Timestamp now);
 
     @Modifying
     @Transactional
     @Query(value = """
         INSERT INTO tag_stats(context, tag_id, doc_count, updated_at)
-        SELECT 'POST_ACTIVITY', eat.tag_id, COUNT(DISTINCT eat.activity_id), NOW(6)
-        FROM external_activity_tags eat
-        JOIN tags t ON t.tag_id = eat.tag_id
-        WHERE t.tag_category_id NOT IN (7,8)
-          AND t.active = 1
-        GROUP BY eat.tag_id
+        SELECT dt.context, dt.tag_id, dt.ins_doc_count, dt.ins_updated_at
+        FROM (
+            SELECT 'POST_ACTIVITY' AS context,
+                   eat.tag_id AS tag_id,
+                   COUNT(DISTINCT eat.activity_id) AS ins_doc_count,
+                   :now AS ins_updated_at
+            FROM external_activity_tags eat
+            JOIN tags t ON t.tag_id = eat.tag_id
+            WHERE t.tag_category_id NOT IN (7,8)
+              AND t.active = 1
+            GROUP BY eat.tag_id
+        ) dt
         ON DUPLICATE KEY UPDATE
-          doc_count = VALUES(doc_count),
-          updated_at = VALUES(updated_at)
+          doc_count = ins_doc_count,
+          updated_at = ins_updated_at
         """, nativeQuery = true)
-    int upsertPostActivityTagStats();
+    int upsertPostActivityTagStats(@Param("now") Timestamp now);
 
     // -------------------------
-    // 2) TagRelation upsert (Cosine + minEvidence + threshold + TopK)
+    // 2) TagRelation upsert (VALUES() 제거 + updated_at=:now)
     // -------------------------
 
-    // PROFILE
     @Modifying
     @Transactional
     @Query(value = """
@@ -117,21 +140,29 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
           FROM directed
         )
         INSERT INTO tag_relation(context, from_tag_id, to_tag_id, score, evidence_count, updated_at)
-        SELECT 'PROFILE', from_tag, to_tag, score, co, NOW(6)
-        FROM ranked
-        WHERE rn <= :topK
+        SELECT dt.context, dt.from_tag_id, dt.to_tag_id, dt.ins_score, dt.ins_evidence_count, dt.ins_updated_at
+        FROM (
+            SELECT 'PROFILE' AS context,
+                   from_tag AS from_tag_id,
+                   to_tag AS to_tag_id,
+                   score AS ins_score,
+                   co AS ins_evidence_count,
+                   :now AS ins_updated_at
+            FROM ranked
+            WHERE rn <= :topK
+        ) dt
         ON DUPLICATE KEY UPDATE
-          score = VALUES(score),
-          evidence_count = VALUES(evidence_count),
-          updated_at = VALUES(updated_at)
+          score = ins_score,
+          evidence_count = ins_evidence_count,
+          updated_at = ins_updated_at
         """, nativeQuery = true)
     int upsertProfileTagRelation(
             @Param("minEvidence") int minEvidence,
             @Param("threshold") double threshold,
-            @Param("topK") int topK
+            @Param("topK") int topK,
+            @Param("now") Timestamp now
     );
 
-    // POST_COMMUNITY
     @Modifying
     @Transactional
     @Query(value = """
@@ -181,21 +212,29 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
           FROM directed
         )
         INSERT INTO tag_relation(context, from_tag_id, to_tag_id, score, evidence_count, updated_at)
-        SELECT 'POST_COMMUNITY', from_tag, to_tag, score, co, NOW(6)
-        FROM ranked
-        WHERE rn <= :topK
+        SELECT dt.context, dt.from_tag_id, dt.to_tag_id, dt.ins_score, dt.ins_evidence_count, dt.ins_updated_at
+        FROM (
+            SELECT 'POST_COMMUNITY' AS context,
+                   from_tag AS from_tag_id,
+                   to_tag AS to_tag_id,
+                   score AS ins_score,
+                   co AS ins_evidence_count,
+                   :now AS ins_updated_at
+            FROM ranked
+            WHERE rn <= :topK
+        ) dt
         ON DUPLICATE KEY UPDATE
-          score = VALUES(score),
-          evidence_count = VALUES(evidence_count),
-          updated_at = VALUES(updated_at)
+          score = ins_score,
+          evidence_count = ins_evidence_count,
+          updated_at = ins_updated_at
         """, nativeQuery = true)
     int upsertPostCommunityTagRelation(
             @Param("minEvidence") int minEvidence,
             @Param("threshold") double threshold,
-            @Param("topK") int topK
+            @Param("topK") int topK,
+            @Param("now") Timestamp now
     );
 
-    // POST_ACTIVITY
     @Modifying
     @Transactional
     @Query(value = """
@@ -244,44 +283,57 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
           FROM directed
         )
         INSERT INTO tag_relation(context, from_tag_id, to_tag_id, score, evidence_count, updated_at)
-        SELECT 'POST_ACTIVITY', from_tag, to_tag, score, co, NOW(6)
-        FROM ranked
-        WHERE rn <= :topK
+        SELECT dt.context, dt.from_tag_id, dt.to_tag_id, dt.ins_score, dt.ins_evidence_count, dt.ins_updated_at
+        FROM (
+            SELECT 'POST_ACTIVITY' AS context,
+                   from_tag AS from_tag_id,
+                   to_tag AS to_tag_id,
+                   score AS ins_score,
+                   co AS ins_evidence_count,
+                   :now AS ins_updated_at
+            FROM ranked
+            WHERE rn <= :topK
+        ) dt
         ON DUPLICATE KEY UPDATE
-          score = VALUES(score),
-          evidence_count = VALUES(evidence_count),
-          updated_at = VALUES(updated_at)
+          score = ins_score,
+          evidence_count = ins_evidence_count,
+          updated_at = ins_updated_at
         """, nativeQuery = true)
     int upsertPostActivityTagRelation(
             @Param("minEvidence") int minEvidence,
             @Param("threshold") double threshold,
-            @Param("topK") int topK
+            @Param("topK") int topK,
+            @Param("now") Timestamp now
     );
 
-    @Modifying
-    @Transactional
-    @Query(value = """
-    DELETE FROM tag_relation
-    WHERE context = 'PROFILE'
-      AND updated_at < :cutoff
-    """, nativeQuery = true)
-    int cleanupProfileRelations(@Param("cutoff") java.sql.Timestamp cutoff);
+    // -------------------------
+    // 3) cleanup (cutoff=DB now6)
+    // -------------------------
 
     @Modifying
     @Transactional
     @Query(value = """
-    DELETE FROM tag_relation
-    WHERE context = 'POST_COMMUNITY'
-      AND updated_at < :cutoff
-    """, nativeQuery = true)
-    int cleanupPostCommunityRelations(@Param("cutoff") java.sql.Timestamp cutoff);
+        DELETE FROM tag_relation
+        WHERE context = 'PROFILE'
+          AND updated_at < :cutoff
+        """, nativeQuery = true)
+    int cleanupProfileRelations(@Param("cutoff") Timestamp cutoff);
 
     @Modifying
     @Transactional
     @Query(value = """
-    DELETE FROM tag_relation
-    WHERE context = 'POST_ACTIVITY'
-      AND updated_at < :cutoff
-    """, nativeQuery = true)
-    int cleanupPostActivityRelations(@Param("cutoff") java.sql.Timestamp cutoff);
+        DELETE FROM tag_relation
+        WHERE context = 'POST_COMMUNITY'
+          AND updated_at < :cutoff
+        """, nativeQuery = true)
+    int cleanupPostCommunityRelations(@Param("cutoff") Timestamp cutoff);
+
+    @Modifying
+    @Transactional
+    @Query(value = """
+        DELETE FROM tag_relation
+        WHERE context = 'POST_ACTIVITY'
+          AND updated_at < :cutoff
+        """, nativeQuery = true)
+    int cleanupPostActivityRelations(@Param("cutoff") Timestamp cutoff);
 }
