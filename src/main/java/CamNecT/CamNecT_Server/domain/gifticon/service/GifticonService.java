@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
 public class GifticonService {
 
     private final GifticonProductRepository productRepository;
-    private final UserRepository userRepository;
     private final PointService pointService;
     private final GifticonVendorClient vendorClient;
 
@@ -62,7 +61,7 @@ public class GifticonService {
         return new GifticonHomeResponse(myPoint, views, lastSyncedAt);
     }
 
-    public GifticonProductDetailResponse productDetail(Long userId, Long productId) {
+    public GifticonProductDetailResponse productDetail(Long productId) {
         GifticonProduct p = productRepository.findById(productId)
                 .orElseThrow(() -> new CustomException(GifticonErrorCode.PRODUCT_NOT_FOUND));
 
