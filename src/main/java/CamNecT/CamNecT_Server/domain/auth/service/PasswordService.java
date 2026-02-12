@@ -37,7 +37,7 @@ public class PasswordService {
             "^(?=.{8,16}$)(?=.*[a-z])(?=.*\\d)[A-Za-z\\d!@#$%^&*()_+\\[\\]{}\\\\|;:'\",.<>/?`~=-]+$"
     );
 
-    private void validatePassword(String pw) {
+    protected void validatePassword(String pw) {
         if (pw == null || !PASSWORD_PATTERN.matcher(pw).matches()) {
             throw new CustomException(AuthErrorCode.INVALID_PASSWORD);
         }

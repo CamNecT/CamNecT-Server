@@ -12,18 +12,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.regex.Pattern;
-
 @Service
 @RequiredArgsConstructor
 public class SignupService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-
-    private static final Pattern PASSWORD_PATTERN = Pattern.compile(
-            "^(?=.{8,16}$)(?=.*[a-z])(?=.*\\d)[A-Za-z\\d!@#$%^&*()_+\\[\\]{}\\\\|;:'\",.<>/?`~=-]+$"
-    );
+    private final PasswordService passwordService;
 
     @Transactional
     public Users signupVerifiedUser(VerifySignupEmailRequest req) {
@@ -34,7 +29,7 @@ public class SignupService {
         }
 
         // 비밀번호 정책
-        validatePassword(req.password());
+        passwordService.validatePassword(req.password());
 
         // 최종 유니크
         if (userRepository.existsByEmail(req.email())) throw new CustomException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
@@ -57,12 +52,6 @@ public class SignupService {
             return userRepository.save(user);
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(AuthErrorCode.DUPLICATE_RESOURCE);
-        }
-    }
-
-    private void validatePassword(String pw) {
-        if (pw == null || !PASSWORD_PATTERN.matcher(pw).matches()) {
-            throw new CustomException(AuthErrorCode.INVALID_PASSWORD);
         }
     }
 }
