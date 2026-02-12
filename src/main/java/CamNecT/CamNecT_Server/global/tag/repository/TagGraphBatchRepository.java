@@ -91,7 +91,6 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
     // -------------------------
     // 2) TagRelation upsert (VALUES() 제거 + updated_at=:now)
     // -------------------------
-
     @Modifying
     @Transactional
     @Query(value = """
@@ -144,15 +143,15 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
       'PROFILE' AS context,
       from_tag  AS from_tag_id,
       to_tag    AS to_tag_id,
-      score     AS ins_score,
-      co        AS ins_evidence_count,
-      :now      AS ins_updated_at
-    FROM ranked
-    WHERE rn <= :topK
-    ON DUPLICATE KEY UPDATE
-      score = ins_score,
-      evidence_count = ins_evidence_count,
-      updated_at = ins_updated_at
+      score     AS score,
+      co        AS evidence_count,
+      :now      AS updated_at
+            FROM ranked
+            WHERE rn <= :topK
+            ON DUPLICATE KEY UPDATE
+      score          = VALUES(score),
+      evidence_count = VALUES(evidence_count),
+      updated_at     = VALUES(updated_at)
     """, nativeQuery = true)
     int upsertProfileTagRelation(
             @Param("minEvidence") int minEvidence,
@@ -209,20 +208,21 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
       SELECT *,
              ROW_NUMBER() OVER (PARTITION BY from_tag ORDER BY score DESC, co DESC, to_tag) AS rn
       FROM directed
-    )
+            )
     SELECT
       'POST_COMMUNITY' AS context,
       from_tag AS from_tag_id,
       to_tag AS to_tag_id,
-      score AS ins_score,
-      co AS ins_evidence_count,
-      :now AS ins_updated_at
+      score AS score,
+      co AS evidence_count,
+      :now AS updated_at
     FROM ranked
     WHERE rn <= :topK
+    AS new_res
     ON DUPLICATE KEY UPDATE
-      score = ins_score,
-      evidence_count = ins_evidence_count,
-      updated_at = ins_updated_at
+      score          = new_res.score,
+      evidence_count = new_res.evidence_count,
+      updated_at     = new_res.updated_at
     """, nativeQuery = true)
     int upsertPostCommunityTagRelation(
             @Param("minEvidence") int minEvidence,
@@ -275,23 +275,24 @@ public interface TagGraphBatchRepository extends Repository<TagRelation, TagRela
       SELECT tag_b AS from_tag, tag_a AS to_tag, score, co FROM scored
     ),
     ranked AS (
-      SELECT *,
-             ROW_NUMBER() OVER (PARTITION BY from_tag ORDER BY score DESC, co DESC, to_tag) AS rn
-      FROM directed
-    )
+     SELECT *,
+            ROW_NUMBER() OVER (PARTITION BY from_tag ORDER BY score DESC, co DESC, to_tag) AS rn
+     FROM directed
+            )
     SELECT
-      'POST_ACTIVITY' AS context,
-      from_tag AS from_tag_id,
-      to_tag AS to_tag_id,
-      score AS ins_score,
-      co AS ins_evidence_count,
-      :now AS ins_updated_at
+     'POST_ACTIVITY' AS context,
+     from_tag AS from_tag_id,
+     to_tag AS to_tag_id,
+     score AS score,
+     co AS evidence_count,
+     :now AS updated_at
     FROM ranked
     WHERE rn <= :topK
+    AS new_res
     ON DUPLICATE KEY UPDATE
-      score = ins_score,
-      evidence_count = ins_evidence_count,
-      updated_at = ins_updated_at
+      score          = new_res.score,
+      evidence_count = new_res.evidence_count,
+      updated_at     = new_res.updated_at
     """, nativeQuery = true)
     int upsertPostActivityTagRelation(
             @Param("minEvidence") int minEvidence,
