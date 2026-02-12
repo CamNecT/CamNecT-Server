@@ -35,13 +35,10 @@ public interface UploadTicketRepository extends JpaRepository<UploadTicket, Long
      where t.userId = :userId
        and t.purpose = :purpose
        and t.status = CamNecT.CamNecT_Server.global.storage.model.UploadTicket.Status.PENDING
-       and t.expiresAt < :now
 """)
     void bulkExpirePendingByUserPurpose(
             @Param("userId") Long userId,
-            @Param("purpose") UploadPurpose purpose,
-            @Param("now") LocalDateTime now
-    );
+            @Param("purpose") UploadPurpose purpose    );
 
     long countByUserIdAndPurposeAndStatus(Long userId, UploadPurpose purpose, UploadTicket.Status status);
 

@@ -31,6 +31,7 @@ public class AuthorAssembler {
             ProfileGlobalDto g = globalMap.get(uid);
             if (g == null) continue;
 
+            String studentNo = StringUtils.hasText(g.studentNo()) ? g.studentNo() : "학번 미입력";
             String majorName = StringUtils.hasText(g.majorName()) ? g.majorName() : "전공 미입력";
 
             String imgUrl = null;
@@ -42,6 +43,7 @@ public class AuthorAssembler {
                     uid,
                     g.userName(),
                     imgUrl,                 // nullable
+                    studentNo,
                     majorName
             ));
         }
