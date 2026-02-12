@@ -44,15 +44,22 @@ public class ExternalArchiveAssembler {
             ExternalActivity a = (ExternalActivity) r[0];
             long bookmarkCount = archiveUtils.safeLong(r[1]);
 
+            String contextDisplay = (a.getCategory() == ActivityCategory.RECRUITMENT)
+                    ? a.getContextTitle() // RECRUITMENT일 때만 호출
+                    : a.getContext();
+
             items.add(new MyArchiveResponse.ExternalActivityItem(
                     a.getActivityId(),
-                    tagsMap.getOrDefault(a.getActivityId(), List.of()),
                     a.getTitle(),
-                    archiveUtils.makePreview(a.getContext(), MAX_CONTENT),
+                    contextDisplay,
+                    a.getThumbnailUrl(),
+                    tagsMap.getOrDefault(a.getActivityId(), List.of()),
                     bookmarkCount,
-                    computeDDayIfContest(a),
+                    a.getOrganizer(),
+                    a.getApplyEndDate(),
+                    a.getStatus(),
                     a.getCreatedAt(),
-                    a.getThumbnailUrl()
+                    a.getCategory()
             ));
         }
 

@@ -21,29 +21,45 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     List<UserProfile> findAllByUserIdIn(Collection<Long> userIds);
 
     boolean existsByUserId(Long userId);
+
     boolean existsByUserIdAndOpenToCoffeeChatTrue(Long userId);
 
     @Query("""
-    select up
-    from UserProfile up
-    join fetch up.user u
-    where up.userId in :userIds
-""")
+                select up
+                from UserProfile up
+                join fetch up.user u
+                where up.userId in :userIds
+            """)
     List<UserProfile> findAllByUserIdInWithUser(@Param("userIds") List<Long> userIds);
 
     @Query("""
-    select new CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto(
-        p.userId,
-        u.name,
-        m.majorNameKor,
-        p.studentNo,
-        p.profileImageKey
-    )
-    from UserProfile p
-    join p.user u
-    left join p.major m
-    where p.userId in :userIds
-    """)
+            select new CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto(
+                p.userId,
+                u.name,
+                m.majorNameKor,
+                p.studentNo,
+                p.profileImageKey
+            )
+            from UserProfile p
+            join p.user u
+            left join p.major m
+            where p.userId in :userIds
+            """)
     List<ProfileGlobalDto> findGlobalsByUserIdIn(@Param("userIds") List<Long> userIds);
+
+    @Query("""
+            select new CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto(
+                p.userId,
+                u.name,
+                m.majorNameKor,
+                p.studentNo,
+                p.profileImageKey
+            )
+            from UserProfile p
+            join p.user u
+            left join p.major m
+            where p.userId = :userId
+            """)
+    Optional<ProfileGlobalDto> findGlobalByUserId(@Param("userId") Long userId);
 
 }
