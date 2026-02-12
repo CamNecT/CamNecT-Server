@@ -84,6 +84,8 @@ public class Users {
         if (!n.isBlank()) this.name = n;
     }
 
+    public void changePasswordHash(String encoded) { this.passwordHash = encoded; }
+
 
     //로그인시 User상태위한 메서드들
     public void markVerificationCompletePending() { this.verificationCompletePending = true; }
