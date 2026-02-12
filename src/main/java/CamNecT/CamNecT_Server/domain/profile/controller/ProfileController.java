@@ -1,5 +1,7 @@
 package CamNecT.CamNecT_Server.domain.profile.controller;
 
+import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePasswordRequest;
+import CamNecT.CamNecT_Server.domain.auth.service.PasswordService;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateBioRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdatePrivacyRequest;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateProfileImageRequest;
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Profile", description = "프로필 관련 API")
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 public class ProfileController {
 
     private final ProfileService profileService;
+    private final PasswordService passwordService;
 
     @Operation(
             summary = "유저 프로필 조회",
@@ -116,6 +120,13 @@ public class ProfileController {
         ProfileSettingsResponse response = profileService.getMySettings(userId);
 
         return ApiResponse.success(response);
+    }
+
+    @Operation(summary = "비밀번호 변경", description = "로그인된 사용자가 현재 비밀번호를 확인한 뒤 새 비밀번호로 변경합니다.")
+    @PatchMapping("/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updatePassword(@UserId Long userId, @RequestBody @Valid UpdatePasswordRequest req) {
+        passwordService.updateMyPassword(userId, req);
     }
 
 }

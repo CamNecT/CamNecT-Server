@@ -14,8 +14,10 @@ public interface UserTagMapRepository extends JpaRepository<UserTagMap, Long> {
     @Query("""
     SELECT utm.userId, t.name
     FROM UserTagMap utm
+    JOIN Users u ON u.userId = utm.userId
     JOIN Tag t ON utm.tagId = t.id
-    WHERE utm.userId IN :userIds AND t.active = true
+    WHERE utm.userId IN :userIds
+      AND t.active = true
 """)
     List<Object[]> findTagNamesWithUserIdByUserIdIn(@Param("userIds") List<Long> userIds);
 
@@ -28,13 +30,10 @@ public interface UserTagMapRepository extends JpaRepository<UserTagMap, Long> {
     FROM Tag t
     JOIN FETCH t.category c
     JOIN UserTagMap utm ON t.id = utm.tagId
+    JOIN Users u ON u.userId = utm.userId
     WHERE utm.userId = :userId
       AND t.active = true
 """)
     List<Tag> findAllTagsByUserId(@Param("userId") Long userId);
-
-    //유저들의 모든 태그 매핑 정보를 한번에 가져오기
-    List<UserTagMap> findAllByUserIdIn(List<Long> userIds);
-    long countByUserId(Long userId);
 
 }

@@ -15,6 +15,7 @@ import CamNecT.CamNecT_Server.domain.chat.model.ChatRequest;
 import CamNecT.CamNecT_Server.domain.chat.repository.ChatRequestRepository;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
+import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
@@ -80,21 +81,21 @@ public class RecruitmentService {
         TeamRecruitment recruitment = recruitmentRepository.findById(recruitmentId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
         //작성자 프로필 조회
-        UserProfile authorProfile = userProfileRepository.findById(recruitment.getUserId())
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
-        //전공 이름 조회
-        Majors major = majorRepository.findById(authorProfile.getMajorId())
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND)); // 에러코드 수정 필요 : 전공 정보를 찾을 수 없습니다.
+        ProfileGlobalDto profilePreview = userProfileRepository.findGlobalByUserId(recruitment.getUserId()).orElseThrow(
+                ()-> new CustomException(UserErrorCode.USER_NOT_FOUND)
+        );
 
         //북마크 여부 및 본인 글 여부 확인
+        String activityTitle = activityRepository.findTitleByActivityId(recruitment.getActivityId()).orElseThrow(
+                () -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND)
+        );
         boolean isBookmarked = bookmarkRepository.existsByUserIdAndRecruitId(currentUserId, recruitmentId);
         boolean isMine = recruitment.getUserId().equals(currentUserId);
 
         return new RecruitmentDetailResponse(
-                recruitment.getUserId(),
-                major.getMajorNameKor(),
-                authorProfile.getYearLevel(),
+                profilePreview,
                 recruitment,
+                activityTitle,
                 isMine,
                 isBookmarked
         );

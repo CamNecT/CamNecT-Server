@@ -19,5 +19,8 @@ public enum NotificationType {
     COFFEE_CHAT_ACCEPTED,
     TEAM_RECRUIT_ACCEPTED,
 
+    //COFFEE_CHAT 채팅 메세지 수신
+    CHAT_MESSAGE_RECEIVED,
+
     TEAM_RECRUIT_CLOSED
 }

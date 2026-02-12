@@ -74,6 +74,7 @@ public class NotificationEventListener {
             case COMMENT_REPLIED -> "[답글]";
             case POINT_EARNED -> "[포인트 적립]";
             case POINT_SPENT -> "[포인트 사용]";
+            case CHAT_MESSAGE_RECEIVED -> "[새 메시지]";
             default -> "[알림]";
         };
     }
