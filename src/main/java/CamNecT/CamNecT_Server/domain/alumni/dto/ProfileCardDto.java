@@ -11,23 +11,13 @@ public record ProfileCardDto(
         String studentNo,
         Long majorId
 ) {
-    public static ProfileCardDto from(UserProfile profile) {
+    public static ProfileCardDto createCard(UserProfile profile, String profileImageUrl) {
         return ProfileCardDto.builder()
                 .bio(profile.getBio())
                 .openToCoffeeChat(profile.getOpenToCoffeeChat())
-                .profileImageUrl(profile.getProfileImageKey())
+                .profileImageUrl(profileImageUrl)
                 .studentNo(profile.getStudentNo())
                 .majorId(profile.getMajorId())
-                .build();
-    }
-
-    public ProfileCardDto withProfileImageUrl(String CdnUrl) {
-        return ProfileCardDto.builder()
-                .bio(this.bio)
-                .openToCoffeeChat(this.openToCoffeeChat)
-                .profileImageUrl(CdnUrl)
-                .studentNo(this.studentNo)
-                .majorId(this.majorId)
                 .build();
     }
 }
