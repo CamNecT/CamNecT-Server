@@ -30,6 +30,7 @@ import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErr
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
 import CamNecT.CamNecT_Server.global.notification.event.CoffeeChatRequestedEvent;
+import CamNecT.CamNecT_Server.global.notification.event.NewChatMessageEvent;
 import CamNecT.CamNecT_Server.global.notification.event.SimpleNotifiableEvent;
 import CamNecT.CamNecT_Server.global.notification.model.NotificationType;
 import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
@@ -463,6 +464,16 @@ public class ChatService {
 
         chatRepository.save(chat);
         room.updateLastMessageTime();
+
+        /// 상대방 부대중일때 알림 발송(도메인에서 알림구현)
+        if (!receiverPresent) {
+            eventPublisher.publishEvent(new NewChatMessageEvent(
+                    receiver.getUserId(), // 받는 사람
+                    sender.getUserId(),   // 보낸 사람
+                    room.getId(),         // 채팅방 ID
+                    chat.getContent()     // 메시지 내용 (Event 내부에서 길이 조절됨)
+            ));
+        }
 
         ChatMessageResponseDto response = ChatMessageResponseDto.toDto(chat);
 
