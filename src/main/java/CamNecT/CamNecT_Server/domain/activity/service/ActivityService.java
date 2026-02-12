@@ -19,7 +19,9 @@ import CamNecT.CamNecT_Server.domain.activity.repository.external_activity.Exter
 import CamNecT.CamNecT_Server.domain.activity.repository.external_activity.ExternalActivityTagRepository;
 import CamNecT.CamNecT_Server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.CamNecT_Server.domain.home.dto.HomeResponse;
+import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
+import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.ActivityErrorCode;
@@ -59,6 +61,7 @@ public class ActivityService {
     private final TagRepository tagRepository;
     private final TeamRecruitmentRepository teamRecruitmentRepository;
     private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
 
     //S3 관련 의존성 주입
     private final UploadTicketRepository uploadTicketRepository;
@@ -381,6 +384,7 @@ public class ActivityService {
 
     @Transactional(readOnly = true)
     public ActivityDetailResponse getActivityDetail(Long userId, Long activityId) {
+
         // 1. 메인 활동 조회
         ExternalActivity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
@@ -391,6 +395,8 @@ public class ActivityService {
 
         // 3. 첨부파일 조회 (카테고리 조건)
         List<ExternalActivityAttachmentDto> attachmentDtos = null;
+        // 0. 유저 정보 조회
+        ProfileGlobalDto profilePreview = null;
 
         if (activity.getCategory() == ActivityCategory.EXTERNAL || activity.getCategory() == ActivityCategory.RECRUITMENT) {
 
@@ -434,6 +440,11 @@ public class ActivityService {
                     })
                     .filter(Objects::nonNull)
                     .toList();
+        }else {
+            profilePreview = userProfileRepository.findGlobalByUserId(activity.getUser().getUserId()).orElseThrow(
+                    ()-> new CustomException(UserErrorCode.USER_NOT_FOUND)
+            );
+
         }
 
         // 4. 태그 리스트 조회
@@ -449,6 +460,7 @@ public class ActivityService {
         // 6. 본인 글 여부
         boolean isMine = activity.getUser() != null && Objects.equals(activity.getUser().getUserId(), userId);
 
+
         // 7. 북마크 수 조회
         Long bookmarkCount = activityBookmarkRepository.countByActivity_ActivityId(activityId);
 
@@ -458,6 +470,7 @@ public class ActivityService {
         // 9. Response 생성
         return new ActivityDetailResponse(
                 isMine,
+                profilePreview,
                 activityDto,
                 attachmentDtos,
                 tagNames,
