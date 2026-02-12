@@ -1,6 +1,7 @@
 package CamNecT.CamNecT_Server.domain.activity.model.external_activity;
 
 import CamNecT.CamNecT_Server.domain.activity.dto.request.ActivityRequest;
+import CamNecT.CamNecT_Server.domain.activity.dto.request.AdminActivityRequest;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityCategory;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityStatus;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
@@ -82,6 +83,19 @@ public class ExternalActivity {
     public void update(ActivityRequest request) {
         this.title = request.title();
         this.category = request.category();
+        this.context = request.content();
+    }
+
+    public void updateAdmin(AdminActivityRequest request) {
+        this.title = request.title();
+        this.category = request.category();
+        this.organizer = request.organizer();
+        this.targetDescription = request.targetDescription();
+        this.applyStartDate = request.applyStartDate();
+        this.applyEndDate = request.applyEndDate();
+        this.resultAnnounceDate = request.resultAnnounceDate();
+        this.officialUrl = request.officialUrl();
+        this.contextTitle = request.contextTitle();
         this.context = request.content();
     }
 

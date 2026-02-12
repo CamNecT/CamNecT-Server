@@ -9,7 +9,7 @@ import java.util.List;
 public record ActivityPreviewResponse(
         Long activityId,
         String title,
-        String context,
+        String contextPreview,
         String thumbnailUrl,
         List<String> tags,
         Long bookmarkCount,

@@ -12,6 +12,7 @@ public class ExternalActivityAttachmentDto {
 
     private final Long id;
     private final Long activityId;
+    private final String fileKey;
     private final String fileUrl;
     private final LocalDateTime createdAt;
 
@@ -21,6 +22,7 @@ public class ExternalActivityAttachmentDto {
         return ExternalActivityAttachmentDto.builder()
                 .id(entity.getId())
                 .activityId(activityId)
+                .fileKey(entity.getFileKey())
                 .fileUrl(null) // presign으로 채울 예정
                 .createdAt(entity.getCreatedAt())
                 .build();
@@ -30,6 +32,7 @@ public class ExternalActivityAttachmentDto {
         return ExternalActivityAttachmentDto.builder()
                 .id(id)
                 .activityId(activityId)
+                .fileKey(fileKey)
                 .fileUrl(fileUrl)
                 .createdAt(createdAt)
                 .build();
