@@ -2,6 +2,7 @@ package CamNecT.CamNecT_Server.domain.activity.service;
 
 import CamNecT.CamNecT_Server.domain.activity.dto.ExternalActivityAttachmentDto;
 import CamNecT.CamNecT_Server.domain.activity.dto.ExternalActivityDto;
+import CamNecT.CamNecT_Server.domain.activity.dto.TeamRecruitmentDto;
 import CamNecT.CamNecT_Server.domain.activity.dto.request.ActivityRequest;
 import CamNecT.CamNecT_Server.domain.activity.dto.request.AdminActivityRequest;
 import CamNecT.CamNecT_Server.domain.activity.dto.response.ActivityDetailResponse;
@@ -170,7 +171,7 @@ public class ActivityService {
             throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
         }
 
-        Users adminUser = userRepository.findByUserId(userId).orElseThrow(()-> new CustomException(UserErrorCode.USER_NOT_FOUND));
+        Users adminUser = userRepository.findByUserId(userId).orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
 
         // 2. 엔티티 생성 및 저장
         ExternalActivity saved = activityRepository.save(ExternalActivity.builder()
@@ -268,7 +269,10 @@ public class ActivityService {
             // 새로운 첨부파일 처리
             for (String k : reqKeys) {
                 ExternalActivityAttachment existing = currentByKey.get(k);
-                if (existing != null) { keepKeys.add(k); continue; } // 이미 존재하는 키면 유지
+                if (existing != null) {
+                    keepKeys.add(k);
+                    continue;
+                } // 이미 존재하는 키면 유지
 
                 // 새로운 temp 키면 consume
                 String finalKey = presignEngine.consume(
@@ -376,7 +380,9 @@ public class ActivityService {
         }
 
         activityAttachmentRepository.findAllByActivity_ActivityId(activityId)
-                .forEach(a -> { if (StringUtils.hasText(a.getFileKey())) deleteAfterCommit.add(a.getFileKey()); });
+                .forEach(a -> {
+                    if (StringUtils.hasText(a.getFileKey())) deleteAfterCommit.add(a.getFileKey());
+                });
 
         activityRepository.delete(activity);
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
@@ -414,7 +420,7 @@ public class ActivityService {
             Map<String, UploadTicket> ticketMap = keys.isEmpty()
                     ? Map.of()
                     : uploadTicketRepository.findAllByStorageKeyIn(keys).stream()
-                    .collect(Collectors.toMap(UploadTicket::getStorageKey, t -> t, (a,b) -> a));
+                    .collect(Collectors.toMap(UploadTicket::getStorageKey, t -> t, (a, b) -> a));
 
             // presign (실패는 스킵)
             Map<String, String> urlMap = new HashMap<>();
@@ -440,9 +446,9 @@ public class ActivityService {
                     })
                     .filter(Objects::nonNull)
                     .toList();
-        }else {
+        } else {
             profilePreview = userProfileRepository.findGlobalByUserId(activity.getUser().getUserId()).orElseThrow(
-                    ()-> new CustomException(UserErrorCode.USER_NOT_FOUND)
+                    () -> new CustomException(UserErrorCode.USER_NOT_FOUND)
             );
 
         }
@@ -456,6 +462,16 @@ public class ActivityService {
         // 5. 팀원 공고 리스트 조회
         List<TeamRecruitment> recruitmentList =
                 teamRecruitmentRepository.findAllByActivityId(activityId);
+
+        // 3. 스트림을 이용한 변환
+        List<TeamRecruitmentDto> recruitmentDtoList = recruitmentList.stream()
+                .map(recruitment -> {
+
+                    String userName = userRepository.findNameByUserId(recruitment.getUserId()).orElse("알 수 없는 사용자");
+
+                    return recruitment.toDto(activity.getTitle(), userName);
+                })
+                .toList();
 
         // 6. 본인 글 여부
         boolean isMine = activity.getUser() != null && Objects.equals(activity.getUser().getUserId(), userId);
@@ -474,7 +490,7 @@ public class ActivityService {
                 activityDto,
                 attachmentDtos,
                 tagNames,
-                recruitmentList,
+                recruitmentDtoList,
                 bookmarkCount,
                 isBookmarked
         );
@@ -596,6 +612,7 @@ public class ActivityService {
             return null;
         }
     }
+
     /**
      * 활동의 태그 저장
      */

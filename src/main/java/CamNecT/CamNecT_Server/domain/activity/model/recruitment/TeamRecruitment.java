@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.activity.model.recruitment;
 
+import CamNecT.CamNecT_Server.domain.activity.dto.TeamRecruitmentDto;
 import CamNecT.CamNecT_Server.domain.activity.dto.request.RecruitmentRequest;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.RecruitStatus;
 import jakarta.persistence.*;
@@ -74,5 +75,21 @@ public class TeamRecruitment {
         this.content = request.content();
         this.recruitCount = request.recruitCount();
         this.recruitDeadline = request.recruitDeadline();
+    }
+
+    public TeamRecruitmentDto toDto(String activityTitle, String userName) {
+        return new TeamRecruitmentDto(
+                this.recruitId,
+                activityTitle, // 외부 서비스/레포지토리에서 조회 필요
+                userName,      // 외부 서비스/레포지토리에서 조회 필요
+                this.recruitStatus.name(),
+                this.title,
+                this.content,
+                this.recruitDeadline,
+                this.recruitCount,
+                this.bookmarkCount,
+                this.createdAt,
+                this.updatedAt
+        );
     }
 }

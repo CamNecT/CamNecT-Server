@@ -54,12 +54,16 @@ public class RecruitmentArchiveAssembler {
 
             items.add(new MyArchiveResponse.RecruitmentItem(
                     tr.getRecruitId(),
+                    activityTitleMap.get(tr.getActivityId()),
+                    authorNameMap.get(tr.getUserId()),
                     tr.getRecruitStatus().name(),
                     tr.getTitle(),
-                    authorNameMap.get(tr.getUserId()),
-                    activityTitleMap.get(tr.getActivityId()),
+                    tr.getContent(),
+                    tr.getRecruitDeadline(),
+                    tr.getRecruitCount(),
                     bookmarkCount,
-                    tr.getCreatedAt()
+                    tr.getCreatedAt(),
+                    tr.getUpdatedAt()
             ));
         }
 

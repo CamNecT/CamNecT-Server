@@ -6,6 +6,7 @@ import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
 public record RecruitmentDetailResponse(
         ProfileGlobalDto profilePreview,
         TeamRecruitment recruitment,
+        String activityTitle,
         boolean isMine,
         boolean isBookmarked
 ) {

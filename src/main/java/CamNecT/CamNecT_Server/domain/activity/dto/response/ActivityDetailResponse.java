@@ -2,6 +2,7 @@ package CamNecT.CamNecT_Server.domain.activity.dto.response;
 
 import CamNecT.CamNecT_Server.domain.activity.dto.ExternalActivityAttachmentDto;
 import CamNecT.CamNecT_Server.domain.activity.dto.ExternalActivityDto;
+import CamNecT.CamNecT_Server.domain.activity.dto.TeamRecruitmentDto;
 import CamNecT.CamNecT_Server.domain.activity.model.recruitment.TeamRecruitment;
 import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
 
@@ -13,7 +14,7 @@ public record ActivityDetailResponse(
         ExternalActivityDto activity,
         List<ExternalActivityAttachmentDto> attachment,
         List<String> tagList,
-        List<TeamRecruitment> recruitmentList,
+        List<TeamRecruitmentDto> recruitmentList,
         Long bookmarkCount,
         boolean isBookmarked
         ) {

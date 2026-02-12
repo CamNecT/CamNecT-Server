@@ -86,12 +86,16 @@ public class RecruitmentService {
         );
 
         //북마크 여부 및 본인 글 여부 확인
+        String activityTitle = activityRepository.findTitleByActivityId(recruitment.getActivityId()).orElseThrow(
+                () -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND)
+        );
         boolean isBookmarked = bookmarkRepository.existsByUserIdAndRecruitId(currentUserId, recruitmentId);
         boolean isMine = recruitment.getUserId().equals(currentUserId);
 
         return new RecruitmentDetailResponse(
                 profilePreview,
                 recruitment,
+                activityTitle,
                 isMine,
                 isBookmarked
         );
