@@ -1,14 +1,10 @@
 package CamNecT.CamNecT_Server.domain.gifticon.service;
 
-import CamNecT.CamNecT_Server.domain.gifticon.dto.response.BookmarkToggleResponse;
 import CamNecT.CamNecT_Server.domain.gifticon.dto.response.GifticonHomeResponse;
 import CamNecT.CamNecT_Server.domain.gifticon.dto.response.GifticonProductDetailResponse;
-import CamNecT.CamNecT_Server.domain.gifticon.model.GifticonBookmark;
 import CamNecT.CamNecT_Server.domain.gifticon.model.GifticonProduct;
-import CamNecT.CamNecT_Server.domain.gifticon.repository.GifticonBookmarkRepository;
 import CamNecT.CamNecT_Server.domain.gifticon.repository.GifticonProductRepository;
 import CamNecT.CamNecT_Server.domain.point.service.PointService;
-import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.GifticonErrorCode;
@@ -28,7 +24,6 @@ import java.util.stream.Collectors;
 public class GifticonService {
 
     private final GifticonProductRepository productRepository;
-    private final GifticonBookmarkRepository bookmarkRepository;
     private final UserRepository userRepository;
     private final PointService pointService;
     private final GifticonVendorClient vendorClient;
@@ -47,10 +42,6 @@ public class GifticonService {
             default -> productRepository.findAllByIsActiveTrueOrderBySortScoreDescIdDesc();
         };
 
-        Set<Long> bookmarkedIds = bookmarkRepository.findAllByUser_UserId(userId).stream()
-                .map(b -> b.getProduct().getId())
-                .collect(Collectors.toSet());
-
         LocalDateTime lastSyncedAt = products.stream()
                 .map(GifticonProduct::getLastSyncedAt)
                 .filter(Objects::nonNull)
@@ -64,7 +55,6 @@ public class GifticonService {
                         p.getProductName(),
                         p.getPricePoints(),
                         p.getImageUrl(),
-                        bookmarkedIds.contains(p.getId()),
                         Boolean.TRUE.equals(p.getIsActive())
                 ))
                 .toList();
@@ -76,39 +66,14 @@ public class GifticonService {
         GifticonProduct p = productRepository.findById(productId)
                 .orElseThrow(() -> new CustomException(GifticonErrorCode.PRODUCT_NOT_FOUND));
 
-        boolean bookmarked = bookmarkRepository.existsByUser_UserIdAndProduct_Id(userId, productId);
-
         return new GifticonProductDetailResponse(
                 p.getId(),
                 p.getBrandName(),
                 p.getProductName(),
                 p.getPricePoints(),
                 p.getImageUrl(),
-                bookmarked,
                 Boolean.TRUE.equals(p.getIsActive())
         );
-    }
-
-    @Transactional
-    public BookmarkToggleResponse toggleBookmark(Long userId, Long productId) {
-        GifticonProduct product = productRepository.findById(productId)
-                .orElseThrow(() -> new CustomException(GifticonErrorCode.PRODUCT_NOT_FOUND));
-
-        var existing = bookmarkRepository.findByUser_UserIdAndProduct_Id(userId, productId).orElse(null);
-        if (existing != null) {
-            bookmarkRepository.delete(existing);
-            return new BookmarkToggleResponse(false);
-        }
-
-        Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(GifticonErrorCode.USER_NOT_FOUND));
-
-        bookmarkRepository.save(GifticonBookmark.builder()
-                .user(user)
-                .product(product)
-                .build());
-
-        return new BookmarkToggleResponse(true);
     }
 
     /**
