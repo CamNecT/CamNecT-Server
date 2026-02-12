@@ -1,5 +1,6 @@
 package CamNecT.CamNecT_Server.domain.activity.model.recruitment;
 
+import CamNecT.CamNecT_Server.domain.activity.dto.request.RecruitmentRequest;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.RecruitStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -65,5 +66,13 @@ public class TeamRecruitment {
     // 모집 마감
     public void close() {
         this.recruitStatus = RecruitStatus.CLOSED;
+    }
+
+    // 모집글 수정
+    public void update(RecruitmentRequest request) {
+        this.title = request.title();
+        this.content = request.content();
+        this.recruitCount = request.recruitCount();
+        this.recruitDeadline = request.recruitDeadline();
     }
 }
