@@ -1,12 +1,12 @@
 package CamNecT.CamNecT_Server.domain.activity.dto.response;
 
 import CamNecT.CamNecT_Server.domain.activity.model.recruitment.TeamRecruitment;
+import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
 
 public record RecruitmentDetailResponse(
-        long userId,
-        String major_kor,
-        int grade,
+        ProfileGlobalDto profilePreview,
         TeamRecruitment recruitment,
+        String activityTitle,
         boolean isMine,
         boolean isBookmarked
 ) {
