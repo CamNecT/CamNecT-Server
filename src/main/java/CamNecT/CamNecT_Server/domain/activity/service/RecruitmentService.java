@@ -101,6 +101,26 @@ public class RecruitmentService {
     }
 
     @Transactional
+    public void updateRecruitment(Long userId, Long recruitmentId, RecruitmentRequest request) {
+        // 1. 모집글 조회
+        TeamRecruitment recruitment = recruitmentRepository.findById(recruitmentId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
+
+        // 2. 작성자 본인 확인
+        if (!Objects.equals(recruitment.getUserId(), userId)) {
+            throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
+        }
+
+        // 3. 마감된 모집글은 수정 불가
+        if (recruitment.getRecruitStatus() == RecruitStatus.CLOSED) {
+            throw new CustomException(ActivityErrorCode.ALREADY_CLOSED);
+        }
+
+        // 4. 수정 적용
+        recruitment.update(request);
+    }
+
+    @Transactional
     public boolean toggleRecruitmentBookmark(Long userId, Long recruitId) {
         //모집글 조회 (북마크 카운트 업데이트를 위해 엔티티 조회)
         TeamRecruitment recruitment = recruitmentRepository.findById(recruitId)

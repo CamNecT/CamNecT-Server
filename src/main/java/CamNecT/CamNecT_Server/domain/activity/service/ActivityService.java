@@ -83,7 +83,7 @@ public class ActivityService {
         return activities.map(a -> new ActivityPreviewResponse(
                 a.activityId(),
                 a.title(),
-                a.context(),
+                a.contextPreview(),
                 thumbnailUrlOrNull(a.thumbnailUrl()),
                 a.tags(),
                 a.bookmarkCount(),
@@ -167,11 +167,11 @@ public class ActivityService {
             throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
         }
 
-        Users AdminUser = userRepository.findByUserId(userId).orElseThrow(()-> new CustomException(UserErrorCode.USER_NOT_FOUND));
+        Users adminUser = userRepository.findByUserId(userId).orElseThrow(()-> new CustomException(UserErrorCode.USER_NOT_FOUND));
 
         // 2. 엔티티 생성 및 저장
         ExternalActivity saved = activityRepository.save(ExternalActivity.builder()
-                .user(AdminUser)
+                .user(adminUser)
                 .title(request.title())
                 .category(request.category())
                 .organizer(request.organizer())
@@ -306,6 +306,54 @@ public class ActivityService {
         saveTags(activity, request.tagIds());
 
         // 5. S3 파일 삭제 예약
+        globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
+    }
+
+    @Transactional
+    public void updateAdmin(Long activityId, AdminActivityRequest request) {
+        // 1. 관리자는 대외활동과 취업정보만 수정 가능
+        if (request.category() != ActivityCategory.EXTERNAL && request.category() != ActivityCategory.RECRUITMENT) {
+            throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
+        }
+
+        // 2. 활동 조회
+        ExternalActivity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+
+        // 3. 관리자가 작성한 글인지 카테고리로 검증 (유저 검증 없이 카테고리로만 검증)
+        if (activity.getCategory() != ActivityCategory.EXTERNAL && activity.getCategory() != ActivityCategory.RECRUITMENT) {
+            throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
+        }
+
+        Set<String> deleteAfterCommit = new HashSet<>();
+        String finalThumbPrefix = "activity/activities/activity-" + activity.getActivityId() + "/attachments/thumbnail";
+
+        // 4. 썸네일 교체 로직
+        if (StringUtils.hasText(request.thumbnailKey())
+                && !request.thumbnailKey().equals(activity.getThumbnailUrl())) {
+
+            // 기존 썸네일이 있으면 삭제 대상에 추가
+            if (StringUtils.hasText(activity.getThumbnailUrl()) && !DEFAULT_THUMB.equals(activity.getThumbnailUrl())) {
+                deleteAfterCommit.add(activity.getThumbnailUrl());
+            }
+
+            // presignEngine.consume()에 userId 대신 activity 작성자 ID 사용
+            Long authorId = activity.getUser().getUserId();
+            String finalKey = presignEngine.consume(
+                    authorId,
+                    UploadPurpose.ACTIVITY_THUMBNAIL,
+                    UploadRefType.ACTIVITY,
+                    activityId,
+                    request.thumbnailKey(),
+                    finalThumbPrefix
+            );
+            activity.updateThumbnail(finalKey);
+        }
+
+        // 5. 기본 정보 업데이트 (ExternalActivity에 updateAdmin 메서드 추가 필요)
+        activity.updateAdmin(request);
+
+        // 6. S3 파일 삭제 예약
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
     }
 
@@ -453,11 +501,6 @@ public class ActivityService {
         // 2. 대외활동과 취업정보만 마감 가능 (관리자가 작성한 것만)
         if (activity.getCategory() != ActivityCategory.EXTERNAL && activity.getCategory() != ActivityCategory.RECRUITMENT) {
             throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
-        }
-
-        // 3. 관리자 게시글 확인 (user가 null인 경우)
-        if (activity.getUser() != null) {
-            throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
         }
 
         // 4. 이미 마감된 경우 예외 처리

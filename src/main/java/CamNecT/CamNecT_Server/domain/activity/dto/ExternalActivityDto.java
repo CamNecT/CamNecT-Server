@@ -27,6 +27,7 @@ public class ExternalActivityDto {
     private final String officialUrl;
     private final ActivityStatus status;
     private final LocalDateTime createdAt;
+    private final String contextTitle;
     private final String context;
 
     public static ExternalActivityDto from(ExternalActivity entity) {
@@ -47,6 +48,7 @@ public class ExternalActivityDto {
                 .officialUrl(entity.getOfficialUrl())
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
+                .contextTitle(entity.getContextTitle())
                 .context(entity.getContext())
                 .build();
     }
@@ -67,6 +69,7 @@ public class ExternalActivityDto {
                 .officialUrl(officialUrl)
                 .status(status)
                 .createdAt(createdAt)
+                .contextTitle(contextTitle)
                 .context(context)
                 .build();
     }
