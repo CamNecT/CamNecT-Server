@@ -12,6 +12,7 @@ import CamNecT.CamNecT_Server.global.storage.model.UploadTicket;
 import CamNecT.CamNecT_Server.global.storage.repository.UploadTicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -85,7 +86,7 @@ public class PresignEngine {
         LocalDateTime now = LocalDateTime.now();
 
         // 만료된 pending 정리
-        ticketRepo.bulkExpirePendingByUserPurpose(userId, purpose, now);
+        ticketRepo.bulkExpirePendingByUserPurpose(userId, purpose);
 
         long active = ticketRepo.countByUserIdAndPurposeAndStatusAndExpiresAtAfter(
                 userId, purpose, UploadTicket.Status.PENDING, now
@@ -227,7 +228,7 @@ public class PresignEngine {
         return finalKey;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public PresignDownloadResponse presignDownload(String storageKey, String filenameOrNull, String contentTypeOrNull) {
 
         if (!StringUtils.hasText(storageKey)) {

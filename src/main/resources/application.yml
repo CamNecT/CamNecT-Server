@@ -8,7 +8,7 @@ app:
     region: ${AWS_REGION:ap-northeast-2}
     prefix: ${AWS_S3_PREFIX:camnect}
     presign:
-      upload-expiration-seconds: 3600   # 1hr
+      upload-expiration-seconds: 600   #10분
       download-expiration-seconds: 300 # 5분
   upload-ticket:
     expire-job-delay-ms: 900000  # 15분

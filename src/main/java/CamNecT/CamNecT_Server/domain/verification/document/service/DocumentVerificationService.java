@@ -20,19 +20,16 @@ import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
 import CamNecT.CamNecT_Server.global.storage.model.UploadRefType;
 import CamNecT.CamNecT_Server.global.storage.model.UploadTicket;
 import CamNecT.CamNecT_Server.global.storage.repository.UploadTicketRepository;
-import CamNecT.CamNecT_Server.global.storage.service.FileStorage;
 import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -45,7 +42,6 @@ public class DocumentVerificationService {
 
     private final PresignEngine presignEngine;
     private final UploadTicketRepository ticketRepo;
-    private final FileStorage fileStorage;
     private final GlobalPresignMethods globalPresignMethods;
 
     // ===== presign upload =====
@@ -200,20 +196,7 @@ public class DocumentVerificationService {
         r.cancel();
 
         if (StringUtils.hasText(key)) {
-            deleteAfterCommit(key);
-        }
-    }
-
-    private void deleteAfterCommit(String key) {
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    try { fileStorage.delete(key); } catch (Exception ignored) {}
-                }
-            });
-        } else {
-            try { fileStorage.delete(key); } catch (Exception ignored) {}
+            globalPresignMethods.deleteAfterCommit(Collections.singleton(key));
         }
     }
 
