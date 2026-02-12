@@ -125,6 +125,19 @@ public class ActivityController {
     }
 
     @Operation(
+            summary = "[관리자] 대외활동/취업정보 수정",
+            description = "관리자가 작성한 대외활동 또는 취업정보 게시글을 수정합니다. EXTERNAL(대외활동) 또는 RECRUITMENT(취업정보) 카테고리만 가능합니다."
+    )
+    @PatchMapping("/admin/{activityId}")
+    public ApiResponse<String> updateAdmin(
+            @PathVariable Long activityId,
+            @RequestBody @Valid AdminActivityRequest request
+    ) {
+        activityService.updateAdmin(activityId, request);
+        return ApiResponse.success("수정이 완료되었습니다.");
+    }
+
+    @Operation(
             summary = "[관리자] 대외활동/취업정보 모집 마감",
             description = "관리자가 작성한 대외활동 또는 취업정보 게시글을 마감합니다."
     )

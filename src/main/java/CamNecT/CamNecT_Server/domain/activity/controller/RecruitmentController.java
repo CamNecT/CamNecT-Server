@@ -38,6 +38,17 @@ public class RecruitmentController {
         return ApiResponse.success(recruitmentService.getRecruitmentDetail(userId, recruitmentId));
     }
 
+    @Operation(summary = "팀원 모집글 수정", description = "팀원 모집글을 수정합니다. 작성자만 수정할 수 있습니다.")
+    @PatchMapping("/{recruitmentId}")
+    public ApiResponse<String> updateRecruitment(
+            @UserId Long userId,
+            @PathVariable Long recruitmentId,
+            @RequestBody RecruitmentRequest request
+    ) {
+        recruitmentService.updateRecruitment(userId, recruitmentId, request);
+        return ApiResponse.success("수정이 완료되었습니다.");
+    }
+
     @Operation(summary = "모집글 북마크 설정 (토글 방식)", description = "팀원 모집글에 대한 북마크 상태를 반전(Toggle)시킵니다. 호출 시마다 등록/해제 메시지를 반환합니다.")
     @PostMapping("/{recruitmentId}/bookmark")
     public ApiResponse<String> toggleBookmark(
