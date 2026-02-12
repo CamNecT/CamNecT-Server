@@ -23,6 +23,7 @@ import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.ActivityErrorCode;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.CamNecT_Server.global.common.service.GlobalPresignMethods;
 import CamNecT.CamNecT_Server.global.storage.model.UploadPurpose;
 import CamNecT.CamNecT_Server.global.storage.model.UploadRefType;
@@ -160,15 +161,17 @@ public class ActivityService {
     }
 
     @Transactional
-    public ActivityPreviewResponse createAdmin(AdminActivityRequest request) {
+    public ActivityPreviewResponse createAdmin(Long userId, AdminActivityRequest request) {
         // 1. 관리자는 대외활동과 취업정보만 작성 가능
         if (request.category() != ActivityCategory.EXTERNAL && request.category() != ActivityCategory.RECRUITMENT) {
             throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
         }
 
-        // 2. 엔티티 생성 및 저장 (user는 null - 관리자가 작성)
+        Users AdminUser = userRepository.findByUserId(userId).orElseThrow(()-> new CustomException(UserErrorCode.USER_NOT_FOUND));
+
+        // 2. 엔티티 생성 및 저장
         ExternalActivity saved = activityRepository.save(ExternalActivity.builder()
-                .user(null)  // 관리자 게시글은 user null
+                .user(AdminUser)
                 .title(request.title())
                 .category(request.category())
                 .organizer(request.organizer())
@@ -187,7 +190,7 @@ public class ActivityService {
 
         if (StringUtils.hasText(request.thumbnailKey())) {
             String finalKey = presignEngine.consume(
-                    0L,  // 관리자용 userId (실제 관리자 ID로 변경 가능)
+                    userId,  // 관리자용 userId (실제 관리자 ID로 변경 가능)
                     UploadPurpose.ACTIVITY_THUMBNAIL,
                     UploadRefType.ACTIVITY,
                     saved.getActivityId(),

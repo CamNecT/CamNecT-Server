@@ -118,9 +118,10 @@ public class ActivityController {
     )
     @PostMapping("/admin")
     public ApiResponse<ActivityPreviewResponse> createAdmin(
+            @UserId Long userId,
             @RequestBody @Valid AdminActivityRequest request
     ){
-        return ApiResponse.success(activityService.createAdmin(request));
+        return ApiResponse.success(activityService.createAdmin(userId, request));
     }
 
     @Operation(
