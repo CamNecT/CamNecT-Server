@@ -15,6 +15,7 @@ import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -109,8 +110,12 @@ public class AlumniService {
                 .map(id -> {
                     UserProfile p = profileMap.get(id);
                     if (p == null || p.getUser() == null) return null;
+                    String imgUrl = null;
+                    if (StringUtils.hasText(p.getProfileImageKey())) {
+                        imgUrl = publicUrlIssuer.issuePublicUrl(p.getProfileImageKey());
+                    }
 
-                    ProfileCardDto card = ProfileCardDto.from(p); // 홈에서만 우선 적용
+                    ProfileCardDto card = ProfileCardDto.createCard(p,imgUrl); // 홈에서만 우선 적용
 
                     return new AlumniHomeResponse(
                             id,

@@ -14,7 +14,6 @@ public record GifticonHomeResponse(
             String productName,
             Integer pricePoints,
             String imageUrl,
-            boolean bookmarked,
             boolean active
     ) {}
 }
