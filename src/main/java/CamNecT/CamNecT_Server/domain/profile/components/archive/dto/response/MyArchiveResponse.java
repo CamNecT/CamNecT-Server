@@ -2,6 +2,10 @@ package CamNecT.CamNecT_Server.domain.profile.components.archive.dto.response;
 
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityCategory;
 import CamNecT.CamNecT_Server.domain.activity.model.enums.ActivityStatus;
+import CamNecT.CamNecT_Server.domain.community.dto.AuthorDto;
+import CamNecT.CamNecT_Server.domain.community.dto.response.PostSummaryResponse;
+import CamNecT.CamNecT_Server.domain.community.model.enums.ContentAccessStatus;
+import CamNecT.CamNecT_Server.domain.community.model.enums.PostAccessType;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.LocalDate;
@@ -17,6 +21,7 @@ public record MyArchiveResponse(
         Long nextCursorId,
         Long nextCursorValue
 ) {
+    public enum ArchiveKind {MY_POSTS, BOOKMARKS}
 
     public enum Tab {COMMUNITY, EXTERNAL, RECRUITMENT}
 
@@ -29,22 +34,40 @@ public record MyArchiveResponse(
     public record CommunityItem(
             Long postId,
             String boardCode,
-            List<String> tags,
-            Author author,
             String title,
             String preview,
-            long bookmarkCount,
-            long commentCount,
             LocalDateTime createdAt,
-            String thumbnailUrl
+            long likeCount,
+            long answerCount,
+            long commentCount,
+            long bookmarkCount,
+            boolean acceptedBadge,
+            List<String> tags,
+            AuthorDto author,
+            String thumbnailUrl,
+            PostAccessType accessType,
+            ContentAccessStatus accessStatus
     ) implements Item {
-    }
 
-    public record Author(
-            Long userId,
-            String name,
-            String majorName
-    ) {
+        public static CommunityItem from(PostSummaryResponse r) {
+            return new CommunityItem(
+                    r.postId(),
+                    r.boardCode().name(), // 필요하면 getCode()로
+                    r.title(),
+                    r.preview(),
+                    r.createdAt(),
+                    r.likeCount(),
+                    r.answerCount(),
+                    r.commentCount(),
+                    r.bookmarkCount(),
+                    r.acceptedBadge(),
+                    r.tags(),
+                    r.author(),
+                    r.thumbnailUrl(),
+                    r.accessType(),
+                    r.accessStatus()
+            );
+        }
     }
 
     // 대외활동 카드
