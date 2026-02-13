@@ -78,13 +78,8 @@ public class UserProfile {
     }
 
     public void updateProfileImageKey(String profileImageKey) {
-        if (!StringUtils.hasText(profileImageKey)) {
-            this.profileImageKey = null;
-            return;
-        }
-        this.profileImageKey = profileImageKey.trim();
+        this.profileImageKey = StringUtils.hasText(profileImageKey) ? profileImageKey.trim() : null;
     }
-
     public void applyVerifiedInfo(String studentName, String studentNo, Long institutionId, Long majorId) {
         this.user.updateName(studentName);
         this.studentNo = studentNo;
