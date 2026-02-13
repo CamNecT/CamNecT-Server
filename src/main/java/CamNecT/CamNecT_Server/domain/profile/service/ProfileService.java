@@ -162,9 +162,8 @@ public class ProfileService {
 
         requireEmailVerifiedAndNotSuspended(user);
 
-        if (userProfileRepository.existsByUserId(userId)) {
-            throw new CustomException(AuthErrorCode.ONBOARDING_ALREADY_CREATED);
-        }
+        UserProfile userProfile = userProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
         // 1) bio 정리
         String bio = trimToNull(req.bio());
@@ -178,20 +177,6 @@ public class ProfileService {
                 throw new CustomException(UserErrorCode.INVALID_TAG_IDS);
             }
         }
-
-        // 3) UserProfile row 먼저 생성/저장 (값은 전부 null 허용)
-        UserProfile userProfile = UserProfile.builder()
-                .user(user)
-                .bio(null)
-                .profileImageKey(null)
-                .openToCoffeeChat(false)
-                .studentNo(null)
-                .yearLevel(null)
-                .institutionId(null)
-                .majorId(null)
-                .build();
-
-        userProfileRepository.save(userProfile);
 
         // 4) 태그 replace (온보딩에서 비어도 OK)
         userTagMapRepository.deleteAllByUserId(userId);
