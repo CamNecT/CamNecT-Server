@@ -32,17 +32,23 @@ public class NotificationEventListener {
             return;
         }
 
-        // 1) DB 저장
-        notificationService.create(
-                e.receiverUserId(),
-                e.actorUserId(),
-                e.type(),
-                e.message(),
-                e.postId(),
-                e.commentId(),
-                e.requestId(),
-                e.link()
-        );
+        try {
+            notificationService.create(
+                    e.receiverUserId(),
+                    e.actorUserId(),
+                    e.type(),
+                    e.message(),
+                    e.postId(),
+                    e.commentId(),
+                    e.requestId(),
+                    e.link()
+            );
+            log.info("[notif] create() returned ok. requestId={}", e.requestId());
+        } catch (Exception ex) {
+            log.error("[notif] create() failed. receiver={}, actor={}, requestId={}",
+                    e.receiverUserId(), e.actorUserId(), e.requestId(), ex);
+            return;
+        }
 
         // 2) 푸시 발송(토큰 없으면 스킵)
         var tokens = pushDeviceService.findEnabledTokens(e.receiverUserId());

@@ -12,6 +12,7 @@ import CamNecT.CamNecT_Server.global.notification.model.NotificationType;
 import CamNecT.CamNecT_Server.global.notification.repository.NotificationRepository;
 import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -24,6 +25,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
@@ -54,9 +56,10 @@ public class NotificationService {
                        Long requestId,
                        String link) {
 
-        notificationRepository.save(
-                Notification.of(receiverUserId, actorUserId, type, message, postId, commentId, requestId, link)
-        );
+        Notification n = Notification.of(receiverUserId, actorUserId, type, message, postId, commentId, requestId, link);
+        notificationRepository.saveAndFlush(n);
+
+        log.info("[notif] saved. id={}, receiver={}, requestId={}", n.getId(), receiverUserId, requestId);
     }
 
     @Transactional(readOnly = true)
