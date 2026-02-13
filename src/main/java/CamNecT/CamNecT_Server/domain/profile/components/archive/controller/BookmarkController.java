@@ -1,7 +1,7 @@
 package CamNecT.CamNecT_Server.domain.profile.components.archive.controller;
 
 import CamNecT.CamNecT_Server.domain.profile.components.archive.dto.response.MyArchiveResponse;
-import CamNecT.CamNecT_Server.domain.profile.components.archive.service.MyBookmarkQueryService;
+import CamNecT.CamNecT_Server.domain.profile.components.archive.service.ArchiveQueryService;
 import CamNecT.CamNecT_Server.global.common.auth.UserId;
 import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RequestMapping("/api/profile/bookmarks")
 public class BookmarkController {
-    private final MyBookmarkQueryService myBookmarkQueryService;
+
+    private final ArchiveQueryService archiveQueryService;
 
     // ===== Bookmarks (3) =====
     @GetMapping("/community")
@@ -25,9 +26,16 @@ public class BookmarkController {
             @RequestParam(required = false) Long cursorValue,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return ApiResponse.success(myBookmarkQueryService.getBookmarks(
-                userId, MyArchiveResponse.Tab.COMMUNITY, sort, cursorId, cursorValue, size
-        ));
+        return ApiResponse.success(
+                archiveQueryService.getCommunityArchive(
+                        userId,
+                        MyArchiveResponse.ArchiveKind.BOOKMARKS,
+                        sort,
+                        cursorId,
+                        cursorValue,
+                        size
+                )
+        );
     }
 
     @GetMapping("/external")
@@ -38,9 +46,16 @@ public class BookmarkController {
             @RequestParam(required = false) Long cursorValue,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return ApiResponse.success(myBookmarkQueryService.getBookmarks(
-                userId, MyArchiveResponse.Tab.EXTERNAL, sort, cursorId, cursorValue, size
-        ));
+        return ApiResponse.success(
+                archiveQueryService.getExternalArchive(
+                        userId,
+                        MyArchiveResponse.ArchiveKind.BOOKMARKS,
+                        sort,
+                        cursorId,
+                        cursorValue,
+                        size
+                )
+        );
     }
 
     @GetMapping("/recruitment")
@@ -51,8 +66,15 @@ public class BookmarkController {
             @RequestParam(required = false) Long cursorValue,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return ApiResponse.success(myBookmarkQueryService.getBookmarks(
-                userId, MyArchiveResponse.Tab.RECRUITMENT, sort, cursorId, cursorValue, size
-        ));
+        return ApiResponse.success(
+                archiveQueryService.getRecruitmentArchive(
+                        userId,
+                        MyArchiveResponse.ArchiveKind.BOOKMARKS,
+                        sort,
+                        cursorId,
+                        cursorValue,
+                        size
+                )
+        );
     }
 }
