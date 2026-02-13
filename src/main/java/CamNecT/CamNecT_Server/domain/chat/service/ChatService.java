@@ -38,18 +38,20 @@ import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -121,11 +123,17 @@ public class ChatService {
 
         Long requestId = chatRequestRepository.save(request).getId();
 
+        log.info("[coffeechat] txActive(beforePublish)={}, requestId={}",
+                TransactionSynchronizationManager.isActualTransactionActive(), requestId);
+
         eventPublisher.publishEvent(new CoffeeChatRequestedEvent(
                 receiverId,
                 requesterId,
                 requestId
         ));
+
+        log.info("[coffeechat] published event. txActive(afterPublish)={}",
+                TransactionSynchronizationManager.isActualTransactionActive());
 
         return requestId;
     }
