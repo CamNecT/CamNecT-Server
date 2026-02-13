@@ -13,15 +13,11 @@ import CamNecT.CamNecT_Server.domain.activity.repository.recruitment.TeamApplica
 import CamNecT.CamNecT_Server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.CamNecT_Server.domain.chat.model.ChatRequest;
 import CamNecT.CamNecT_Server.domain.chat.repository.ChatRequestRepository;
-import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
-import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto;
-import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
-import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.ActivityErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
@@ -46,7 +42,6 @@ public class RecruitmentService {
     private final TeamRecruitmentRepository recruitmentRepository;
     private final ExternalActivityRepository activityRepository;
     private final UserProfileRepository userProfileRepository;
-    private final MajorRepository majorRepository;
     private final RecruitmentBookmarkRepository bookmarkRepository;
     private final TeamApplicationRepository teamApplicationRepository;
     private final UserRepository userRepository;
