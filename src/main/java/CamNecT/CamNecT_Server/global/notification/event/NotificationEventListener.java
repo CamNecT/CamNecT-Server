@@ -21,43 +21,48 @@ public class NotificationEventListener {
     private final FCMSender fcmSender;
     private final PushDeviceService pushDeviceService;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handle(NotifiableEvent e) {
-        log.info("[notif] fired receiver={}, actor={}, type={}",
+    @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
+    public void persist(NotifiableEvent e) {
+
+        log.info("[notif] persist(beforeCommit) receiver={}, actor={}, type={}",
                 e.receiverUserId(), e.actorUserId(), e.type());
-        // 0) self 알림 차단(기본)
+
         if (!e.allowSelf()
                 && e.actorUserId() != null
                 && e.receiverUserId().equals(e.actorUserId())) {
             return;
         }
 
-        try {
-            notificationService.create(
-                    e.receiverUserId(),
-                    e.actorUserId(),
-                    e.type(),
-                    e.message(),
-                    e.postId(),
-                    e.commentId(),
-                    e.requestId(),
-                    e.link()
-            );
-            log.info("[notif] create() returned ok. requestId={}", e.requestId());
-        } catch (Exception ex) {
-            log.error("[notif] create() failed. receiver={}, actor={}, requestId={}",
-                    e.receiverUserId(), e.actorUserId(), e.requestId(), ex);
+        notificationService.create(
+                e.receiverUserId(),
+                e.actorUserId(),
+                e.type(),
+                e.message(),
+                e.postId(),
+                e.commentId(),
+                e.requestId(),
+                e.link()
+        );
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void push(NotifiableEvent e) {
+
+        log.info("[notif] push(afterCommit) receiver={}, actor={}, type={}",
+                e.receiverUserId(), e.actorUserId(), e.type());
+
+        if (!e.allowSelf()
+                && e.actorUserId() != null
+                && e.receiverUserId().equals(e.actorUserId())) {
             return;
         }
 
-        // 2) 푸시 발송(토큰 없으면 스킵)
         var tokens = pushDeviceService.findEnabledTokens(e.receiverUserId());
         if (tokens == null || tokens.isEmpty()) return;
 
         String title = titleOf(e.type());
         String body = e.message();
 
-        // 3) data payload (FE에서 라우팅/처리에 사용)
         Map<String, String> data = new java.util.HashMap<>();
         data.put("type", e.type().name());
         if (e.postId() != null) data.put("postId", String.valueOf(e.postId()));
@@ -67,11 +72,9 @@ public class NotificationEventListener {
 
         try {
             FCMSender.SendResult result = fcmSender.sendToTokens(tokens, title, body, data);
-            // 무효 토큰 비활성화
             pushDeviceService.disableTokens(result.invalidTokens());
         } catch (com.google.firebase.messaging.FirebaseMessagingException ex) {
-            // 커밋 이후이므로 비즈니스는 성공. 푸시 실패는 로깅만.
-            // log.warn("FCM send failed: receiver={}, type={}", e.receiverUserId(), e.type(), ex);
+            log.warn("[notif] FCM send failed. receiver={}, type={}", e.receiverUserId(), e.type(), ex);
         }
     }
 

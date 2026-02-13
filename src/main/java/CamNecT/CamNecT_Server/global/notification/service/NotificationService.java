@@ -42,7 +42,6 @@ public class NotificationService {
                        String message,
                        Long postId,
                        Long commentId) {
-
         create(receiverUserId, actorUserId, type, message, postId, commentId, null, null);
     }
 
@@ -57,9 +56,9 @@ public class NotificationService {
                        String link) {
 
         Notification n = Notification.of(receiverUserId, actorUserId, type, message, postId, commentId, requestId, link);
-        notificationRepository.saveAndFlush(n);
+        notificationRepository.save(n);
 
-        log.info("[notif] saved. id={}, receiver={}, requestId={}", n.getId(), receiverUserId, requestId);
+        log.info("[notif] saved (queued). receiver={}, requestId={}", receiverUserId, requestId);
     }
 
     @Transactional(readOnly = true)
