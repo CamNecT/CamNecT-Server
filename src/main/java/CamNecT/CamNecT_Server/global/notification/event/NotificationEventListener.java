@@ -5,12 +5,14 @@ import CamNecT.CamNecT_Server.global.notification.service.FCMSender;
 import CamNecT.CamNecT_Server.global.notification.service.NotificationService;
 import CamNecT.CamNecT_Server.global.notification.service.PushDeviceService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.Map;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class NotificationEventListener {
@@ -21,7 +23,8 @@ public class NotificationEventListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handle(NotifiableEvent e) {
-
+        log.info("[notif] fired receiver={}, actor={}, type={}",
+                e.receiverUserId(), e.actorUserId(), e.type());
         // 0) self 알림 차단(기본)
         if (!e.allowSelf()
                 && e.actorUserId() != null
