@@ -27,7 +27,6 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class PostSummaryAssembler {
 
-    private static final Set<String> THUMB_EXT = Set.of(".jpg", ".jpeg", ".png", ".webp");
     private static final int MAX_CONTENT = 80;
 
     private final PostStatsRepository postStatsRepository;

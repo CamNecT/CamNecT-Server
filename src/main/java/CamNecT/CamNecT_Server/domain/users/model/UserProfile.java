@@ -3,6 +3,7 @@ package CamNecT.CamNecT_Server.domain.users.model;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.util.StringUtils;
 
 @Entity
 @Table(name = "user_profile")
@@ -77,10 +78,11 @@ public class UserProfile {
     }
 
     public void updateProfileImageKey(String profileImageKey) {
-        if (profileImageKey != null) {
-            String u = profileImageKey.trim();
-            this.profileImageKey = u.isBlank() ? null : u;
+        if (!StringUtils.hasText(profileImageKey)) {
+            this.profileImageKey = null;
+            return;
         }
+        this.profileImageKey = profileImageKey.trim();
     }
 
     public void applyVerifiedInfo(String studentName, String studentNo, Long institutionId, Long majorId) {
