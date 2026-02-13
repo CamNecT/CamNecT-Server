@@ -59,7 +59,7 @@ public class SignupService {
         }
 
         UserProfile emptyProfile = UserProfile.builder()
-                .user(user)
+                .user(savedUser)
                 .bio(null)
                 .profileImageKey(null)
                 .openToCoffeeChat(true)
