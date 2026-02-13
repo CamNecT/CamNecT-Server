@@ -334,6 +334,7 @@ public class PostServiceImpl implements PostService {
                 content,
                 post.isAnonymous(),
                 stats.getViewCount(),
+                stats.getBookmarkCount(),
                 stats.getLikeCount(),
                 likedByMe,
                 acceptedCommentId,

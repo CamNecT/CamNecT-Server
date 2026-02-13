@@ -5,6 +5,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.util.Locale;
+import java.util.Set;
+
 /*
 썸네일, 프로필 이미지 등을 간단하게 내려주기 위한 구조체
  */
@@ -12,6 +15,7 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class PublicUrlIssuer {
     private final CdnProps cdnProps;
+    private static final Set<String> IMAGE_EXT = Set.of(".jpg", ".jpeg", ".png", ".webp");
 
     public String issuePublicUrl(String storageKey) {
         if (!StringUtils.hasText(storageKey)) return null;
@@ -25,6 +29,19 @@ public class PublicUrlIssuer {
         if (!StringUtils.hasText(base)) return null;
 
         return base + "/" + key;
+    }
+
+    /** 이미지 확장자 아닌 경우 null */
+    public String issueImagePublicUrl(String storageKey) {
+        if (!StringUtils.hasText(storageKey)) return null;
+
+        String key = storageKey.replaceAll("^/+", "");
+        String lower = key.toLowerCase(Locale.ROOT);
+
+        boolean isImage = IMAGE_EXT.stream().anyMatch(lower::endsWith);
+        if (!isImage) return null;
+
+        return issuePublicUrl(key);
     }
 
     private String trimTrailingSlash(String s) {

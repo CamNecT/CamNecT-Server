@@ -8,8 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @Component
@@ -17,10 +15,7 @@ import java.util.*;
 @Transactional(readOnly = true)
 public class ExternalArchiveAssembler {
 
-    private static final int MAX_CONTENT = 80;
-
     private final ExternalActivityTagRepository externalActivityTagRepository;
-    private final ArchiveUtils archiveUtils;
 
     public ExternalAssembleResult assemble(List<Object[]> rows) {
         if (rows == null || rows.isEmpty()) {
@@ -42,7 +37,7 @@ public class ExternalArchiveAssembler {
         List<MyArchiveResponse.Item> items = new ArrayList<>(rows.size());
         for (Object[] r : rows) {
             ExternalActivity a = (ExternalActivity) r[0];
-            long bookmarkCount = archiveUtils.safeLong(r[1]);
+            long bookmarkCount = safeLong(r[1]);
 
             String contextDisplay = (a.getCategory() == ActivityCategory.RECRUITMENT)
                     ? a.getContextTitle() // RECRUITMENT일 때만 호출
@@ -65,16 +60,9 @@ public class ExternalArchiveAssembler {
 
         Object[] lastRow = rows.getLast();
         ExternalActivity lastAct = (ExternalActivity) lastRow[0];
-        long lastBookmarkCnt = archiveUtils.safeLong(lastRow[1]); // recommended cursorValue용
+        long lastBookmarkCnt = safeLong(lastRow[1]); // recommended cursorValue용
 
         return new ExternalAssembleResult(items, lastAct.getActivityId(), lastBookmarkCnt);
-    }
-
-    private static Integer computeDDayIfContest(ExternalActivity a) {
-        if (a == null) return null;
-        if (a.getCategory() != ActivityCategory.EXTERNAL) return null;
-        if (a.getApplyEndDate() == null) return null;
-        return (int) ChronoUnit.DAYS.between(LocalDate.now(), a.getApplyEndDate());
     }
 
     public record ExternalAssembleResult(
@@ -82,4 +70,10 @@ public class ExternalArchiveAssembler {
             Long lastId,
             Long lastCursorValue
     ) {}
+
+    public long safeLong(Object v) {
+        if (v == null) return 0L;
+        if (v instanceof Number n) return n.longValue();
+        return 0L;
+    }
 }
