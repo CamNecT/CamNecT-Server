@@ -444,19 +444,21 @@ public class PostServiceImpl implements PostService {
 
         if (!isQuestion && post.getAccessType() != PostAccessType.POINT_REQUIRED) {
             int bal = pointService.getBalance(user.getUserId());
-            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
+            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal,true);
         }
+
+        //TODO 작성자든 이미 구매했든, 그냥 내려주는거랑 별개로 내려줘야할 필요성이보임
 
         // 2) 작성자는 무료
         if (userId.equals(post.getUser().getUserId())) {
             int bal = pointService.getBalance(user.getUserId());
-            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
+            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal,true);
         }
 
         // 3) 이미 구매했으면 무료
         if (postAccessRepository.existsByPost_IdAndUser_UserId(postId, userId)) {
             int bal = pointService.getBalance(user.getUserId());
-            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
+            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal,true);
         }
 
         pointService.spendPoint(userId, questionViewCost, PointEvent.postAccess(userId, postId));
@@ -467,7 +469,7 @@ public class PostServiceImpl implements PostService {
         }
 
         int remaining = pointService.getBalance(userId);
-        return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, remaining);
+        return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, remaining,false);
     }
 
     private void replaceTags(Posts post, List<Long> tagIds) {
