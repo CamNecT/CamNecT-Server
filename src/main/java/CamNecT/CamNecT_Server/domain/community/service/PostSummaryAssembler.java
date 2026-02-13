@@ -133,9 +133,7 @@ public class PostSummaryAssembler {
 
             String thumbUrl = null;
             String thumbKey = thumbKeyMap.get(p.getId());
-            if (!paywalled) {
-                thumbUrl = thumbnailUrlOrNull(thumbKey);
-            }
+            if (!paywalled) thumbUrl = publicUrlIssuer.issueImagePublicUrl(thumbKey);
 
             AuthorDto author = authorMap.get(p.getUser().getUserId());
 
@@ -170,16 +168,6 @@ public class PostSummaryAssembler {
 
     public record AssembleResult(List<PostSummaryResponse> items, CursorStats cursorStats) {}
     public record CursorStats(long hotScore, long likeCount, long bookmarkCount) {}
-
-    private String thumbnailUrlOrNull(String key) {
-        if (!hasText(key)) return null;
-
-        String lower = key.toLowerCase(Locale.ROOT);
-        boolean isImage = THUMB_EXT.stream().anyMatch(lower::endsWith);
-        if (!isImage) return null;
-
-        return publicUrlIssuer.issuePublicUrl(key);
-    }
 
     private static String makePreview(String content, int max) {
         if (content == null) return "";
