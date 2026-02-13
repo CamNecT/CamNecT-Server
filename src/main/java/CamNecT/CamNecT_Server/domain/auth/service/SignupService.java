@@ -1,8 +1,10 @@
 package CamNecT.CamNecT_Server.domain.auth.service;
 
 import CamNecT.CamNecT_Server.domain.auth.dto.signup.VerifySignupEmailRequest;
+import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.UserStatus;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
+import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SignupService {
 
     private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordService passwordService;
 
@@ -48,10 +51,26 @@ public class SignupService {
                 .status(UserStatus.ADMIN_PENDING)
                 .build();
 
+        Users savedUser;
         try {
-            return userRepository.save(user);
+            savedUser = userRepository.save(user);
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(AuthErrorCode.DUPLICATE_RESOURCE);
         }
+
+        UserProfile emptyProfile = UserProfile.builder()
+                .user(user)
+                .bio(null)
+                .profileImageKey(null)
+                .openToCoffeeChat(true)
+                .studentNo(null)
+                .yearLevel(null)
+                .institutionId(null)
+                .majorId(null)
+                .build();
+
+        userProfileRepository.save(emptyProfile);
+
+        return savedUser;
     }
 }
