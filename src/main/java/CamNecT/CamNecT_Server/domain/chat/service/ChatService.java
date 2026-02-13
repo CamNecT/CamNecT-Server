@@ -424,8 +424,7 @@ public class ChatService {
         unreadMessages.forEach(Chat::markAsRead);
         chatRepository.saveAll(unreadMessages);
 
-        System.out.println("📚 읽음 처리 완료: " + unreadMessages.size() + "건 저장됨.");
-
+        log.info("📚 읽음 처리 완료: {}건 저장됨.", unreadMessages.size());
 
         // 마지막으로 읽은 메시지 ID 추출 (없으면 0L임)
         Long lastMessageId = unreadMessages.isEmpty() ? 0L : unreadMessages.getLast().getId();
@@ -445,11 +444,13 @@ public class ChatService {
 
     @Transactional
     public void sendMessage(Long senderId, ChatMessageSendRequestDto request) {
+        log.info("[CHAT-SEND] === 메세지 전송 시작 === RoomID: {}, SenderID: {}", request.roomId(), senderId);
 
         ChatRoom room = chatRoomRepository.findById(request.roomId())
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
         if (room.getStatus() == ChatRoom.RoomStatus.CLOSE) {
+            log.error("❌ [CHAT-ERROR] 이미 종료된 채팅방입니다. RoomID: {}", request.roomId());
             throw new CustomException(CoffeeChatErrorCode.COFFEE_CHAT_CLOSED);
         }
 
@@ -459,19 +460,21 @@ public class ChatService {
         Users receiver = (room.getRequester().getUserId().equals(sender.getUserId()))
                 ? room.getReceiver()
                 : room.getRequester();
+        log.info("👤 Sender: {} -> Receiver: {}", sender.getUserId(), receiver.getUserId());
 
         boolean receiverPresent = presenceService.isPresent(room.getId(), receiver.getUserId());
+        log.info("👀 상대방(receiver) 접속 여부: {}", receiverPresent);
 
         Chat chat = Chat.createChat(room, sender, receiver, request.content());
 
-        System.out.println("👀 receiverPresent = {" + receiverPresent + "}");
-
         if (receiverPresent) {
             chat.markAsRead();
+            log.info("✅ 상대방이 접속 중이므로 읽음 처리됨");
         }
 
         chatRepository.save(chat);
         room.updateLastMessageTime();
+        log.info("💾 메시지 DB 저장 완료 (ChatID: {})", chat.getId());
 
         /// 상대방 부대중일때 알림 발송(도메인에서 알림구현)
         if (!receiverPresent) {
@@ -481,11 +484,13 @@ public class ChatService {
                     room.getId(),         // 채팅방 ID
                     chat.getContent()     // 메시지 내용 (Event 내부에서 길이 조절됨)
             ));
+            log.info("🔔 상대방 부재중 - 알림 이벤트(EventPublisher) 발행");
         }
 
         ChatMessageResponseDto response = ChatMessageResponseDto.toDto(chat);
 
         try {
+            String roomDest = "/sub/chat/room/" + room.getId();
             messagingTemplate.convertAndSend("/sub/chat/room/" + room.getId(), response);
 
 /*            if (receiverPresent) {
@@ -495,12 +500,13 @@ public class ChatService {
                         ChatReadEvent.of(room.getId(), chat.getId(), chat.getReadAt().toString())
                 );
             }*/
-
+            log.info("🚀 [Socket] 채팅방 브로드캐스트 전송: {}", roomDest);
             String lastTime = chat.getCreatedAt().toString();
 
             // 수신자의 채팅목록 갱신
             long unreadCount = chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(room.getId(), receiver.getUserId());
             long totalUnreadCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(receiver.getUserId());
+            String receiverDest = "/sub/user/" + receiver.getUserId() + "/rooms";
 
             ChatRoomListUpdateDto updateDto = ChatRoomListUpdateDto.builder()
                     .roomId(room.getId())
@@ -509,6 +515,7 @@ public class ChatService {
                     .time(lastTime)
                     .totalUnreadCount(totalUnreadCount)
                     .build();
+            log.info("🚀 [Socket] 수신자 목록 갱신 전송: {} (미읽음: {})", receiverDest, unreadCount);
 
             messagingTemplate.convertAndSend(
                     "/sub/user/" + receiver.getUserId() + "/rooms",
@@ -517,6 +524,7 @@ public class ChatService {
 
             // 본인 채팅목록 갱신
             long senderTotalCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(sender.getUserId());
+            String senderDest = "/sub/user/" + sender.getUserId() + "/rooms";
 
             ChatRoomListUpdateDto senderUpdateDto = ChatRoomListUpdateDto.builder()
                     .roomId(room.getId())
@@ -530,8 +538,9 @@ public class ChatService {
                     "/sub/user/" + sender.getUserId() + "/rooms",
                     senderUpdateDto
             );
+            log.info("🚀 [Socket] 발신자 목록 갱신 전송: {}", senderDest);
         } catch (Exception e) {
-            System.err.println("소켓 전송 실패: " + e.getMessage());
+            log.error("❌ [Socket-ERROR] 전송 실패: {}", e.getMessage(), e);
         }
     }
 
