@@ -17,8 +17,6 @@ public interface PostTagsRepository extends JpaRepository<PostTags, Long> {
     @Query("delete from PostTags pt where pt.post.id = :postId")
     void deleteByPost_Id(Long postId);
 
-    boolean existsByPost_IdAndTag_Id(Long postId, Long tagId);
-
     // 피드용: postIds의 태그를 한 번에 가져오기 (N+1 방지 + tag까지 fetch)
     @Query("""
         select pt from PostTags pt

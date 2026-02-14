@@ -56,20 +56,6 @@ public class LocalFileStorage implements FileStorage {
     }
 
     @Override
-    public Resource loadAsResource(String storageKey) {
-        validateKey(storageKey);
-
-        Path base = baseDir();
-        Path path = base.resolve(sanitizeKey(storageKey)).normalize();
-        assertUnderBase(base, path);
-
-        if (!Files.exists(path) || !Files.isRegularFile(path)) {
-            throw new CustomException(StorageErrorCode.STORAGE_NOT_FOUND);
-        }
-        return new FileSystemResource(path);
-    }
-
-    @Override
     public void delete(String storageKey) {
         validateKey(storageKey);
 

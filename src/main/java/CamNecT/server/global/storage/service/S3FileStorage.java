@@ -51,29 +51,6 @@ public class S3FileStorage implements FileStorage {
     }
 
     @Override
-    public Resource loadAsResource(String storageKey) {
-        validateKey(storageKey);
-
-        GetObjectRequest req = GetObjectRequest.builder()
-                .bucket(props.bucket())
-                .key(storageKey)
-                .build();
-
-        try {
-            ResponseInputStream<GetObjectResponse> in = s3.getObject(req);
-            return new InputStreamResource(in);
-        } catch (NoSuchKeyException e) {
-            throw new CustomException(StorageErrorCode.STORAGE_NOT_FOUND, e);
-        } catch (S3Exception e) {
-            if ("NoSuchKey".equalsIgnoreCase(e.awsErrorDetails() != null ? e.awsErrorDetails().errorCode() : null)
-                    || e.statusCode() == 404) {
-                throw new CustomException(StorageErrorCode.STORAGE_NOT_FOUND, e);
-            }
-            throw new CustomException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
-        }
-    }
-
-    @Override
     public void delete(String storageKey) {
         validateKey(storageKey);
 

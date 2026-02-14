@@ -10,7 +10,5 @@ public interface GifticonPurchaseRepository extends JpaRepository<GifticonPurcha
 
     Optional<GifticonPurchase> findByUser_UserIdAndClientRequestId(Long userId, String clientRequestId);
 
-    List<GifticonPurchase> findAllByUser_UserIdOrderByRequestedAtDesc(Long userId);
-
     List<GifticonPurchase> findAllByExportBatchIsNullOrderByRequestedAtAsc();
 }

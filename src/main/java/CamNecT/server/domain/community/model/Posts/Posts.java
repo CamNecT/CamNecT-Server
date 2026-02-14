@@ -85,7 +85,7 @@ public class Posts {
 
     //public void hide() { this.status = PostStatus.HIDDEN; }
 
-    public void publish() { this.status = PostStatus.PUBLISHED; }
+    //public void publish() { this.status = PostStatus.PUBLISHED; }
 
     public void deleteSoft() {
         this.status = PostStatus.DELETED;

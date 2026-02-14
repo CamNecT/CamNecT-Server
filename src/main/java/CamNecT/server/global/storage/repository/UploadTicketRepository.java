@@ -31,16 +31,14 @@ public interface UploadTicketRepository extends JpaRepository<UploadTicket, Long
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
     update UploadTicket t
-       set t.status = CamNecT.CamNecT_Server.global.storage.model.UploadTicket.Status.EXPIRED
+       set t.status = CamNecT.server.global.storage.model.UploadTicket.Status.EXPIRED
      where t.userId = :userId
        and t.purpose = :purpose
-       and t.status = CamNecT.CamNecT_Server.global.storage.model.UploadTicket.Status.PENDING
+       and t.status = CamNecT.server.global.storage.model.UploadTicket.Status.PENDING
 """)
     void bulkExpirePendingByUserPurpose(
             @Param("userId") Long userId,
             @Param("purpose") UploadPurpose purpose    );
-
-    long countByUserIdAndPurposeAndStatus(Long userId, UploadPurpose purpose, UploadTicket.Status status);
 
     long countByUserIdAndPurposeAndStatusAndExpiresAtAfter(
             Long userId, UploadPurpose purpose, UploadTicket.Status status, LocalDateTime now

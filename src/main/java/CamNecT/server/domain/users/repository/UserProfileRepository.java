@@ -33,7 +33,7 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     List<UserProfile> findAllByUserIdInWithUser(@Param("userIds") List<Long> userIds);
 
     @Query("""
-            select new CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto(
+            select new CamNecT.server.domain.profile.dto.ProfileGlobalDto(
                 p.userId,
                 u.name,
                 m.majorNameKor,
@@ -48,7 +48,7 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
     List<ProfileGlobalDto> findGlobalsByUserIdIn(@Param("userIds") List<Long> userIds);
 
     @Query("""
-            select new CamNecT.CamNecT_Server.domain.profile.dto.ProfileGlobalDto(
+            select new CamNecT.server.domain.profile.dto.ProfileGlobalDto(
                 p.userId,
                 u.name,
                 m.majorNameKor,

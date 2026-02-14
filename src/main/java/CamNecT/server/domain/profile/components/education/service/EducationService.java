@@ -6,7 +6,6 @@ import CamNecT.server.domain.profile.components.education.model.Education;
 import CamNecT.server.domain.profile.components.education.repository.EducationRepository;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.domain.profile.components.institutions.repository.InstitutionRepository;
-import CamNecT.server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
@@ -25,7 +24,6 @@ public class EducationService {
     private final EducationRepository educationRepository;
     private final UserRepository userRepository;
     private final InstitutionRepository institutionRepository;
-    private final MajorRepository majorRepository;
 
     @Transactional
     public void addEducation(Long userId, EducationRequest request) {
