@@ -1,0 +1,11 @@
+package CamNecT.server.domain.alumni.dto;
+
+import java.util.List;
+
+public record AlumniHomeResponse (
+        Long userId,
+        String name,
+        ProfileCardDto profile,
+        List<String> tagList
+) {
+}
