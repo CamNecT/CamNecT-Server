@@ -57,11 +57,11 @@
 - AWS 자격증명/버킷/리전
 - Firebase Admin SDK 관련 값 등
 
-> 팁: 협업 편의상 `.env.example` 파일을 만들어 키 목록만 공유하는 방식을 추천드립니다.
 
 ### 2) Spring Profile
 
-리소스에 `application.yml`, `application-local.yml`이 있으므로, 로컬에서는 아래 중 하나로 실행합니다.
+리소스에 `application.yml`, `application-local.yml`이 있으므로, 기본적으로는 application.yml을 사용하며,
+s3를 쓰지 못하는 local환경에서 application-local을 사용하시면 됩니다.(application-local.yml은 현재 업데이트되지 않았습니다.)
 
 - IntelliJ Run Config에서 `SPRING_PROFILES_ACTIVE=local`
 - 또는 터미널에서 `-Dspring.profiles.active=local`
@@ -73,5 +73,57 @@
 ### 1) 프로젝트 클론
 
 ```bash
-git clone <YOUR_REPO_URL>
+git clone https://github.com/Konkuk-KUIT/CamNecT-Server.git
 cd CamNecT-Server
+```
+
+## 📚 API Docs
+
+Swagger 설정이 포함되어 있으므로, 서버 실행 후 아래 경로로 확인합니다.
+
+- `http://localhost:8080/swagger-ui/index.html`
+- 'https://api.camnect.site'
+로 오시면 swagger 리다이렉트 되어 있습니다.
+
+---
+
+## 🌿 Branch & Collaboration
+
+- **`main`** : 운영 배포 브랜치 (푸시/머지 시 배포 파이프라인 트리거)
+- **`develop`** : 통합 개발 브랜치
+
+### 개인 개발 브랜치(계정 기반)
+
+팀에서 **개인 작업을 먼저 쌓는 브랜치**를 따로 두는 경우, 아래 방식으로 운영합니다.
+
+- **`develop.<githubId>`** : 개인 개발 브랜치 (예: `develop.mo-seung`, `develop.jisoo`)
+  - 개인 작업은 우선 여기로 푸시
+  - 기능 단위로 정리되면 `develop`로 PR
+
+> 운영 방식 예시  
+> `develop.<githubId>`에서 작업하다가, PR 올린 뒤 `develop`로 머지
+
+---
+
+### Workflow
+
+1. Issue 생성
+2. `develop.<githubId>` 브랜치에서 작업 후 push
+3. 작업 완료 후 `develop`으로 Pull Request (PR)
+4. 코드 리뷰 및 Merge (1개 이상의 Approve 후 Merge)
+5. 배포가 필요할 때 `develop` -> `main`으로 Merge (자동 배포)
+
+---
+
+## 🚢 Deployment (EC2 + Docker)
+
+운영 서버에서는 아래 파일 조합으로 올리는 방식을 권장합니다.
+
+- `.env.prod`
+- `docker-compose.prod.yml`
+
+예시:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
