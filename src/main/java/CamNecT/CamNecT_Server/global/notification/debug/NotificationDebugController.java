@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-@Profile({"local", "dev"})
+//@Profile({"local", "dev"})
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/debug/notification/")

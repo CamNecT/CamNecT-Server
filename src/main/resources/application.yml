@@ -16,6 +16,8 @@ app:
     base-url: https://cdn.camnect.site
 
   activity:
+    thumbnail:
+      max-file-size-mb: 10
     attachments:
       max-files: 10
       max-file-size-mb: 20
