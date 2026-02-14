@@ -32,19 +32,9 @@ public class GifticonController {
     @Operation(summary = "상품 상세", description = "상품 상세 정보를 조회합니다.")
     @GetMapping("/products/{productId}")
     public ApiResponse<GifticonProductDetailResponse> detail(
-            @UserId Long userId,
             @PathVariable Long productId
     ) {
-        return ApiResponse.success(gifticonService.productDetail(userId, productId));
-    }
-
-    @Operation(summary = "북마크 토글", description = "좋아요를 bookmark로 통일합니다. (토글)")
-    @PostMapping("/bookmarks/{productId}")
-    public ApiResponse<BookmarkToggleResponse> toggleBookmark(
-            @UserId Long userId,
-            @PathVariable Long productId
-    ) {
-        return ApiResponse.success(gifticonService.toggleBookmark(userId, productId));
+        return ApiResponse.success(gifticonService.productDetail(productId));
     }
 
     @Operation(summary = "구매 확정", description = "프론트 최종확인 이후 서버에 구매확정을 보내고 포인트 차감 + 구매요청 DB 적재를 수행합니다.")

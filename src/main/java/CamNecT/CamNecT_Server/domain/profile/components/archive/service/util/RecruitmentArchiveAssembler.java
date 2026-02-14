@@ -20,7 +20,6 @@ public class RecruitmentArchiveAssembler {
 
     private final ExternalActivityRepository externalActivityRepository;
     private final UserRepository userRepository;
-    private final ArchiveUtils archiveUtils;
 
     public RecruitmentAssembleResult assemble(List<Object[]> rows) {
         if (rows == null || rows.isEmpty()) {
@@ -50,7 +49,7 @@ public class RecruitmentArchiveAssembler {
         List<MyArchiveResponse.Item> items = new ArrayList<>(rows.size());
         for (Object[] r : rows) {
             TeamRecruitment tr = (TeamRecruitment) r[0];
-            long bookmarkCount = archiveUtils.safeLong(r[1]);
+            long bookmarkCount = safeLong(r[1]);
 
             items.add(new MyArchiveResponse.RecruitmentItem(
                     tr.getRecruitId(),
@@ -69,7 +68,7 @@ public class RecruitmentArchiveAssembler {
 
         Object[] lastRow = rows.getLast();
         TeamRecruitment last = (TeamRecruitment) lastRow[0];
-        long lastCursorVal = archiveUtils.safeLong(lastRow[1]);
+        long lastCursorVal = safeLong(lastRow[1]);
 
         return new RecruitmentAssembleResult(items, last.getRecruitId(), lastCursorVal);
     }
@@ -79,4 +78,10 @@ public class RecruitmentArchiveAssembler {
             Long lastId,
             Long lastCursorValue
     ) {}
+
+    private long safeLong(Object v) {
+        if (v == null) return 0L;
+        if (v instanceof Number n) return n.longValue();
+        return 0L;
+    }
 }

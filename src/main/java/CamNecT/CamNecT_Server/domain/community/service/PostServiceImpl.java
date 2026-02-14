@@ -334,6 +334,7 @@ public class PostServiceImpl implements PostService {
                 content,
                 post.isAnonymous(),
                 stats.getViewCount(),
+                stats.getBookmarkCount(),
                 stats.getLikeCount(),
                 likedByMe,
                 acceptedCommentId,
@@ -443,19 +444,19 @@ public class PostServiceImpl implements PostService {
 
         if (!isQuestion && post.getAccessType() != PostAccessType.POINT_REQUIRED) {
             int bal = pointService.getBalance(user.getUserId());
-            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
+            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal,true);
         }
 
         // 2) 작성자는 무료
         if (userId.equals(post.getUser().getUserId())) {
             int bal = pointService.getBalance(user.getUserId());
-            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
+            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal,true);
         }
 
         // 3) 이미 구매했으면 무료
         if (postAccessRepository.existsByPost_IdAndUser_UserId(postId, userId)) {
             int bal = pointService.getBalance(user.getUserId());
-            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal);
+            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal,true);
         }
 
         pointService.spendPoint(userId, questionViewCost, PointEvent.postAccess(userId, postId));
@@ -466,7 +467,7 @@ public class PostServiceImpl implements PostService {
         }
 
         int remaining = pointService.getBalance(userId);
-        return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, remaining);
+        return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, remaining,false);
     }
 
     private void replaceTags(Posts post, List<Long> tagIds) {

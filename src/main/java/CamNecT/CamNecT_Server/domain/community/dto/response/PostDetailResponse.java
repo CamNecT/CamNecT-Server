@@ -13,6 +13,7 @@ public record PostDetailResponse(
         String content,
         boolean anonymous,
         long viewCount,
+        long bookmarkCount,
         long likeCount,
         boolean likedByMe,
         Long acceptedCommentId,

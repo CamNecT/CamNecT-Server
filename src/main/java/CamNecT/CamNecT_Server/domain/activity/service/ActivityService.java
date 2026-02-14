@@ -605,12 +605,7 @@ public class ActivityService {
      */
     private String thumbnailUrlOrNull(String key) {
         if (!StringUtils.hasText(key) || DEFAULT_THUMB.equals(key)) return null;
-        try {
-            return publicUrlIssuer.issuePublicUrl(key);
-        } catch (Exception e) {
-            log.warn("issuePublicUrl failed. key={}", key, e);
-            return null;
-        }
+        return publicUrlIssuer.issueImagePublicUrl(key);
     }
 
     /**

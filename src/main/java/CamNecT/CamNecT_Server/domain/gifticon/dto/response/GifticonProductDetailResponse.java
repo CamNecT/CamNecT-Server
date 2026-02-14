@@ -6,6 +6,5 @@ public record GifticonProductDetailResponse(
         String productName,
         Integer pricePoints,
         String imageUrl,
-        boolean bookmarked,
         boolean active
 ) {}
