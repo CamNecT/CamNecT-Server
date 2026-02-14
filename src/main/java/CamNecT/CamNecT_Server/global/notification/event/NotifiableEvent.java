@@ -13,6 +13,7 @@ public interface NotifiableEvent {
 
     // 커피챗/기타 식별자용
     default Long requestId() { return null; }
+    default Long roomId() { return null; }
 
     // FE 딥링크(선택)
     default String link() { return null; }

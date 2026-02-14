@@ -2,10 +2,7 @@ package CamNecT.CamNecT_Server.global.notification.event;
 
 import CamNecT.CamNecT_Server.global.notification.dto.NotificationPushPayload;
 import CamNecT.CamNecT_Server.global.notification.model.NotificationType;
-import CamNecT.CamNecT_Server.global.notification.service.FCMSender;
-import CamNecT.CamNecT_Server.global.notification.service.NotificationService;
-import CamNecT.CamNecT_Server.global.notification.service.NotificationWsPublisher;
-import CamNecT.CamNecT_Server.global.notification.service.PushDeviceService;
+import CamNecT.CamNecT_Server.global.notification.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -23,6 +20,7 @@ public class NotificationEventListener {
     private final FCMSender fcmSender;
     private final PushDeviceService pushDeviceService;
     private final NotificationWsPublisher notificationWsPublisher;
+    private final NotificationLinkResolver notificationLinkResolver;
 
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void persist(NotifiableEvent e) {
@@ -35,6 +33,7 @@ public class NotificationEventListener {
                 && e.receiverUserId().equals(e.actorUserId())) {
             return;
         }
+        String link = notificationLinkResolver.resolve(e);
 
         notificationService.create(
                 e.receiverUserId(),
@@ -44,7 +43,7 @@ public class NotificationEventListener {
                 e.postId(),
                 e.commentId(),
                 e.requestId(),
-                e.link()
+                link
         );
     }
 
@@ -62,6 +61,7 @@ public class NotificationEventListener {
 
         String title = titleOf(e.type());
         String body = e.message();
+        String link = notificationLinkResolver.resolve(e);
 
         // 1) 웹/로컬 실시간 알림 (WebSocket user queue)
         var wsPayload = new NotificationPushPayload(
@@ -71,7 +71,7 @@ public class NotificationEventListener {
                 e.postId(),
                 e.commentId(),
                 e.requestId(),
-                e.link()
+                link
         );
         notificationWsPublisher.sendToUser(e.receiverUserId(), wsPayload);
 
@@ -85,7 +85,8 @@ public class NotificationEventListener {
         if (e.postId() != null) data.put("postId", String.valueOf(e.postId()));
         if (e.commentId() != null) data.put("commentId", String.valueOf(e.commentId()));
         if (e.requestId() != null) data.put("requestId", String.valueOf(e.requestId()));
-        if (e.link() != null) data.put("link", e.link());
+
+        data.put("link", link);
 
         try {
             FCMSender.SendResult result = fcmSender.sendToTokens(tokens, title, body, data);
