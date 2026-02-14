@@ -1,9 +1,11 @@
 package CamNecT.CamNecT_Server.global.notification.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class NotificationWsPublisher {
@@ -11,10 +13,7 @@ public class NotificationWsPublisher {
     private final SimpMessagingTemplate messagingTemplate;
 
     public void sendToUser(Long userId, Object payload) {
-        messagingTemplate.convertAndSendToUser(
-                userId.toString(),          // Principal name과 매칭
-                "/queue/notifications",     // FE는 /user/queue/notifications 구독
-                payload
-        );
-    }
+        log.info("[ws-notif] sendToUser userId={}, payload={}", userId, payload);
+        messagingTemplate.convertAndSendToUser(userId.toString(), "/queue/notifications", payload);
+    } // FE는 /user/queue/notifications 구독
 }

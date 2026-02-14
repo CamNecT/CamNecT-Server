@@ -1,4 +1,4 @@
-package CamNecT.CamNecT_Server.global.notification.dto;
+package CamNecT.CamNecT_Server.global.notification.debug;
 
 import java.util.List;
 
