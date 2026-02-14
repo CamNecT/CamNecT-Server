@@ -81,7 +81,7 @@ public class ChatRequest {
 
     // 상태값 Enum (받았는지, 거절했는지 등)
     public enum RequestStatus {
-        WAITING, ACCEPTED, REJECTED
+        WAITING, ACCEPTED, REJECTED, CLOSED
     }
 
     @Builder
@@ -95,6 +95,10 @@ public class ChatRequest {
 
         this.activityId = activityId;
         this.recruitmentId = recruitmentId;
+    }
+
+    public void closeRequest() {
+        this.status = RequestStatus.CLOSED;
     }
 
     public void accept() {
