@@ -29,6 +29,9 @@ app:
       expiration-minutes: 30
       mail:
         subject: "CamNecT 이메일 인증번호"
+  profile:
+    image:
+      max-file-size-mb: 20
   verification:
     document:
       max-file-size-mb: 10
