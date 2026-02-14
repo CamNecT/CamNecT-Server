@@ -7,6 +7,9 @@ import CamNecT.CamNecT_Server.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -27,11 +30,14 @@ public class AlumniController {
             description = "이름 또는 관심 태그를 필터로 사용하여 동문 목록을 조회합니다. 필터 값이 없으면 추천순 동문 목록을 반환합니다."
     )
     @GetMapping
-    public ApiResponse<List<AlumniPreviewResponse>> searchAlumni(
+    public ApiResponse<Slice<AlumniPreviewResponse>> searchAlumni(
             @UserId Long userId,
-            @RequestParam(value = "name", required = false) String name,
-            @RequestParam(value = "tags", required = false) List<Long> tagIdList
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) List<Long> tags,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
     ) {
-        return ApiResponse.success(alumniService.searchAlumni(userId, name, tagIdList));
+        Pageable pageable = PageRequest.of(page, size);
+        return ApiResponse.success(alumniService.searchAlumni(userId, name, tags, pageable));
     }
 }

@@ -8,9 +8,15 @@ public record PortfolioRequest(
         String description,
         LocalDate startedAt,
         LocalDate endedAt,
-        String project_role,
+        String project_role, // assignedRole에 매핑될 필드
+        List<String> techStack, // 추가
         String review,
         String thumbnailKey,
         List<String> attachmentKeys
 ) {
+    // null 방어: attachmentKeys가 null로 들어오면 빈 리스트로 초기화
+    public PortfolioRequest {
+        if (attachmentKeys == null) attachmentKeys = List.of();
+        if (techStack == null) techStack = List.of();
+    }
 }
