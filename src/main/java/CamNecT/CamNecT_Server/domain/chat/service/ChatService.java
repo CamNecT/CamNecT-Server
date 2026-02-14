@@ -440,6 +440,32 @@ public class ChatService {
                 "/sub/chat/room/" + roomId,
                 chatReadEvent
         );
+
+        // 읽은 당사자(Reader)의 '채팅 목록/전체 배지' 갱신을 위해 소켓 발송
+
+        long totalUnreadCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(reader.getUserId());
+
+        long roomUnreadCount = 0L;
+
+        String lastContent = unreadMessages.getLast().getContent();
+        String lastTime = unreadMessages.getLast().getCreatedAt().toString();
+
+        ChatRoomListUpdateDto updateDto = ChatRoomListUpdateDto.builder()
+                .roomId(roomId)
+                .lastMessage(lastContent)
+                .unreadCount(roomUnreadCount)
+                .time(lastTime)
+                .totalUnreadCount(totalUnreadCount)
+                .build();
+
+        messagingTemplate.convertAndSend(
+                "/sub/user/" + reader.getUserId() + "/rooms",
+                updateDto
+        );
+
+        log.info("🚀 [Socket] 읽음 처리 후 목록 갱신 전송: /sub/user/{}/rooms (남은 전체 미독: {})",
+                reader.getUserId(), totalUnreadCount);
+
     }
 
     @Transactional
