@@ -20,4 +20,6 @@ public interface NotifiableEvent {
 
     // “나->나” 알림 허용 여부(기본 false)
     default boolean allowSelf() { return false; }
+    default boolean isSelf() { return actorUserId() != null && receiverUserId().equals(actorUserId()); }
+    default boolean shouldSkipSelfNotification() { return isSelf() && !allowSelf(); }
 }

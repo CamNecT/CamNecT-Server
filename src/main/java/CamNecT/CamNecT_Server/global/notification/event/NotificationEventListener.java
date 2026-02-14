@@ -28,11 +28,7 @@ public class NotificationEventListener {
         log.info("[notif] persist(beforeCommit) receiver={}, actor={}, type={}",
                 e.receiverUserId(), e.actorUserId(), e.type());
 
-        if (!e.allowSelf()
-                && e.actorUserId() != null
-                && e.receiverUserId().equals(e.actorUserId())) {
-            return;
-        }
+        if (e.shouldSkipSelfNotification()) return;
         String link = notificationLinkResolver.resolve(e);
 
         notificationService.create(
@@ -53,11 +49,7 @@ public class NotificationEventListener {
         log.info("[notif] push(afterCommit) receiver={}, actor={}, type={}",
                 e.receiverUserId(), e.actorUserId(), e.type());
 
-        if (!e.allowSelf()
-                && e.actorUserId() != null
-                && e.receiverUserId().equals(e.actorUserId())) {
-            return;
-        }
+        if (e.shouldSkipSelfNotification()) return;
 
         String title = titleOf(e.type());
         String body = e.message();
