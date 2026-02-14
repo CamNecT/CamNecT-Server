@@ -30,8 +30,5 @@ public record NewChatMessageEvent(
         return content;
     }
 
-    @Override
-    public String link() {
-        return "/chat/room/" + roomId;
-    }
+    @Override public Long roomId() { return roomId; }
 }

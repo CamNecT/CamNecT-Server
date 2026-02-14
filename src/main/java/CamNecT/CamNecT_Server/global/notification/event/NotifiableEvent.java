@@ -13,10 +13,13 @@ public interface NotifiableEvent {
 
     // 커피챗/기타 식별자용
     default Long requestId() { return null; }
+    default Long roomId() { return null; }
 
     // FE 딥링크(선택)
     default String link() { return null; }
 
     // “나->나” 알림 허용 여부(기본 false)
     default boolean allowSelf() { return false; }
+    default boolean isSelf() { return actorUserId() != null && receiverUserId().equals(actorUserId()); }
+    default boolean shouldSkipSelfNotification() { return isSelf() && !allowSelf(); }
 }

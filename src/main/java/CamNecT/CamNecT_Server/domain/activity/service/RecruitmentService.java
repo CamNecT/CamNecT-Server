@@ -170,17 +170,7 @@ public class RecruitmentService {
                 .content(request.content())
                 .build();
 
-        // 모집글 작성자에게 알림
-        eventPublisher.publishEvent(SimpleNotifiableEvent.of(
-                recruitment.getUserId(),                 // receiver = 모집글 작성자
-                userId,                                  // actor = 지원자
-                NotificationType.TEAM_APPLICATION_RECEIVED,
-                "팀원 모집에 지원이 도착했습니다.",
-                null,
-                null,
-                recruitId,                               // requestId에 recruitId 넣어서 FE가 이동 처리 가능
-                null
-        ));
+
 
         // 커피챗 요청 로직
         Users requester = userRepository.findById(userId)
@@ -213,7 +203,21 @@ public class RecruitmentService {
                 .recruitmentId(recruitId)
                 .build();
 
-        chatRequestRepository.save(chatRequest);
+
+
+        Long chatRequestId = chatRequestRepository.save(chatRequest).getId();
+
+        // 모집글 작성자에게 알림
+        eventPublisher.publishEvent(SimpleNotifiableEvent.of(
+                recruitment.getUserId(),                 // receiver = 모집글 작성자
+                userId,                                  // actor = 지원자
+                NotificationType.TEAM_APPLICATION_RECEIVED,
+                "팀원 모집에 지원이 도착했습니다.",
+                null,
+                null,
+                chatRequestId,
+                null
+        ));
 
 
         return teamApplicationRepository.save(application).getApplicationId();
@@ -245,20 +249,6 @@ public class RecruitmentService {
                 ChatRequest.RequestStatus.ACCEPTED
         );
 
-        String title = recruitment.getTitle() != null ? recruitment.getTitle() : "팀원 모집";
-
-        for (ChatRequest r : targets) {
-            if (r.getStatus() == ChatRequest.RequestStatus.WAITING) r.reject();
-
-            eventPublisher.publishEvent(SimpleNotifiableEvent.of(
-                    r.getRequester().getUserId(),                // receiver = 지원자
-                    userId,                                      // actor = 모집글 작성자
-                    NotificationType.TEAM_RECRUIT_CLOSED,
-                    "모집이 마감되었습니다. (" + title + ")",
-                    null, null,
-                    r.getId(),                                   // requestId = chat_request.request_id
-                    null
-            ));
-        }
+        for (ChatRequest r : targets) if (r.getStatus() == ChatRequest.RequestStatus.WAITING) r.reject();
     }
 }

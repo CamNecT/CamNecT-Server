@@ -29,10 +29,7 @@ import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.model.Majors;
-import CamNecT.CamNecT_Server.global.notification.event.CoffeeChatRequestedEvent;
-import CamNecT.CamNecT_Server.global.notification.event.NewChatMessageEvent;
-import CamNecT.CamNecT_Server.global.notification.event.SimpleNotifiableEvent;
-import CamNecT.CamNecT_Server.global.notification.model.NotificationType;
+import CamNecT.CamNecT_Server.global.notification.event.*;
 import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import CamNecT.CamNecT_Server.global.tag.model.Tag;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
@@ -155,8 +152,8 @@ public class ChatService {
 
         if (isAccepted) {
             request.accept();
-            createChatRoom(request);
-            publishAcceptedNotification(request);
+            Long roomId = createChatRoom(request);
+            publishAcceptedNotification(request, roomId);
         } else {
             request.reject();
         }
@@ -270,9 +267,10 @@ public class ChatService {
     /*
      2-1. 채팅방 생성 (수락 시 자동 호출)
      */
-    private void createChatRoom(ChatRequest request) {
+    private Long createChatRoom(ChatRequest request) {
         ChatRoom chatRoom = ChatRoom.createRoom(request, request.getRequester(), request.getReceiver());
-        chatRoomRepository.save(chatRoom);
+        ChatRoom saved = chatRoomRepository.save(chatRoom);
+        return saved.getId();
     }
 
     @Transactional
@@ -649,30 +647,18 @@ public class ChatService {
 
     }
 
-    private void publishAcceptedNotification(ChatRequest request) {
-        Long receiverUserId = request.getRequester().getUserId(); // 요청자(지원자)
+    private void publishAcceptedNotification(ChatRequest request, Long roomId) {
+        Long receiverUserId = request.getRequester().getUserId(); // 요청자
         Long actorUserId = request.getReceiver().getUserId();     // 승인자
 
-        NotificationType type;
-        String msg;
-
         if (request.getType() == ChatRequest.RequestType.TEAM_RECRUIT) {
-            type = NotificationType.TEAM_RECRUIT_ACCEPTED;
-
-            String title = "팀원 모집";
-            Long recruitmentId = request.getRecruitmentId();
-            if (recruitmentId != null) {
-                title = recruitmentRepository.findById(recruitmentId)
-                        .map(TeamRecruitment::getTitle)
-                        .orElse("삭제된 모집 공고");
-            }
-
-            msg = "팀원 모집 신청이 승인되었습니다. (" + title + ")";
+            eventPublisher.publishEvent(new TeamRecruitAcceptedEvent(
+                    receiverUserId, actorUserId, roomId, request.getRecruitmentId()
+            ));
         } else {
-            type = NotificationType.COFFEE_CHAT_ACCEPTED;
-            msg = "커피챗 요청이 수락되었습니다.";
+            eventPublisher.publishEvent(new CoffeeChatAcceptedEvent(
+                    receiverUserId, actorUserId, roomId
+            ));
         }
-
-        eventPublisher.publishEvent(SimpleNotifiableEvent.of(receiverUserId, actorUserId, type, msg, null, null, request.getId(), null));
     }
 }

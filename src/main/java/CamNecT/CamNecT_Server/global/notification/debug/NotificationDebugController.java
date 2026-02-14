@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-//@Profile({"local", "dev"})
+@Profile({"local", "dev"})
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/debug/notification/")
@@ -46,6 +46,8 @@ public class NotificationDebugController {
         return ApiResponse.success(null);
     }
 
+
+    /// 여기서부터는 fcm테스트
     @PostMapping("/push/send")
     public ApiResponse<Map<String, Object>> send(@RequestBody @Valid FCMSendRequest req) throws Exception {
 

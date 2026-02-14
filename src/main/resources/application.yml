@@ -87,6 +87,12 @@ app:
       secret-key: ${SENDB_SECRET_KEY:}
       cipher: ${SENDB_CIPHER:AES/ECB/PKCS5Padding}
       iv: ${SENDB_IV:}
+  front:
+    links:
+      fallback: /
+      community-post: /community/post/{postId}
+      chat-request: /chat/requests/{requestId}
+      chat-room: /chat/{roomId}
   tag-relation:
     top-k: 15
     min-evidence: 2
