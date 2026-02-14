@@ -1,18 +1,18 @@
 package CamNecT.CamNecT_Server.domain.alumni.repository;
 
 import CamNecT.CamNecT_Server.domain.users.model.QUsers;
-import CamNecT.CamNecT_Server.domain.users.model.QUserProfile;
 import CamNecT.CamNecT_Server.domain.users.model.QUserTagMap;
-import com.querydsl.core.types.Order;
-import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.util.Collections;
 import java.util.List;
 
 @Repository
@@ -22,40 +22,47 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<Long> findAlumniIdsByConditions(Long myId, String name, List<Long> tagIdList) {
+    public List<Long> findAlumniIdsByConditions(Long myId, String name, List<Long> tagIdList, Pageable pageable) {
 
         QUsers user = QUsers.users;
-        QUserProfile profile = QUserProfile.userProfile;
-        QUserTagMap myTagMap = new QUserTagMap("myTagMap");
         QUserTagMap commonTagMap = new QUserTagMap("commonTagMap");
 
-        return queryFactory
+        // 1. 내 태그 ID 리스트 조회 (로그인 상태일 때만)
+        List<Long> myTagIds = (myId != null) ? queryFactory
+                .select(QUserTagMap.userTagMap.tagId)
+                .from(QUserTagMap.userTagMap)
+                .where(QUserTagMap.userTagMap.userId.eq(myId))
+                .fetch() : Collections.emptyList();
+
+        // 2. 공통 태그 카운트 (Null 방지를 위해 coalesce 사용)
+        NumberExpression<Long> commonTagCount = commonTagMap.tagId.count().coalesce(0L);
+
+        var query = queryFactory
                 .select(user.userId)
-                .from(user)
-                .join(profile).on(user.userId.eq(profile.userId))
+                .from(user);
+
+        // 3. 내 태그가 있을 때만 Left Join 수행 (없으면 조인할 필요 없음)
+        if (!myTagIds.isEmpty()) {
+            query.leftJoin(commonTagMap).on(
+                    commonTagMap.userId.eq(user.userId)
+                            .and(commonTagMap.tagId.in(myTagIds))
+            );
+        }
+
+        return query
                 .where(
                         user.userId.ne(myId),
                         nameContains(name),
                         hasAllTags(tagIdList, user.userId)
                 )
+                .groupBy(user.userId, user.createdAt) // 정렬 컬럼 포함하여 그룹화
                 .orderBy(
-                        // 나와 공통 태그 개수를 계산하는 서브쿼리를 OrderSpecifier로 래핑
-                        new OrderSpecifier<>(Order.DESC,
-                                JPAExpressions
-                                        .select(commonTagMap.count())
-                                        .from(commonTagMap)
-                                        .where(
-                                                commonTagMap.userId.eq(user.userId),
-                                                commonTagMap.tagId.in(
-                                                        JPAExpressions
-                                                                .select(myTagMap.tagId)
-                                                                .from(myTagMap)
-                                                                .where(myTagMap.userId.eq(myId))
-                                                )
-                                        )
-                        ),
-                        user.createdAt.desc()  // 이건 그대로 사용 가능
+                        commonTagCount.desc(),
+                        user.createdAt.desc(),
+                        user.userId.desc()
                 )
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize() + 1)
                 .fetch();
     }
 
