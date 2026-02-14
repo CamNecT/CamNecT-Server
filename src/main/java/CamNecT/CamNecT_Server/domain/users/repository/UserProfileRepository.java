@@ -62,4 +62,5 @@ public interface UserProfileRepository extends JpaRepository<UserProfile, Long> 
             """)
     Optional<ProfileGlobalDto> findGlobalByUserId(@Param("userId") Long userId);
 
+    void deleteByUserId(Long userId);
 }

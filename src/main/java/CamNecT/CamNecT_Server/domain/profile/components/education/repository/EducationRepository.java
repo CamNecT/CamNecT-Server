@@ -16,4 +16,6 @@ public interface EducationRepository extends JpaRepository<Education, Long> {
             "WHERE e.user.userId = :userId " +
             "ORDER BY e.startDate DESC")
     List<Education> findAllByUserIdWithDetails(@Param("userId") Long userId);
+
+    void deleteByUser_UserId(Long userId);
 }

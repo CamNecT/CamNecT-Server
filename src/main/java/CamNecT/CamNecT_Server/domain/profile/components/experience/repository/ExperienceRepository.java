@@ -15,4 +15,6 @@ public interface ExperienceRepository extends JpaRepository<Experience, Long> {
             "WHERE e.user.userId = :userId " +
             "ORDER BY e.startDate DESC")
     List<Experience> findAllByUserIdWithDetails(@Param("userId") Long userId);
+
+    void deleteByUser_UserId(Long userId);
 }

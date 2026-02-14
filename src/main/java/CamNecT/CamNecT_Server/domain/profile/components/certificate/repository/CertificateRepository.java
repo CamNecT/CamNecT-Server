@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface CertificateRepository extends JpaRepository<Certificate, Long> {
     List<Certificate> findAllByUser_UserIdOrderByAcquiredDateDesc(Long userId);
+
+    void deleteByUser_UserId(Long userId);
 }

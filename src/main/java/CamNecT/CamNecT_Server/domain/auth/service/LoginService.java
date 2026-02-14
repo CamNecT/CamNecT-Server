@@ -4,6 +4,10 @@ import CamNecT.CamNecT_Server.domain.auth.dto.LoginNextStep;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginRequest;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginResponse;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.VerificationCompleteResponse;
+import CamNecT.CamNecT_Server.domain.auth.dto.others.WithdrawRequest;
+import CamNecT.CamNecT_Server.domain.profile.components.certificate.repository.CertificateRepository;
+import CamNecT.CamNecT_Server.domain.profile.components.education.repository.EducationRepository;
+import CamNecT.CamNecT_Server.domain.profile.components.experience.repository.ExperienceRepository;
 import CamNecT.CamNecT_Server.domain.profile.components.institutions.repository.InstitutionRepository;
 import CamNecT.CamNecT_Server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.CamNecT_Server.domain.users.model.UserProfile;
@@ -14,7 +18,9 @@ import CamNecT.CamNecT_Server.domain.users.repository.UserProfileRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.domain.verification.document.model.DocumentVerificationSubmission;
 import CamNecT.CamNecT_Server.domain.verification.document.repository.DocumentVerificationSubmissionRepository;
+import CamNecT.CamNecT_Server.domain.verification.email.repository.EmailVerificationTokenRepository;
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
+import CamNecT.CamNecT_Server.global.common.response.errorcode.ErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.CamNecT_Server.global.jwt.JwtFacade;
@@ -37,6 +43,10 @@ public class LoginService {
     private final UserProfileRepository userProfileRepository;
     private final InstitutionRepository institutionRepository;
     private final MajorRepository majorRepository;
+    private final CertificateRepository certificateRepository;
+    private final ExperienceRepository experienceRepository;
+    private final EducationRepository educationRepository;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
 
     @Transactional
     public LoginResponse login(LoginRequest req) {
@@ -162,4 +172,37 @@ public class LoginService {
     public void logout(Long loginUserId) {
         /* stateless access-token only 구조: 서버에서 할 일 없음
                                             (추후 필요하면 푸시토큰 해제, 디바이스 세션 정리 등을 여기서 처리) */}
+
+    @Transactional
+    public void withdraw(Long userId, WithdrawRequest req) {
+        Users user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+
+        if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
+            throw new CustomException(AuthErrorCode.INVALID_PASSWORD);
+        }
+
+        // 개인정보성 데이터 제거: 프로필/학력/경력/증명서/이메일토큰 등
+        certificateRepository.deleteByUser_UserId(userId);
+        educationRepository.deleteByUser_UserId(userId);
+        experienceRepository.deleteByUser_UserId(userId);
+        emailVerificationTokenRepository.deleteByUser_UserId(userId);
+        userProfileRepository.deleteByUserId(userId);
+
+        // 유저 자체는 유지하되 익명화 + 로그인 불가 상태로 전환
+        String suffix = userId + "_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+
+        user.withdrawAnonymize(
+                "탈퇴한 사용자",
+                "deleted_" + suffix,
+                null,
+                null,
+                false,
+                UserStatus.SUSPENDED,
+                true
+        );
+
+        // 저장
+        userRepository.save(user);
+    }
 }
