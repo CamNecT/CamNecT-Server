@@ -97,6 +97,10 @@ public class ChatRequest {
         this.recruitmentId = recruitmentId;
     }
 
+    public void closeRequest() {
+        this.status = RequestStatus.CLOSED;
+    }
+
     public void accept() {
         this.status = RequestStatus.ACCEPTED;
     }

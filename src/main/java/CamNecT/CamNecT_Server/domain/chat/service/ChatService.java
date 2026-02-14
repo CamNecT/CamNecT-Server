@@ -640,6 +640,13 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
         room.closeRoom();
+
+        ChatRequest request = room.getRequest();
+        if (request == null) {
+            throw new CustomException(CoffeeChatErrorCode.REQUESTER_NOT_FOUND);
+        }
+        request.closeRequest();
+
     }
 
     private void publishAcceptedNotification(ChatRequest request) {
