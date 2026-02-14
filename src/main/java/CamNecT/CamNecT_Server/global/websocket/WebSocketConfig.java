@@ -1,6 +1,5 @@
-package CamNecT.CamNecT_Server.global.common.config;
+package CamNecT.CamNecT_Server.global.websocket;
 
-import CamNecT.CamNecT_Server.domain.chat.service.ChatStompInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -18,7 +17,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.enableSimpleBroker("/sub", "/queue", "/room");    //해당 주소를 구독하고 잇는 클라이언트들에게 메세지 전달
-        registry.setApplicationDestinationPrefixes("/pub", "/send");       //클라이언트에서 보낸 메세지를 받을 prefix
+        registry.setApplicationDestinationPrefixes("/pub", "/send"); //클라이언트에서 보낸 메세지를 받을 prefix
+        registry.setUserDestinationPrefix("/user");
     }
 
     @Override

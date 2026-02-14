@@ -1,5 +1,7 @@
-package CamNecT.CamNecT_Server.domain.chat.service;
+package CamNecT.CamNecT_Server.global.websocket;
 
+import CamNecT.CamNecT_Server.domain.chat.service.ChatPresenceService;
+import CamNecT.CamNecT_Server.domain.chat.service.ChatService;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +11,8 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
+
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -25,7 +29,10 @@ public class WebSocketEventListener {
         String destination = accessor.getDestination();
 
         if (destination != null && destination.startsWith("/sub/chat/room/")) {
-            Object userIdObj = accessor.getSessionAttributes().get("userId");
+            Map<String, Object> attrs = accessor.getSessionAttributes();
+            if (attrs == null) return;
+
+            Object userIdObj = attrs.get("userId");
             if (userIdObj == null) return;
 
             Long userId = Long.valueOf(userIdObj.toString());
@@ -46,7 +53,9 @@ public class WebSocketEventListener {
     @EventListener
     public void handleSessionDisconnectEvent(SessionDisconnectEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
-        Long userId = (Long) accessor.getSessionAttributes().get("userId");
+
+        Map<String, Object> attrs = accessor.getSessionAttributes();
+        Long userId = attrs == null ? null : (Long) attrs.get("userId");
 
         if (userId != null) {
             presenceService.leaveAll(userId);

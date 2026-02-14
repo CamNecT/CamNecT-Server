@@ -1,5 +1,7 @@
 package CamNecT.CamNecT_Server.domain.alumni.repository;
 
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 
 public interface AlumniRepositoryCustom {
@@ -12,5 +14,5 @@ public interface AlumniRepositoryCustom {
      * @param tagIdList 필터링할 태그 ID 목록 (옵션)
      * @return 조건에 맞는 유저 ID 목록 (공통 태그 수 DESC, 생성일 DESC 정렬)
      */
-    List<Long> findAlumniIdsByConditions(Long myId, String name, List<Long> tagIdList);
+    List<Long> findAlumniIdsByConditions(Long myId, String name, List<Long> tagIdList, Pageable pageable);
 }

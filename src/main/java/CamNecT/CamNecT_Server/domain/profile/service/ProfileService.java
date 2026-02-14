@@ -33,6 +33,7 @@ import CamNecT.CamNecT_Server.global.storage.service.PresignEngine;
 import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import CamNecT.CamNecT_Server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -45,6 +46,12 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class ProfileService {
+
+    @Value("${app.profile.image.max-file-size-mb:20}")
+    private int profileImageMaxFileSizeMb;
+
+    private static final Set<String> PROFILE_IMAGE_ALLOWED =
+            Set.of("image/jpeg", "image/png", "image/webp");
 
     private final UserRepository userRepository;
     private final CertificateRepository certificateRepository;
@@ -246,11 +253,13 @@ public class ProfileService {
         requireEmailVerifiedAndNotSuspended(user);
 
         String ct = globalPresignMethods.normalize(req.contentType());
-        long maxBytes = 5 * 1024 * 1024L;
+
+        long maxBytes = (long) profileImageMaxFileSizeMb * 1024 * 1024;
+
+        if (!PROFILE_IMAGE_ALLOWED.contains(ct)) throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE); // 프로젝트 에러코드에 맞춰 변경
 
         if (req.size() == null || req.size() <= 0) throw new CustomException(StorageErrorCode.STORAGE_EMPTY_FILE);
         if (req.size() > maxBytes) throw new CustomException(StorageErrorCode.FILE_TOO_LARGE);
-
 
         String keyPrefix = "profile/user-" + userId + "/images";
         return presignEngine.issueUpload(
@@ -258,7 +267,7 @@ public class ProfileService {
                 UploadPurpose.PROFILE_IMAGE,
                 keyPrefix,
                 ct,
-                maxBytes,                 // 티켓 size는 상한으로
+                maxBytes,
                 req.originalFilename()
         );
     }

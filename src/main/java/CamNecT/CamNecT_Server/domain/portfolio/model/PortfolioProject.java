@@ -81,12 +81,18 @@ public class PortfolioProject {
         this.thumbnailUrl = url;
     }
 
-    public void updateInfo(String title, String description, String review, LocalDate startDate, LocalDate endDate) {
+    // PortfolioProject.java 내 수정
+    public void updateInfo(String title, String description, String review,
+                           LocalDate startDate, LocalDate endDate,
+                           String projectRole, List<String> techStack) {
         this.title = title;
         this.description = description;
         this.review = review;
         this.startDate = startDate;
         this.endDate = endDate;
+        // String으로 받은 역할을 List로 변환하여 저장
+        this.assignedRole = (projectRole != null) ? List.of(projectRole) : new ArrayList<>();
+        this.techStack = (techStack != null) ? techStack : new ArrayList<>();
         this.updatedAt = LocalDate.now();
     }
 }

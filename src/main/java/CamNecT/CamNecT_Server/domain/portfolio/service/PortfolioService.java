@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -123,7 +124,7 @@ public class PortfolioService {
 
         if (!Objects.equals(userId, portfolioUserId)) throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
 
-        //요청에 따라 PortfolioProject 생성
+        // 1. 엔티티 생성 시 누락된 필드(assignedRole, techStack) 추가
         PortfolioProject project = PortfolioProject.builder()
                 .userId(userId)
                 .title(request.projectTitle())
@@ -132,6 +133,8 @@ public class PortfolioService {
                 .startDate(request.startedAt())
                 .endDate(request.endedAt())
                 .review(request.review())
+                .assignedRole(List.of(request.project_role())) // String을 List로 변환하여 저장
+                .techStack(request.techStack()) // 추가
                 .isPublic(true)
                 .createdAt(LocalDate.now())
                 .updatedAt(LocalDate.now())
@@ -139,17 +142,24 @@ public class PortfolioService {
 
         PortfolioProject saved = portfolioRepository.save(project);
 
-        portfolioAttachmentService.applyOnCreate(
-                saved,
-                userId,
-                request.thumbnailKey(),
-                request.attachmentKeys()
-        );
+        // 3. S3 관련 키가 존재하는 경우에만 로직 수행
+        // thumbnailKey나 attachmentKeys가 둘 다 없으면 skip
+        boolean hasThumbnail = StringUtils.hasText(request.thumbnailKey());
+        boolean hasAttachments = request.attachmentKeys() != null && !request.attachmentKeys().isEmpty();
+
+        if (hasThumbnail || hasAttachments) {
+            portfolioAttachmentService.applyOnCreate(
+                    saved,
+                    userId,
+                    request.thumbnailKey(),
+                    request.attachmentKeys()
+            );
+        }
 
         return new PortfolioPreviewResponse(
                 saved.getPortfolioId(),
                 saved.getTitle(),
-                cdnOrNull(saved.getThumbnailUrl()), // CDN
+                cdnOrNull(saved.getThumbnailUrl()),
                 saved.isPublic(),
                 saved.isFavorite()
         );
@@ -160,29 +170,41 @@ public class PortfolioService {
         PortfolioProject project = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
 
+        // 권한 체크
         assertPathUserMatchesOwner(portfolioUserId, project);
         assertOwner(userId, project);
 
+        // 1. 일반 정보 업데이트 (프로젝트 역할 및 기술 스택 포함)
         project.updateInfo(
                 request.projectTitle(),
                 request.description(),
                 request.review(),
                 request.startedAt(),
-                request.endedAt()
+                request.endedAt(),
+                request.project_role(), // 추가
+                request.techStack()     // 추가
         );
 
-        // consume/정렬/삭제예약은 AttachmentService로 위임
-        portfolioAttachmentService.applyOnUpdate(
-                project,
-                userId,
-                request.thumbnailKey(),
-                request.attachmentKeys()
-        );
+        // 2. S3 첨부파일/썸네일 업데이트 로직 (Null 및 빈 값 방어)
+        // 수정 시에는 기존 파일을 유지할지, 새로 교체할지 판단이 필요하므로
+        // 최소한의 데이터가 있을 때만 요청을 보냅니다.
+        boolean hasThumbnail = StringUtils.hasText(request.thumbnailKey());
+        boolean hasAttachments = request.attachmentKeys() != null && !request.attachmentKeys().isEmpty();
+
+        // 서비스 기획에 따라 '수정 시 아무것도 안 보내면 기존 유지'라면 아래 처리가 맞습니다.
+        if (hasThumbnail || hasAttachments) {
+            portfolioAttachmentService.applyOnUpdate(
+                    project,
+                    userId,
+                    request.thumbnailKey(),
+                    request.attachmentKeys()
+            );
+        }
 
         return new PortfolioPreviewResponse(
                 project.getPortfolioId(),
                 project.getTitle(),
-                cdnOrNull(project.getThumbnailUrl()), // CDN
+                cdnOrNull(project.getThumbnailUrl()),
                 project.isPublic(),
                 project.isFavorite()
         );

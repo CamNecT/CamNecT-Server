@@ -1,8 +1,10 @@
 package CamNecT.CamNecT_Server.global.notification.event;
 
+import CamNecT.CamNecT_Server.global.notification.dto.NotificationPushPayload;
 import CamNecT.CamNecT_Server.global.notification.model.NotificationType;
 import CamNecT.CamNecT_Server.global.notification.service.FCMSender;
 import CamNecT.CamNecT_Server.global.notification.service.NotificationService;
+import CamNecT.CamNecT_Server.global.notification.service.NotificationWsPublisher;
 import CamNecT.CamNecT_Server.global.notification.service.PushDeviceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ public class NotificationEventListener {
     private final NotificationService notificationService;
     private final FCMSender fcmSender;
     private final PushDeviceService pushDeviceService;
+    private final NotificationWsPublisher notificationWsPublisher;
 
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void persist(NotifiableEvent e) {
@@ -57,11 +60,25 @@ public class NotificationEventListener {
             return;
         }
 
+        String title = titleOf(e.type());
+        String body = e.message();
+
+        // 1) 웹/로컬 실시간 알림 (WebSocket user queue)
+        var wsPayload = new NotificationPushPayload(
+                e.type().name(),
+                title,
+                body,
+                e.postId(),
+                e.commentId(),
+                e.requestId(),
+                e.link()
+        );
+        notificationWsPublisher.sendToUser(e.receiverUserId(), wsPayload);
+
+        // 2) 모바일 푸시(FCM)
         var tokens = pushDeviceService.findEnabledTokens(e.receiverUserId());
         if (tokens == null || tokens.isEmpty()) return;
 
-        String title = titleOf(e.type());
-        String body = e.message();
 
         Map<String, String> data = new java.util.HashMap<>();
         data.put("type", e.type().name());

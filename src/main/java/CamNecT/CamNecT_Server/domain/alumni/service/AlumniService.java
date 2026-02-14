@@ -13,6 +13,10 @@ import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import CamNecT.CamNecT_Server.domain.users.repository.UserTagMapRepository;
 import CamNecT.CamNecT_Server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -33,59 +37,64 @@ public class AlumniService {
     private final PublicUrlIssuer publicUrlIssuer;
 
     @Transactional(readOnly = true)
-    public List<AlumniPreviewResponse> searchAlumni(Long userId, String name, List<Long> tagIdList) {
+    public Slice<AlumniPreviewResponse> searchAlumni(Long userId, String name, List<Long> tagIdList, Pageable pageable) {
 
-        // 1. 조건에 맞는 유저 ID 목록 조회 (QueryDSL 동적 쿼리 사용)
-        List<Long> targetIds = alumniRepository.findAlumniIdsByConditions(userId, name, tagIdList);
+        // 1. ID 페이징 조회
+        List<Long> targetIds = alumniRepository.findAlumniIdsByConditions(userId, name, tagIdList, pageable);
 
-        if (targetIds.isEmpty()) return List.of();
+        boolean hasNext = targetIds.size() > pageable.getPageSize();
+        if (hasNext) {
+            targetIds = targetIds.subList(0, pageable.getPageSize());
+        }
 
-        // 2-1. Users 정보 조회 및 Map 변환 (userName 조회용)
+        if (targetIds.isEmpty()) {
+            return new SliceImpl<>(List.of(), pageable, false);
+        }
+
+        // 2. Users 조회
         Map<Long, Users> usersMap = usersRepository.findAllById(targetIds).stream()
                 .collect(Collectors.toMap(Users::getUserId, u -> u));
 
-        // 2-2. 프로필 정보 조회 및 Map 변환
+        // 3. Profile 조회
         Map<Long, UserProfile> profileMap = userProfileRepository.findAllById(targetIds).stream()
                 .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
 
-        // 3. 태그 정보 조회 및 Map 변환 (통합 로직)
-        List<Object[]> tagResults = userTagMapRepository.findTagNamesWithUserIdByUserIdIn(targetIds);
-        Map<Long, List<String>> tagMap = tagResults.stream()
+        // 4. Tags 조회
+        Map<Long, List<String>> tagMap = userTagMapRepository.findTagNamesWithUserIdByUserIdIn(targetIds)
+                .stream()
                 .collect(Collectors.groupingBy(
-                        row -> (Long) row[0], // userId
-                        Collectors.mapping(
-                                row -> (String) row[1], // tag name
-                                Collectors.toList()
-                        )
+                        row -> (Long) row[0],
+                        Collectors.mapping(row -> (String) row[1], Collectors.toList())
                 ));
 
-        // 4. targetIds의 정렬 순서를 유지하며 최종 DTO 생성 (프로필 이미지 CDN URL 적용)
-        return targetIds.stream()
+        // 5. DTO 변환 (정렬 유지)
+        List<AlumniPreviewResponse> content = targetIds.stream()
                 .map(id -> {
                     Users user = usersMap.get(id);
                     UserProfile profile = profileMap.get(id);
 
-                    // UserProfile 엔티티 → DTO 변환 + 프로필 이미지 CDN URL 적용
                     UserProfileDto profileDto = UserProfileDto.from(profile)
-                            .withProfileImageUrl(
-                                    publicUrlIssuer.issuePublicUrl(profile.getProfileImageKey())
-                            );
+                            .withProfileImageUrl(publicUrlIssuer.issuePublicUrl(profile.getProfileImageKey()));
 
                     return new AlumniPreviewResponse(
                             id,
-                            user.getName(), // Users 엔티티에서 name 가져오기
+                            user.getName(),
                             profileDto,
                             tagMap.getOrDefault(id, List.of())
                     );
                 })
                 .toList();
+
+        return new SliceImpl<>(content, pageable, hasNext);
     }
 
     @Transactional(readOnly = true)
     public HomeResponse.AlumniSection getHomePreview(Long myId, int limit) {
 
+        Pageable defaultPageable = PageRequest.of(0, 20);
+
         // 1) 추천 정렬된 ID 목록
-        List<Long> orderedIds = alumniRepository.findAlumniIdsByConditions(myId, null, List.of());
+        List<Long> orderedIds = alumniRepository.findAlumniIdsByConditions(myId, null, List.of(), defaultPageable);
         if (orderedIds.isEmpty()) {
             return HomeResponse.AlumniSection.empty();
         }

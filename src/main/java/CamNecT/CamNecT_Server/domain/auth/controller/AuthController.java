@@ -3,6 +3,7 @@ package CamNecT.CamNecT_Server.domain.auth.controller;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginRequest;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.LoginResponse;
 import CamNecT.CamNecT_Server.domain.auth.dto.login.VerificationCompleteResponse;
+import CamNecT.CamNecT_Server.domain.auth.dto.others.WithdrawRequest;
 import CamNecT.CamNecT_Server.domain.auth.dto.signup.*;
 import CamNecT.CamNecT_Server.domain.auth.service.LoginService;
 import CamNecT.CamNecT_Server.domain.profile.dto.request.UpdateOnboardingRequest;
@@ -141,5 +142,20 @@ public class AuthController {
     @GetMapping("/verification-complete")
     public VerificationCompleteResponse verificationComplete(@UserId Long userId) {
         return loginService.getVerificationCompleteInfo(userId);
+    }
+
+    @Operation(summary = "회원 탈퇴", description = "비밀번호 확인 후 계정을 탈퇴 처리(익명화)합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "탈퇴 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content),
+            @ApiResponse(responseCode = "400", description = "비밀번호 불일치 등", content = @Content)
+    })
+    @DeleteMapping("/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void withdraw(
+            @UserId Long userId,
+            @RequestBody @Valid WithdrawRequest req
+    ) {
+        loginService.withdraw(userId, req);
     }
 }
