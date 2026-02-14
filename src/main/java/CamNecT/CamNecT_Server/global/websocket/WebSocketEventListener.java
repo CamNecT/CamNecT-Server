@@ -1,5 +1,7 @@
-package CamNecT.CamNecT_Server.domain.chat.service;
+package CamNecT.CamNecT_Server.global.websocket;
 
+import CamNecT.CamNecT_Server.domain.chat.service.ChatPresenceService;
+import CamNecT.CamNecT_Server.domain.chat.service.ChatService;
 import CamNecT.CamNecT_Server.domain.users.model.Users;
 import CamNecT.CamNecT_Server.domain.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;

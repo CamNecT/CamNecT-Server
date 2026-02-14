@@ -1,4 +1,4 @@
-package CamNecT.CamNecT_Server.domain.chat.service;
+package CamNecT.CamNecT_Server.global.websocket;
 
 import CamNecT.CamNecT_Server.global.common.exception.CustomException;
 import CamNecT.CamNecT_Server.global.common.response.errorcode.bydomains.AuthErrorCode;
@@ -33,6 +33,8 @@ public class ChatStompInterceptor implements ChannelInterceptor {
 
                 Long userId = jwtUtil.getUserId(token);
                 accessor.getSessionAttributes().put("userId", userId);
+
+                accessor.setUser(new StompPrincipal(userId.toString()));
 
                 log.info("소켓 연결 성공: userId = {}", userId);
 
