@@ -13,15 +13,14 @@ import CamNecT.server.domain.activity.repository.recruitment.TeamApplicationRepo
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.server.domain.chat.model.ChatRequest;
 import CamNecT.server.domain.chat.repository.ChatRequestRepository;
-import CamNecT.server.domain.profile.dto.ProfileGlobalDto;
+import CamNecT.server.domain.community.dto.AuthorDto;
+import CamNecT.server.domain.community.service.AuthorAssembler;
 import CamNecT.server.domain.users.model.Users;
-import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.ActivityErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
-import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.notification.event.SimpleNotifiableEvent;
 import CamNecT.server.global.notification.model.NotificationType;
 import lombok.RequiredArgsConstructor;
@@ -41,13 +40,13 @@ public class RecruitmentService {
 
     private final TeamRecruitmentRepository recruitmentRepository;
     private final ExternalActivityRepository activityRepository;
-    private final UserProfileRepository userProfileRepository;
     private final RecruitmentBookmarkRepository bookmarkRepository;
     private final TeamApplicationRepository teamApplicationRepository;
     private final UserRepository userRepository;
     private final ChatRequestRepository chatRequestRepository;
 
     private final ApplicationEventPublisher eventPublisher;
+    private final AuthorAssembler authorAssembler;
 
     @Transactional
     public TeamRecruitment createRecruitment(Long userId, RecruitmentRequest request) {
@@ -71,14 +70,15 @@ public class RecruitmentService {
     }
 
     public RecruitmentDetailResponse getRecruitmentDetail(Long currentUserId, Long recruitmentId) {
+        if (currentUserId == null) throw new CustomException(ActivityErrorCode.USER_NOT_FOUND);
 
         //모집글 조회
         TeamRecruitment recruitment = recruitmentRepository.findById(recruitmentId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
-        //작성자 프로필 조회
-        ProfileGlobalDto profilePreview = userProfileRepository.findGlobalByUserId(recruitment.getUserId()).orElseThrow(
-                ()-> new CustomException(UserErrorCode.USER_NOT_FOUND)
-        );
+        // 글쓴이 프로필
+        AuthorDto author = authorAssembler
+                .buildAuthorMap(List.of(recruitment.getUserId()))
+                .get(recruitment.getUserId());
 
         //북마크 여부 및 본인 글 여부 확인
         String activityTitle = activityRepository.findTitleByActivityId(recruitment.getActivityId()).orElseThrow(
@@ -88,7 +88,7 @@ public class RecruitmentService {
         boolean isMine = recruitment.getUserId().equals(currentUserId);
 
         return new RecruitmentDetailResponse(
-                profilePreview,
+                author,
                 recruitment,
                 activityTitle,
                 isMine,

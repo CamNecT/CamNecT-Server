@@ -24,20 +24,14 @@ public class PointService {
     private final PointTransactionRepository transactionRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    //채택댓글 포인트 획득
-    @Transactional
-    public void earnPointByCommentSelection(Long receiverId, Long postId, Long commentId, int amount) {
-        changePoint(receiverId, amount, TransactionType.EARN,PointEvent.commentSelection(postId,commentId));
-    }
-
-    @Transactional
-    public void earnPointByCoffeeChatAcceptance(Long userId, Long requestId, int amount) {
-        changePoint(userId, amount, TransactionType.EARN, PointEvent.coffeeChatAccepted(userId, requestId));
-    }
-
     @Transactional
     public void spendPoint(Long userId, int amount, PointEvent event) {
         changePoint(userId, amount, TransactionType.SPEND, event);
+    }
+
+    @Transactional
+    public void earnPoint(Long userId, int amount, PointEvent event) {
+        changePoint(userId, amount, TransactionType.EARN, event);
     }
 
     @Transactional

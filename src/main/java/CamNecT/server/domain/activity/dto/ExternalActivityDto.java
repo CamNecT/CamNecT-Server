@@ -41,7 +41,7 @@ public class ExternalActivityDto {
                 .userId(userId)
                 .region(entity.getRegion())
                 .targetDescription(entity.getTargetDescription())
-                .thumbnailUrl(entity.getThumbnailUrl())
+                .thumbnailUrl(entity.getThumbnailKey())
                 .applyStartDate(entity.getApplyStartDate())
                 .applyEndDate(entity.getApplyEndDate())
                 .resultAnnounceDate(entity.getResultAnnounceDate())

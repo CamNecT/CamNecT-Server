@@ -35,6 +35,7 @@ public enum VerificationErrorCode implements BaseErrorCode {
     // 429xx - 상태/규칙 위반
     PENDING_ALREADY_EXISTS(HttpStatus.CONFLICT, 42930, "이미 처리 대기(PENDING) 중인 요청이 있습니다."),
     ONLY_PENDING_CAN_REVIEW(HttpStatus.CONFLICT, 42910, "PENDING 상태만 처리할 수 있습니다."),
+    TICKET_USER_NOT_MATCH(HttpStatus.FORBIDDEN, 42915, "티켓 보유자와 토큰 속 유저가 다릅니다."),
     TOO_MANY_ATTEMPTS(HttpStatus.TOO_MANY_REQUESTS, 42920, "인증 시도 횟수를 초과했습니다.");
 
     private final HttpStatus httpStatus;

@@ -19,10 +19,10 @@ import CamNecT.server.domain.activity.repository.external_activity.ExternalActiv
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityRepository;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityTagRepository;
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
+import CamNecT.server.domain.community.dto.AuthorDto;
+import CamNecT.server.domain.community.service.AuthorAssembler;
 import CamNecT.server.domain.home.dto.HomeResponse;
-import CamNecT.server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.server.domain.users.model.Users;
-import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.ActivityErrorCode;
@@ -62,7 +62,8 @@ public class ActivityService {
     private final TagRepository tagRepository;
     private final TeamRecruitmentRepository teamRecruitmentRepository;
     private final UserRepository userRepository;
-    private final UserProfileRepository userProfileRepository;
+
+    private final AuthorAssembler authorAssembler;
 
     //S3 관련 의존성 주입
     private final UploadTicketRepository uploadTicketRepository;
@@ -107,7 +108,7 @@ public class ActivityService {
                 .title(request.title())
                 .category(request.category())
                 .context(request.content())
-                .thumbnailUrl(DEFAULT_THUMB)
+                .thumbnailKey(DEFAULT_THUMB)
                 .build());
 
         String finalAttachPrefix = "activity/activities/activity-" + saved.getActivityId() + "/attachments";
@@ -123,7 +124,7 @@ public class ActivityService {
                     request.thumbnailKey(),
                     finalThumbPrefix
             );
-            saved.updateThumbnail(finalKey);
+            saved.updateThumbnailKey(finalKey);
         }
 
         // 3. 첨부파일 Consume 및 저장
@@ -154,7 +155,7 @@ public class ActivityService {
                 saved.getActivityId(),
                 saved.getTitle(),
                 saved.getContext(),
-                thumbnailUrlOrNull(saved.getThumbnailUrl()),
+                thumbnailUrlOrNull(saved.getThumbnailKey()),
                 null,
                 0L, // 새로 생성된 활동이므로 북마크 수는 0
                 saved.getOrganizer(),
@@ -186,7 +187,7 @@ public class ActivityService {
                 .officialUrl(request.officialUrl())
                 .contextTitle(request.contextTitle())
                 .context(request.content())
-                .thumbnailUrl(DEFAULT_THUMB)
+                .thumbnailKey(DEFAULT_THUMB)
                 .build());
 
         // 3. 썸네일 처리 (관리자용은 userId를 0L 또는 특정 관리자 ID로 설정)
@@ -201,14 +202,14 @@ public class ActivityService {
                     request.thumbnailKey(),
                     finalThumbPrefix
             );
-            saved.updateThumbnail(finalKey);
+            saved.updateThumbnailKey(finalKey);
         }
 
         return new ActivityPreviewResponse(
                 saved.getActivityId(),
                 saved.getTitle(),
                 saved.getContext(),
-                thumbnailUrlOrNull(saved.getThumbnailUrl()),
+                thumbnailUrlOrNull(saved.getThumbnailKey()),
                 null,
                 0L,
                 saved.getOrganizer(),
@@ -233,11 +234,11 @@ public class ActivityService {
 
         // 1. 썸네일 교체 로직
         if (StringUtils.hasText(request.thumbnailKey())
-                && !request.thumbnailKey().equals(activity.getThumbnailUrl())) {
+                && !request.thumbnailKey().equals(activity.getThumbnailKey())) {
 
             // 기존 썸네일이 있으면 삭제 대상에 추가
-            if (StringUtils.hasText(activity.getThumbnailUrl()) && !DEFAULT_THUMB.equals(activity.getThumbnailUrl())) {
-                deleteAfterCommit.add(activity.getThumbnailUrl());
+            if (StringUtils.hasText(activity.getThumbnailKey()) && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
+                deleteAfterCommit.add(activity.getThumbnailKey());
             }
 
             String finalKey = presignEngine.consume(
@@ -248,7 +249,7 @@ public class ActivityService {
                     request.thumbnailKey(),
                     finalThumbPrefix
             );
-            activity.updateThumbnail(finalKey);
+            activity.updateThumbnailKey(finalKey);
         }
 
         // 2. 첨부파일 교체 로직 (요청이 들어온 경우만)
@@ -337,11 +338,11 @@ public class ActivityService {
 
         // 4. 썸네일 교체 로직
         if (StringUtils.hasText(request.thumbnailKey())
-                && !request.thumbnailKey().equals(activity.getThumbnailUrl())) {
+                && !request.thumbnailKey().equals(activity.getThumbnailKey())) {
 
             // 기존 썸네일이 있으면 삭제 대상에 추가
-            if (StringUtils.hasText(activity.getThumbnailUrl()) && !DEFAULT_THUMB.equals(activity.getThumbnailUrl())) {
-                deleteAfterCommit.add(activity.getThumbnailUrl());
+            if (StringUtils.hasText(activity.getThumbnailKey()) && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
+                deleteAfterCommit.add(activity.getThumbnailKey());
             }
 
             // presignEngine.consume()에 userId 대신 activity 작성자 ID 사용
@@ -354,7 +355,7 @@ public class ActivityService {
                     request.thumbnailKey(),
                     finalThumbPrefix
             );
-            activity.updateThumbnail(finalKey);
+            activity.updateThumbnailKey(finalKey);
         }
 
         // 5. 기본 정보 업데이트 (ExternalActivity에 updateAdmin 메서드 추가 필요)
@@ -375,8 +376,8 @@ public class ActivityService {
 
         Set<String> deleteAfterCommit = new HashSet<>();
 
-        if (StringUtils.hasText(activity.getThumbnailUrl()) && !DEFAULT_THUMB.equals(activity.getThumbnailUrl())) {
-            deleteAfterCommit.add(activity.getThumbnailUrl());
+        if (StringUtils.hasText(activity.getThumbnailKey()) && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
+            deleteAfterCommit.add(activity.getThumbnailKey());
         }
 
         activityAttachmentRepository.findAllByActivity_ActivityId(activityId)
@@ -390,21 +391,27 @@ public class ActivityService {
 
     @Transactional(readOnly = true)
     public ActivityDetailResponse getActivityDetail(Long userId, Long activityId) {
-
+        if (userId == null) throw new CustomException(ActivityErrorCode.USER_NOT_FOUND);
         // 1. 메인 활동 조회
         ExternalActivity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
         // 2. Activity → DTO 변환 + 썸네일 presign
         ExternalActivityDto activityDto = ExternalActivityDto.from(activity)
-                .withThumbnailUrl(thumbnailUrlOrNull(activity.getThumbnailUrl()));
+                .withThumbnailUrl(thumbnailUrlOrNull(activity.getThumbnailKey()));
 
         // 3. 첨부파일 조회 (카테고리 조건)
-        List<ExternalActivityAttachmentDto> attachmentDtos = null;
-        // 0. 유저 정보 조회
-        ProfileGlobalDto profilePreview = null;
+        List<ExternalActivityAttachmentDto> attachmentDtos = List.of();
 
-        if (activity.getCategory() == ActivityCategory.EXTERNAL || activity.getCategory() == ActivityCategory.RECRUITMENT) {
+        /// 글쓴이 프로필
+        Long authorId = Optional.ofNullable(activity.getUser())
+                .map(Users::getUserId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.USER_NOT_FOUND));
+
+        AuthorDto author = authorAssembler.buildAuthorMap(List.of(authorId))
+                .get(authorId);
+
+        if (activity.getCategory() == ActivityCategory.CLUB || activity.getCategory() == ActivityCategory.STUDY) {
 
             List<ExternalActivityAttachment> atts =
                     activityAttachmentRepository.findAllByActivity_ActivityId(activityId);
@@ -446,18 +453,11 @@ public class ActivityService {
                     })
                     .filter(Objects::nonNull)
                     .toList();
-        } else {
-            profilePreview = userProfileRepository.findGlobalByUserId(activity.getUser().getUserId()).orElseThrow(
-                    () -> new CustomException(UserErrorCode.USER_NOT_FOUND)
-            );
-
         }
-
         // 4. 태그 리스트 조회
         List<Long> tagIds = activityTagRepository.findAllByActivity_ActivityId(activityId).stream()
                 .map(t -> t.getTag().getId())
                 .toList();
-        List<String> tagNames = tagRepository.findNamesByIds(tagIds);
 
         // 5. 팀원 공고 리스트 조회
         List<TeamRecruitment> recruitmentList =
@@ -486,10 +486,10 @@ public class ActivityService {
         // 9. Response 생성
         return new ActivityDetailResponse(
                 isMine,
-                profilePreview,
+                author,
                 activityDto,
                 attachmentDtos,
-                tagNames,
+                tagIds,
                 recruitmentDtoList,
                 bookmarkCount,
                 isBookmarked
@@ -583,7 +583,7 @@ public class ActivityService {
                     ExternalActivity a = map.get(id);
                     if (a == null) return null;
 
-                    String thumbUrl = thumbnailUrlOrNull(a.getThumbnailUrl());
+                    String thumbUrl = thumbnailUrlOrNull(a.getThumbnailKey());
                     return new HomeResponse.ContestSection.ContestCard(
                             a.getActivityId(),
                             a.getTitle(),

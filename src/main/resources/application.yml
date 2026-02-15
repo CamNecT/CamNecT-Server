@@ -70,6 +70,7 @@ app:
       comment-selection: 200
       first-three-likes : 100
       coffee-chat-accepted: 500
+      sign-up : 300
     cost:
       question-view: 100
   gifticon:
@@ -142,6 +143,11 @@ spring:
 
 server:
   port: 8080
+  tomcat:
+    accesslog:
+      enabled: true
+      pattern: '%h %t "%r" %s %b "%{User-Agent}i"'
+
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiration-ms: 1209600000 #360000        # 6min

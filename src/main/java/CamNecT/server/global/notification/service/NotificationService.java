@@ -70,10 +70,10 @@ public class NotificationService {
 
         if (cursorId == null) {
             return notificationRepository
-                    .findByReceiverUserIdAndTypeNotOrderByIdDesc(receiverUserId, exclude, pageable);
+                    .findByReceiverUserIdAndReadFalseAndTypeNotOrderByIdDesc(receiverUserId, exclude, pageable);
         }
         return notificationRepository
-                .findByReceiverUserIdAndTypeNotAndIdLessThanOrderByIdDesc(receiverUserId, exclude, cursorId, pageable);
+                .findByReceiverUserIdAndReadFalseAndTypeNotAndIdLessThanOrderByIdDesc(receiverUserId, exclude, cursorId, pageable);
     }
 
     @Transactional(readOnly = true)

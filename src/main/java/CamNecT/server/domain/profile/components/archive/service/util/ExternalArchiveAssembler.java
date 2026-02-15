@@ -47,7 +47,7 @@ public class ExternalArchiveAssembler {
                     a.getActivityId(),
                     a.getTitle(),
                     contextDisplay,
-                    a.getThumbnailUrl(),
+                    a.getThumbnailKey(),
                     tagsMap.getOrDefault(a.getActivityId(), List.of()),
                     bookmarkCount,
                     a.getOrganizer(),
