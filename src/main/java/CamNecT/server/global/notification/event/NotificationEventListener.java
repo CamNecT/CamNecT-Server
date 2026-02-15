@@ -72,6 +72,13 @@ public class NotificationEventListener {
 
         // 2) 모바일 푸시(FCM)
         var tokens = pushDeviceService.findEnabledTokens(e.receiverUserId());
+        log.info("[notif] fcm tokens receiver={}, size={}, tokens={}",
+                e.receiverUserId(),
+                tokens == null ? 0 : tokens.size(),
+                tokens == null ? "null" : tokens.stream()
+                        .map(t -> t == null ? "null" : t.substring(0, Math.min(18, t.length())))
+                        .toList()
+        );
         if (tokens == null || tokens.isEmpty()) return;
 
 
@@ -84,7 +91,14 @@ public class NotificationEventListener {
         data.put("link", link);
 
         try {
+            log.info("[notif] fcm send start receiver={}, title={}, bodyLen={}, dataKeys={}",
+                    e.receiverUserId(), title, body == null ? 0 : body.length(), data.keySet());
             FCMSender.SendResult result = fcmSender.sendToTokens(tokens, title, body, data);
+            log.info("[notif] fcm send done receiver={}, requested={}, success={}, failure={}, invalid={}",
+                    e.receiverUserId(),
+                    result.requested(), result.success(), result.failure(),
+                    result.invalidTokens() == null ? 0 : result.invalidTokens().size()
+            );
             pushDeviceService.disableTokens(result.invalidTokens());
         } catch (com.google.firebase.messaging.FirebaseMessagingException ex) {
             log.warn("[notif] FCM send failed. receiver={}, type={}", e.receiverUserId(), e.type(), ex);
