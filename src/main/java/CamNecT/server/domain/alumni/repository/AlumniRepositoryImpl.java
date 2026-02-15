@@ -1,5 +1,6 @@
 package CamNecT.server.domain.alumni.repository;
 
+import CamNecT.server.domain.users.model.QUserProfile;
 import CamNecT.server.domain.users.model.QUsers;
 import CamNecT.server.domain.users.model.QUserTagMap;
 import CamNecT.server.domain.users.model.UserStatus;
@@ -26,6 +27,7 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
     public List<Long> findAlumniIdsByConditions(Long myId, String name, List<Long> tagIdList, Pageable pageable) {
 
         QUsers user = QUsers.users;
+        QUserProfile profile = QUserProfile.userProfile;
         QUserTagMap commonTagMap = new QUserTagMap("commonTagMap");
 
         // 1. 내 태그 ID 리스트 조회 (로그인 상태일 때만)
@@ -40,7 +42,8 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
 
         var query = queryFactory
                 .select(user.userId)
-                .from(user);
+                .from(user)
+                .join(profile).on(profile.userId.eq(user.userId));
 
         // 3. 내 태그가 있을 때만 Left Join 수행 (없으면 조인할 필요 없음)
         if (!myTagIds.isEmpty()) {
@@ -52,7 +55,7 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
 
         return query
                 .where(
-                        user.userId.ne(myId),
+                        myId == null ? null : user.userId.ne(myId),
                         user.status.eq(UserStatus.ACTIVE),
                         nameContains(name),
                         hasAllTags(tagIdList, user.userId)
