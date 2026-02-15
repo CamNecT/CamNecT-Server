@@ -1,0 +1,10 @@
+package CamNecT.server.global.storage.model;
+
+public enum UploadPurpose {
+    COMMUNITY_POST_ATTACHMENT,
+    PORTFOLIO_ATTACHMENT,
+    ACTIVITY_ATTACHMENT,
+    ACTIVITY_THUMBNAIL,
+    VERIFICATION_DOCUMENT,
+    PROFILE_IMAGE
+}

@@ -16,6 +16,8 @@ app:
     base-url: https://cdn.camnect.site
 
   activity:
+    thumbnail:
+      max-file-size-mb: 10
     attachments:
       max-files: 10
       max-file-size-mb: 20
@@ -29,6 +31,9 @@ app:
       expiration-minutes: 30
       mail:
         subject: "CamNecT 이메일 인증번호"
+  profile:
+    image:
+      max-file-size-mb: 20
   verification:
     document:
       max-file-size-mb: 10
@@ -82,6 +87,12 @@ app:
       secret-key: ${SENDB_SECRET_KEY:}
       cipher: ${SENDB_CIPHER:AES/ECB/PKCS5Padding}
       iv: ${SENDB_IV:}
+  front:
+    links:
+      fallback: /
+      community-post: /community/post/{postId}
+      chat-request: /chat/requests/{requestId}
+      chat-room: /chat/{roomId}
   tag-relation:
     top-k: 15
     min-evidence: 2

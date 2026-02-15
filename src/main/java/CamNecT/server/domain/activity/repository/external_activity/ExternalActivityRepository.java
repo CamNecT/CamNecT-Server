@@ -1,0 +1,17 @@
+package CamNecT.server.domain.activity.repository.external_activity;
+
+import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface ExternalActivityRepository extends JpaRepository<ExternalActivity, Long>, ExternalActivityRepositoryCustom {
+
+    @Query("select e.title from ExternalActivity e where e.activityId = :id")
+    Optional<String> findTitleByActivityId(@Param("id") Long id);
+
+}
