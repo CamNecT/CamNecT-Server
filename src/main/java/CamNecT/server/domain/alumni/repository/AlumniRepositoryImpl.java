@@ -2,6 +2,7 @@ package CamNecT.server.domain.alumni.repository;
 
 import CamNecT.server.domain.users.model.QUsers;
 import CamNecT.server.domain.users.model.QUserTagMap;
+import CamNecT.server.domain.users.model.UserStatus;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -52,6 +53,7 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
         return query
                 .where(
                         user.userId.ne(myId),
+                        user.status.eq(UserStatus.ACTIVE),
                         nameContains(name),
                         hasAllTags(tagIdList, user.userId)
                 )
