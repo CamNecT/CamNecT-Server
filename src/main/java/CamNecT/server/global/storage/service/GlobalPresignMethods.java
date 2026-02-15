@@ -1,6 +1,5 @@
-package CamNecT.server.global.common.service;
+package CamNecT.server.global.storage.service;
 
-import CamNecT.server.global.storage.service.FileStorage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

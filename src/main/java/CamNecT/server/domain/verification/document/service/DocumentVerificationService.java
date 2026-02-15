@@ -12,7 +12,7 @@ import CamNecT.server.domain.verification.document.model.DocumentVerificationSub
 import CamNecT.server.domain.verification.document.model.VerificationStatus;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.VerificationErrorCode;
-import CamNecT.server.global.common.service.GlobalPresignMethods;
+import CamNecT.server.global.storage.service.GlobalPresignMethods;
 import CamNecT.server.global.storage.dto.request.PresignUploadRequest;
 import CamNecT.server.global.storage.dto.response.PresignDownloadResponse;
 import CamNecT.server.global.storage.dto.response.PresignUploadResponse;
