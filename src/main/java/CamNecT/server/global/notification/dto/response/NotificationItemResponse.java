@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 public record NotificationItemResponse(
         Long id,
         NotificationType type,
+        String title,
         String message,
         boolean read,
 

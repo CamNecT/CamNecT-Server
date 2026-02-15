@@ -1,4 +1,4 @@
-package CamNecT.server.global.notification.service;
+package CamNecT.server.global.notification.util;
 
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.NotificationErrorCode;

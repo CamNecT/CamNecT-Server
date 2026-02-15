@@ -1,4 +1,4 @@
-package CamNecT.server.global.notification.service;
+package CamNecT.server.global.notification.util;
 
 import com.google.firebase.messaging.*;
 import lombok.RequiredArgsConstructor;

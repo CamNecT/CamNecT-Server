@@ -1,9 +1,9 @@
 package CamNecT.server.global.notification.event;
 
 import CamNecT.server.global.notification.dto.NotificationPushPayload;
-import CamNecT.server.global.notification.model.NotificationType;
 import CamNecT.server.global.notification.service.*;
-import CamNecT.server.global.notification.service.*;
+import CamNecT.server.global.notification.util.FCMSender;
+import CamNecT.server.global.notification.util.NotificationLinkResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -11,6 +11,8 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.util.Map;
+
+import static CamNecT.server.global.notification.util.NotificationUtil.titleOf;
 
 @Slf4j
 @Component
@@ -87,18 +89,5 @@ public class NotificationEventListener {
         } catch (com.google.firebase.messaging.FirebaseMessagingException ex) {
             log.warn("[notif] FCM send failed. receiver={}, type={}", e.receiverUserId(), e.type(), ex);
         }
-    }
-
-    private String titleOf(NotificationType type) {
-        return switch (type) {
-            case COFFEE_CHAT_REQUESTED -> "[커피챗 요청]";
-            case COMMENT_ACCEPTED -> "[댓글 채택]";
-            case POST_COMMENTED -> "[댓글]";
-            case COMMENT_REPLIED -> "[답글]";
-            case POINT_EARNED -> "[포인트 적립]";
-            case POINT_SPENT -> "[포인트 사용]";
-            case CHAT_MESSAGE_RECEIVED -> "[새 메시지]";
-            default -> "[알림]";
-        };
     }
 }

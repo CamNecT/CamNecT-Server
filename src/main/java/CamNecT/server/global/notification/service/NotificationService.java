@@ -18,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import static CamNecT.server.global.notification.util.NotificationUtil.titleOf;
 
 import java.util.Map;
 import java.util.Objects;
@@ -64,10 +65,15 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public Slice<Notification> list(Long receiverUserId, Long cursorId, int size) {
         Pageable pageable = PageRequest.of(0, size);
+
+        NotificationType exclude = NotificationType.CHAT_MESSAGE_RECEIVED;
+
         if (cursorId == null) {
-            return notificationRepository.findByReceiverUserIdOrderByIdDesc(receiverUserId, pageable);
+            return notificationRepository
+                    .findByReceiverUserIdAndTypeNotOrderByIdDesc(receiverUserId, exclude, pageable);
         }
-        return notificationRepository.findByReceiverUserIdAndIdLessThanOrderByIdDesc(receiverUserId, cursorId, pageable);
+        return notificationRepository
+                .findByReceiverUserIdAndTypeNotAndIdLessThanOrderByIdDesc(receiverUserId, exclude, cursorId, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -110,6 +116,7 @@ public class NotificationService {
             return new NotificationItemResponse(
                     n.getId(),
                     n.getType(),
+                    titleOf(n.getType()),
                     n.getMessage(),
                     n.isRead(),
                     n.getActorUserId(),
@@ -126,7 +133,8 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public long countUnread(Long receiverUserId) {
-        return notificationRepository.countByReceiverUserIdAndReadFalse(receiverUserId);
+        return notificationRepository.countByReceiverUserIdAndReadFalseAndTypeNot(
+                receiverUserId, NotificationType.CHAT_MESSAGE_RECEIVED);
     }
 
     @Transactional
