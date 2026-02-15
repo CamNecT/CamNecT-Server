@@ -22,9 +22,9 @@ public enum ActivityErrorCode implements BaseErrorCode {
 
     //464xx - 리소스
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, 46401, "유저를 찾을 수 없습니다."),
-    ACTIVITY_NOT_FOUND(HttpStatus.NOT_FOUND, 46401, "해당 대외활동을 찾을 수 없습니다."),
-    RECRUITMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 46402, "팀원 모집 글을 찾을 수 없습니다."),
-    MAJOR_INFO_NOT_FOUND(HttpStatus.NOT_FOUND, 46403, "전공 정보를 찾을 수 없습니다.");
+    ACTIVITY_NOT_FOUND(HttpStatus.NOT_FOUND, 46402, "해당 대외활동을 찾을 수 없습니다."),
+    RECRUITMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 46403, "팀원 모집 글을 찾을 수 없습니다."),
+    MAJOR_INFO_NOT_FOUND(HttpStatus.NOT_FOUND, 46404, "전공 정보를 찾을 수 없습니다.");
 
 
     private final HttpStatus httpStatus;

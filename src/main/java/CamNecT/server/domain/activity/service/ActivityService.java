@@ -404,9 +404,12 @@ public class ActivityService {
         List<ExternalActivityAttachmentDto> attachmentDtos = List.of();
 
         /// 글쓴이 프로필
-        AuthorDto author = authorAssembler
-                .buildAuthorMap(List.of(activity.getUser().getUserId()))
-                .get(activity.getUser().getUserId());
+        Long authorId = Optional.ofNullable(activity.getUser())
+                .map(Users::getUserId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.USER_NOT_FOUND));
+
+        AuthorDto author = authorAssembler.buildAuthorMap(List.of(authorId))
+                .get(authorId);
 
         if (activity.getCategory() == ActivityCategory.CLUB || activity.getCategory() == ActivityCategory.STUDY) {
 
