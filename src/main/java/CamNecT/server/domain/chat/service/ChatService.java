@@ -34,12 +34,14 @@ import CamNecT.server.global.notification.event.CoffeeChatAcceptedEvent;
 import CamNecT.server.global.notification.event.CoffeeChatRequestedEvent;
 import CamNecT.server.global.notification.event.NewChatMessageEvent;
 import CamNecT.server.global.notification.event.TeamRecruitAcceptedEvent;
+import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import CamNecT.server.global.tag.model.Tag;
 import CamNecT.server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -57,6 +59,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional
 public class ChatService {
+
+    @Value("${app.point.reward.coffee-chat-accepted:500}")
+    private int rewardCoffeeChatAccepted;
+
     private final UserRepository userRepository;
     private final ChatRepository chatRepository;
     private final ChatRoomRepository chatRoomRepository;
@@ -65,12 +71,13 @@ public class ChatService {
     private final UserProfileRepository userProfileRepository;
     private final UserTagMapRepository userTagMapRepository;
     private final MajorRepository majorRepository;
+    private final TeamRecruitmentRepository recruitmentRepository;
 
     private final PublicUrlIssuer publicUrlIssuer;
     private final ApplicationEventPublisher eventPublisher;
-    private final TeamRecruitmentRepository recruitmentRepository;
-    private final ChatPresenceService presenceService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ChatPresenceService presenceService;
+    private final PointService pointService;
 
     /*
       1. 커피챗 요청 보내기
@@ -157,6 +164,12 @@ public class ChatService {
         if (isAccepted) {
             request.accept();
             Long roomId = createChatRoom(request);
+            pointService.earnPointByCoffeeChatAcceptance(
+                    request.getRequester().getUserId(),
+                    request.getId(),
+                    rewardCoffeeChatAccepted
+            );
+            tryRewardCoffeeChatAcceptedPoint(request);
             publishAcceptedNotification(request, roomId);
         } else {
             request.reject();
@@ -661,8 +674,27 @@ public class ChatService {
             ));
         } else {
             eventPublisher.publishEvent(new CoffeeChatAcceptedEvent(
-                    receiverUserId, actorUserId, roomId
+                    receiverUserId, actorUserId, roomId, request.getId()
             ));
+        }
+    }
+
+    private void tryRewardCoffeeChatAcceptedPoint(ChatRequest request) {
+        Long requestId = request.getId();
+        Long targetUserId = (request.getRequester() == null) ? null : request.getRequester().getUserId();
+
+        if (requestId == null || targetUserId == null) {
+            log.warn("[coffeechat] skip point reward. requestId={}, targetUserId={}", requestId, targetUserId);
+            return;
+        }
+        try {
+            pointService.earnPointByCoffeeChatAcceptance(
+                    targetUserId,
+                    requestId,
+                    rewardCoffeeChatAccepted
+            );
+        } catch (Exception ex) {
+            log.warn("[coffeechat] point reward failed. requestId={}, userId={}", requestId, targetUserId, ex);
         }
     }
 }

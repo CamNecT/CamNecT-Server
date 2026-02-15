@@ -4,7 +4,7 @@ import CamNecT.server.domain.gifticon.dto.response.GifticonHomeResponse;
 import CamNecT.server.domain.gifticon.dto.response.GifticonProductDetailResponse;
 import CamNecT.server.domain.gifticon.model.GifticonProduct;
 import CamNecT.server.domain.gifticon.repository.GifticonProductRepository;
-import CamNecT.server.domain.point.service.PointService;
+import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.GifticonErrorCode;
 import lombok.RequiredArgsConstructor;

@@ -1,9 +1,8 @@
-package CamNecT.server.domain.point.service;
+package CamNecT.server.global.point.service;
 
-import CamNecT.server.domain.point.model.*;
-import CamNecT.server.domain.point.model.*;
-import CamNecT.server.domain.point.repository.PointTransactionRepository;
-import CamNecT.server.domain.point.repository.PointWalletRepository;
+import CamNecT.server.global.point.model.*;
+import CamNecT.server.global.point.repository.PointTransactionRepository;
+import CamNecT.server.global.point.repository.PointWalletRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
@@ -28,16 +27,12 @@ public class PointService {
     //채택댓글 포인트 획득
     @Transactional
     public void earnPointByCommentSelection(Long receiverId, Long postId, Long commentId, int amount) {
-        changePoint(receiverId, amount, TransactionType.EARN,
-                new PointEvent(PointSource.COMMENT_SELECTION, postId, null,
-                        "COMMENT_SELECTION:" + postId + ":" + commentId));
+        changePoint(receiverId, amount, TransactionType.EARN,PointEvent.commentSelection(postId,commentId));
     }
 
     @Transactional
     public void earnPointByCoffeeChatAcceptance(Long userId, Long requestId, int amount) {
-        changePoint(userId, amount, TransactionType.EARN,
-                new PointEvent(PointSource.COFFEECHAT_ACCEPTANCE, null, requestId,
-                        "COFFEECHAT_ACCEPTANCE:" + userId + ":" + requestId));
+        changePoint(userId, amount, TransactionType.EARN, PointEvent.coffeeChatAccepted(userId, requestId));
     }
 
     @Transactional

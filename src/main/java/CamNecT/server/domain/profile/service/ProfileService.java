@@ -1,6 +1,6 @@
 package CamNecT.server.domain.profile.service;
 
-import CamNecT.server.domain.point.service.PointService;
+import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.profile.components.certificate.dto.response.CertificateResponse;
 import CamNecT.server.domain.profile.components.certificate.repository.CertificateRepository;
 import CamNecT.server.domain.profile.components.education.dto.response.EducationResponse;
@@ -17,8 +17,6 @@ import CamNecT.server.domain.profile.dto.response.ProfileSettingsResponse;
 import CamNecT.server.domain.profile.dto.response.ProfileStatusResponse;
 import CamNecT.server.domain.profile.dto.response.ProfileResponse;
 import CamNecT.server.domain.profile.dto.response.ProfileTagDto;
-import CamNecT.server.domain.users.model.*;
-import CamNecT.server.domain.users.repository.*;
 import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.UserTagMap;

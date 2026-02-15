@@ -1,6 +1,6 @@
 package CamNecT.server.global.notification.debug;
 
-import CamNecT.server.global.notification.service.FCMSender;
+import CamNecT.server.global.notification.util.FCMSender;
 import CamNecT.server.global.notification.service.PushDeviceService;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import lombok.RequiredArgsConstructor;
