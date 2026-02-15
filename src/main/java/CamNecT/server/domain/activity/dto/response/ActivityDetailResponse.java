@@ -4,7 +4,6 @@ import CamNecT.server.domain.activity.dto.ExternalActivityAttachmentDto;
 import CamNecT.server.domain.activity.dto.ExternalActivityDto;
 import CamNecT.server.domain.activity.dto.TeamRecruitmentDto;
 import CamNecT.server.domain.community.dto.AuthorDto;
-import CamNecT.server.domain.profile.dto.ProfileGlobalDto;
 
 import java.util.List;
 
