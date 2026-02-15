@@ -15,7 +15,6 @@ import CamNecT.server.domain.community.repository.Comments.CommentLikesRepositor
 import CamNecT.server.domain.community.repository.Comments.CommentsRepository;
 import CamNecT.server.domain.community.repository.Posts.*;
 import CamNecT.server.global.point.model.PointEvent;
-import CamNecT.server.global.point.model.TransactionType;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserRole;
 import CamNecT.server.domain.users.model.Users;
@@ -203,8 +202,7 @@ public class PostServiceImpl implements PostService {
                     && post.getBoard().getCode()==BoardCode.INFO) {
                 // 작성자에게 지급 (본인 글이면 지급 안 줄지 정책 결정)
                 Long authorId = post.getUser().getUserId();
-                pointService.changePoint(authorId,rewardFirstThreeLikes,
-                        TransactionType.EARN, PointEvent.threeLikeReward(authorId,postId));
+                pointService.earnPoint(authorId, rewardFirstThreeLikes, PointEvent.threeLikeReward(authorId,postId));
             }
         }
         return new ToggleLikeResponse(liked, stats.getLikeCount());

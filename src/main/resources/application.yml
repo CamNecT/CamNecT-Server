@@ -70,6 +70,7 @@ app:
       comment-selection: 200
       first-three-likes : 100
       coffee-chat-accepted: 500
+      sign-up : 300
     cost:
       question-view: 100
   gifticon:

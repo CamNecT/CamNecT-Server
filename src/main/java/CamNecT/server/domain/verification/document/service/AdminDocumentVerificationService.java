@@ -1,7 +1,6 @@
 package CamNecT.server.domain.verification.document.service;
 
 import CamNecT.server.global.point.model.PointEvent;
-import CamNecT.server.global.point.model.TransactionType;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.model.UserStatus;
@@ -22,6 +21,7 @@ import CamNecT.server.global.common.response.errorcode.bydomains.VerificationErr
 import CamNecT.server.global.storage.dto.response.PresignDownloadResponse;
 import CamNecT.server.global.storage.service.PresignEngine;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,6 +36,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class AdminDocumentVerificationService {
+    @Value("${app.point.reward.sign-up=300}")
+    private int rewardSignup;
 
     private final DocumentVerificationSubmissionRepository submissionRepo;
     private final UserRepository usersRepository;
@@ -143,7 +145,7 @@ public class AdminDocumentVerificationService {
             ));
 
             Long receiverId = user.getUserId();
-            if (receiverId != null) { pointService.changePoint(receiverId,300, TransactionType.EARN, PointEvent.signup(receiverId)); }
+            if (receiverId != null) pointService.earnPoint(receiverId,rewardSignup, PointEvent.signup(receiverId));
 
 
 
