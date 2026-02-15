@@ -1,8 +1,8 @@
 package CamNecT.server.domain.verification.document.service;
 
-import CamNecT.server.domain.point.model.PointEvent;
-import CamNecT.server.domain.point.model.TransactionType;
-import CamNecT.server.domain.point.service.PointService;
+import CamNecT.server.global.point.model.PointEvent;
+import CamNecT.server.global.point.model.TransactionType;
+import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;

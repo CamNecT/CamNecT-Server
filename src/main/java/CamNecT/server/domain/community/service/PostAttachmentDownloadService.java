@@ -8,7 +8,7 @@ import CamNecT.server.domain.community.model.enums.PostStatus;
 import CamNecT.server.domain.community.repository.Posts.PostAccessRepository;
 import CamNecT.server.domain.community.repository.Posts.PostAttachmentsRepository;
 import CamNecT.server.domain.community.repository.Posts.PostsRepository;
-import CamNecT.server.domain.point.service.PointService;
+import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.CommunityErrorCode;

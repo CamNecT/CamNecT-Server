@@ -12,7 +12,7 @@ import CamNecT.server.domain.community.repository.Posts.PostAccessRepository;
 import CamNecT.server.domain.community.repository.Posts.PostAttachmentsRepository;
 import CamNecT.server.domain.community.repository.Posts.PostStatsRepository;
 import CamNecT.server.domain.community.repository.Posts.PostTagsRepository;
-import CamNecT.server.domain.point.service.PointService;
+import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
