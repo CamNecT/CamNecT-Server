@@ -56,7 +56,7 @@ public class AlumniService {
                 .collect(Collectors.toMap(Users::getUserId, u -> u));
 
         // 3. Profile 조회
-        Map<Long, UserProfile> profileMap = userProfileRepository.findAllById(targetIds).stream()
+        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(targetIds).stream()
                 .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
 
         // 4. Tags 조회
@@ -72,17 +72,18 @@ public class AlumniService {
                 .map(id -> {
                     Users user = usersMap.get(id);
                     UserProfile profile = profileMap.get(id);
+                    if (user == null || profile == null) return null;
 
-                    UserProfileDto profileDto = UserProfileDto.from(profile)
-                            .withProfileImageUrl(publicUrlIssuer.issuePublicUrl(profile.getProfileImageKey()));
+                    String imgUrl = null;
+                    if (StringUtils.hasText(profile.getProfileImageKey())) {
+                        imgUrl = publicUrlIssuer.issuePublicUrl(profile.getProfileImageKey());
+                    }
 
-                    return new AlumniPreviewResponse(
-                            id,
-                            user.getName(),
-                            profileDto,
-                            tagMap.getOrDefault(id, List.of())
-                    );
+                    UserProfileDto dto = UserProfileDto.from(profile).withProfileImageUrl(imgUrl);
+
+                    return new AlumniPreviewResponse(id, user.getName(), dto, tagMap.getOrDefault(id, List.of()));
                 })
+                .filter(Objects::nonNull)
                 .toList();
 
         return new SliceImpl<>(content, pageable, hasNext);
