@@ -27,7 +27,7 @@ import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.ActivityErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
-import CamNecT.server.global.common.service.GlobalPresignMethods;
+import CamNecT.server.global.storage.service.GlobalPresignMethods;
 import CamNecT.server.global.storage.model.UploadPurpose;
 import CamNecT.server.global.storage.model.UploadRefType;
 import CamNecT.server.global.storage.model.UploadTicket;
@@ -612,19 +612,16 @@ public class ActivityService {
      * 활동의 태그 저장
      */
     private void saveTags(ExternalActivity activity, List<Long> tagIds) {
-        if (tagIds != null) {
-            activityTagRepository.deleteByActivity_ActivityId(activity.getActivityId());
+        if (tagIds == null) return;
 
-            LinkedHashSet<Long> uniq = new LinkedHashSet<>(tagIds);
-            for (Long id : uniq) {
-                Tag tagRef = tagRepository.getReferenceById(id);
-                activityTagRepository.save(
-                        ExternalActivityTag.builder()
-                                .activity(activity)
-                                .tag(tagRef)
-                                .build()
-                );
-            }
+        activityTagRepository.deleteAllByActivityId(activity.getActivityId());
+
+        for (Long id : new LinkedHashSet<>(tagIds)) {
+            Tag tagRef = tagRepository.getReferenceById(id);
+            activityTagRepository.save(ExternalActivityTag.builder()
+                    .activity(activity)
+                    .tag(tagRef)
+                    .build());
         }
     }
 }
