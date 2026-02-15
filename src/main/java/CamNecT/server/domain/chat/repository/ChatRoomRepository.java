@@ -44,4 +44,5 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "OR (r.receiver.userId = :userId AND r.receiverExited = false))")
     Optional<ChatRoom> findByUserIdWithDetails(@Param("roomId") Long roomId, @Param("userId") Long userId);
 
+    Optional<ChatRoom> findByRequest_Id(Long requestId);
 }
