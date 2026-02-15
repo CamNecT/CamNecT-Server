@@ -1,6 +1,6 @@
-package CamNecT.server.domain.point.repository;
+package CamNecT.server.global.point.repository;
 
-import CamNecT.server.domain.point.model.PointTransaction;
+import CamNecT.server.global.point.model.PointTransaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface PointTransactionRepository extends JpaRepository<PointTransaction, Long> {

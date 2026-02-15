@@ -1,4 +1,4 @@
-package CamNecT.server.domain.point.model;
+package CamNecT.server.global.point.model;
 
 public record PointEvent(
         //여기에는 추후 수정 반드시 필요(임시로 post쪽만 고려해서 작성)

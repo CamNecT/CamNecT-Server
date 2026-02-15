@@ -1,4 +1,4 @@
-package CamNecT.server.domain.point.model;
+package CamNecT.server.global.point.model;
 
 // TransactionType Enum
 public enum TransactionType {
