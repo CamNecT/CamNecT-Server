@@ -20,6 +20,8 @@ public class ChatRoomWithDetailDto {
 
     private Long roomId;
     private Long myId;
+    private boolean isClosed;
+    private boolean isOpponentExited;
 
     private Long opponentId;
     private String opponentName;
@@ -49,9 +51,14 @@ public class ChatRoomWithDetailDto {
                 ? room.getTags().stream().map(Tag::getName).toList()
                 : List.of();
 
+        boolean isMeRequester = room.getRequester().getUserId().equals(me.getUserId());
+        boolean opponentExited = isMeRequester ? room.isReceiverExited() : room.isRequesterExited();
+
         return ChatRoomWithDetailDto.builder()
                 .roomId(room.getId())
                 .myId(me.getUserId())
+                .isClosed(room.getStatus().equals(ChatRoom.RoomStatus.CLOSE))
+                .isOpponentExited(opponentExited)
 
                 .opponentId(opponent.getUserId())
                 .opponentName(opponent.getName())
