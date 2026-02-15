@@ -16,6 +16,8 @@ app:
     base-url: https://cdn.camnect.site
 
   activity:
+    thumbnail:
+      max-file-size-mb: 10
     attachments:
       max-files: 10
       max-file-size-mb: 20
@@ -67,6 +69,7 @@ app:
     reward:
       comment-selection: 200
       first-three-likes : 100
+      coffee-chat-accepted: 500
     cost:
       question-view: 100
   gifticon:
@@ -85,6 +88,12 @@ app:
       secret-key: ${SENDB_SECRET_KEY:}
       cipher: ${SENDB_CIPHER:AES/ECB/PKCS5Padding}
       iv: ${SENDB_IV:}
+  front:
+    links:
+      fallback: /
+      community-post: /community/post/{postId}
+      chat-request: /chat/requests/{requestId}
+      chat-room: /chat/{roomId}
   tag-relation:
     top-k: 15
     min-evidence: 2

@@ -1,0 +1,97 @@
+package CamNecT.server.domain.chat.repository;
+
+import CamNecT.server.domain.chat.model.ChatRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+
+public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> {
+
+    // 중복 신청 방지
+    boolean existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
+            Long requesterId,
+            Long receiverId,
+            ChatRequest.RequestStatus status,
+            ChatRequest.RequestType type
+    );
+
+    boolean existsByRequester_UserIdAndReceiver_UserIdAndStatusAndTypeAndRecruitmentId(
+            Long requesterId,
+            Long receiverId,
+            ChatRequest.RequestStatus status,
+            ChatRequest.RequestType type,
+            Long recruitmentId
+    );
+
+    long countByReceiver_UserIdAndStatus(Long userId, ChatRequest.RequestStatus status);
+
+    @Query("""
+                select cr
+                from ChatRequest cr
+                join fetch cr.requester r
+                where cr.receiver.userId = :userId
+                  and cr.status = :status
+                order by cr.createdAt desc
+            """)
+    List<ChatRequest> findLatestReceivedRequests(
+            @Param("userId") Long userId,
+            @Param("status") ChatRequest.RequestStatus status,
+            Pageable pageable
+    );
+
+    @Query("SELECT cr FROM ChatRequest cr " +
+            "JOIN FETCH cr.requester " +
+            "WHERE cr.receiver.userId = :userId " +
+            "AND cr.type = :type " +
+            "AND cr.status = :status")
+    List<ChatRequest> findAllByReceiver_UserIdAndTypeAndStatus(
+            @Param("userId") Long userId,
+            @Param("type") ChatRequest.RequestType type,
+            @Param("status") ChatRequest.RequestStatus status
+    );
+
+    @Query("SELECT cr FROM ChatRequest cr " +
+            "JOIN FETCH cr.requester " +
+            "WHERE cr.receiver.userId = :userId " +
+            "AND cr.type = :type " +
+            "AND cr.recruitmentId = :recruitmentId " +
+            "AND cr.status = :status")
+    List<ChatRequest> findAllByReceiver_UserIdAndTypeAndRecruitmentIdAndStatus(
+            @Param("userId") Long userId,
+            @Param("type") ChatRequest.RequestType type,
+            @Param("recruitmentId") Long recruitmentId,
+            @Param("status") ChatRequest.RequestStatus status
+    );
+
+    @Query("SELECT cr FROM ChatRequest cr " +
+            "JOIN FETCH cr.requester " +
+            "WHERE cr.receiver.userId = :userId " +
+            "AND cr.type = :type " +
+            "AND cr.status = :status " +
+            "ORDER BY cr.createdAt DESC")
+    List<ChatRequest> findRequestsWithRequester(
+            @Param("userId") Long userId,
+            @Param("type") ChatRequest.RequestType type,
+            @Param("status") ChatRequest.RequestStatus status
+    );
+
+    //팀원모집 마감에서 미승인자들 일괄 모집 마감 알림 발송용
+    @Query("""
+            select cr
+            from ChatRequest cr
+            join fetch cr.requester req
+            where cr.type = :type
+              and cr.recruitmentId = :recruitmentId
+              and cr.status <> :accepted
+            """)
+    List<ChatRequest> findAllNonAcceptedTeamRecruitFetchRequester(
+            @Param("type") ChatRequest.RequestType type,
+            @Param("recruitmentId") Long recruitmentId,
+            @Param("accepted") ChatRequest.RequestStatus accepted
+    );
+}
+
+
