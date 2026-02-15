@@ -1,0 +1,13 @@
+package CamNecT.server.domain.profile.components.certificate.dto.request;
+
+import java.time.LocalDate;
+
+public record CertificateRequest(
+        String certificateName,
+        LocalDate acquiredDate,
+        String credentialUrl
+/*        String issuerName,
+        LocalDate expireDate,
+        String description*/
+) {
+}

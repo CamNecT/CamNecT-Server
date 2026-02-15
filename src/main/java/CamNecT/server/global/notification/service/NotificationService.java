@@ -1,0 +1,155 @@
+package CamNecT.server.global.notification.service;
+
+import CamNecT.server.domain.users.model.UserProfile;
+import CamNecT.server.domain.users.model.Users;
+import CamNecT.server.domain.users.repository.UserProfileRepository;
+import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
+import CamNecT.server.global.notification.dto.response.NotificationItemResponse;
+import CamNecT.server.global.notification.model.Notification;
+import CamNecT.server.global.notification.model.NotificationType;
+import CamNecT.server.global.notification.repository.NotificationRepository;
+import CamNecT.server.global.storage.service.PublicUrlIssuer;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import static CamNecT.server.global.notification.util.NotificationUtil.titleOf;
+
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class NotificationService {
+
+    private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
+    private final UserProfileRepository userProfileRepository;
+    private final PublicUrlIssuer publicUrlIssuer;
+
+    @Transactional
+    public void create(Long receiverUserId,
+                       Long actorUserId,
+                       NotificationType type,
+                       String message,
+                       Long postId,
+                       Long commentId) {
+        create(receiverUserId, actorUserId, type, message, postId, commentId, null, null);
+    }
+
+    @Transactional
+    public void create(Long receiverUserId,
+                       Long actorUserId,
+                       NotificationType type,
+                       String message,
+                       Long postId,
+                       Long commentId,
+                       Long requestId,
+                       String link) {
+
+        Notification n = Notification.of(receiverUserId, actorUserId, type, message, postId, commentId, requestId, link);
+        notificationRepository.save(n);
+
+        log.info("[notif] saved (queued). receiver={}, requestId={}", receiverUserId, requestId);
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<Notification> list(Long receiverUserId, Long cursorId, int size) {
+        Pageable pageable = PageRequest.of(0, size);
+
+        NotificationType exclude = NotificationType.CHAT_MESSAGE_RECEIVED;
+
+        if (cursorId == null) {
+            return notificationRepository
+                    .findByReceiverUserIdAndTypeNotOrderByIdDesc(receiverUserId, exclude, pageable);
+        }
+        return notificationRepository
+                .findByReceiverUserIdAndTypeNotAndIdLessThanOrderByIdDesc(receiverUserId, exclude, cursorId, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Slice<NotificationItemResponse> listItems(Long receiverUserId, Long cursorId, int size) {
+        Slice<Notification> slice = list(receiverUserId, cursorId, size);
+
+        Set<Long> actorIds = slice.getContent().stream()
+                .map(Notification::getActorUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, Users> userMap = actorIds.isEmpty()
+                ? Map.of()
+                : userRepository.findAllById(actorIds).stream()
+                .collect(Collectors.toMap(Users::getUserId, Function.identity()));
+
+        Map<Long, UserProfile> profileMap = actorIds.isEmpty()
+                ? Map.of()
+                : userProfileRepository.findAllByUserIdIn(actorIds).stream()
+                .collect(Collectors.toMap(UserProfile::getUserId, Function.identity()));
+
+        final String defaultImg = "/images/default.png";
+
+        return slice.map(n -> {
+            Long actorId = n.getActorUserId();
+
+            String actorName = "시스템";
+            String actorImg = defaultImg;
+
+            if (actorId != null) {
+                Users u = userMap.get(actorId);
+                if (u != null && u.getName() != null) actorName = u.getName();
+
+                UserProfile p = profileMap.get(actorId);
+                if (p != null && p.getProfileImageKey() != null && !p.getProfileImageKey().isBlank()) {
+                    actorImg = publicUrlIssuer.issuePublicUrl(p.getProfileImageKey());
+                }
+            }
+
+            return new NotificationItemResponse(
+                    n.getId(),
+                    n.getType(),
+                    titleOf(n.getType()),
+                    n.getMessage(),
+                    n.isRead(),
+                    n.getActorUserId(),
+                    actorName,
+                    actorImg,
+                    n.getPostId(),
+                    n.getCommentId(),
+                    n.getRequestId(),
+                    n.getLink(),
+                    n.getCreatedAt()
+            );
+        });
+    }
+
+    @Transactional(readOnly = true)
+    public long countUnread(Long receiverUserId) {
+        return notificationRepository.countByReceiverUserIdAndReadFalseAndTypeNot(
+                receiverUserId, NotificationType.CHAT_MESSAGE_RECEIVED);
+    }
+
+    @Transactional
+    public void markRead(Long receiverUserId, Long notificationId) {
+        Notification n = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.NOTIFICATION_NOT_FOUND));
+
+        if (!n.getReceiverUserId().equals(receiverUserId)) {
+            throw new CustomException(UserErrorCode.NOTIFICATION_NOT_FOUND);
+        }
+        n.markRead();
+    }
+
+    @Transactional
+    public int markAllRead(Long receiverUserId) {
+        return notificationRepository.markAllRead(receiverUserId);
+    }
+}

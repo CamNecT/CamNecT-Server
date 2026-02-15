@@ -1,0 +1,64 @@
+package CamNecT.server.domain.chat.controller;
+
+import CamNecT.server.domain.chat.dto.room.ChatRoomListDetailDto;
+import CamNecT.server.domain.chat.dto.room.ChatRoomListResponseDto;
+import CamNecT.server.domain.chat.dto.room.ChatRoomWithDetailDto;
+import CamNecT.server.domain.chat.model.ChatRequest;
+import CamNecT.server.domain.chat.service.ChatService;
+import CamNecT.server.global.common.auth.UserId;
+import CamNecT.server.global.common.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/chat")
+@Tag(name = "Chat Room", description = "채팅방 조회 및 입장 API")
+public class ChatRoomController {
+
+    private final ChatService chatService;
+
+    @Operation(summary = "내 채팅방 목록 조회", description = "참여 중인 모든 채팅방 목록과 전체 안 읽은 메시지 수를 반환합니다. 요청 타입(COFFEE_CHAT, TEAM_RECRUIT)의 리스트를 조회합니다. 아무것도 넘기지 않을 시 전체 조회합니다.")
+    @GetMapping("/rooms")
+    @Transactional(readOnly = true)
+    public ApiResponse<ChatRoomListResponseDto> roomList(
+            @UserId Long userId,
+            @RequestParam(name = "type", required = false) ChatRequest.RequestType type
+    ) {
+
+        List<ChatRoomListDetailDto> roomList = chatService.getChatRoomList(userId, type);
+        long totalUnreadCount = roomList.stream().mapToLong(ChatRoomListDetailDto::getUnreadCount).sum();
+
+        ChatRoomListResponseDto response = ChatRoomListResponseDto.builder()
+                .chatRoomList(roomList)
+                .totalUnreadCount(totalUnreadCount)
+                .build();
+
+        return ApiResponse.success(response);
+    }
+
+
+    @Operation(summary = "채팅방 상세 조회 (입장)", description = "특정 채팅방의 상대방 정보와 채팅 내역을 불러옵니다. 이 API 호출 후 소켓 연결(CONNECT)을 진행해야 합니다.")
+    @GetMapping("/room/{roomId}")
+    public ApiResponse<ChatRoomWithDetailDto> joinRoom(@Parameter(description = "채팅방 ID") @PathVariable Long roomId, @UserId Long userId) {
+
+        ChatRoomWithDetailDto response = chatService.getRoomWithDetails(roomId, userId);
+
+        return ApiResponse.success(response);
+    }
+
+    @Operation(summary = "채팅방 개별 나가기 (퇴장)", description = "해당 채팅방을 나갑니다.")
+    @PatchMapping("/room/{roomId}/out")
+    public ApiResponse<Void> exitRoom(@Parameter(description = "채팅방 ID") @PathVariable Long roomId, @UserId Long userId) {
+
+        chatService.outOfChatRoom(roomId, userId);
+
+        return ApiResponse.success(null);
+    }
+}

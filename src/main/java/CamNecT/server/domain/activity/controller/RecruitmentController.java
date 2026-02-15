@@ -1,0 +1,90 @@
+package CamNecT.server.domain.activity.controller;
+
+import CamNecT.server.domain.activity.dto.request.RecruitmentApplyRequest;
+import CamNecT.server.domain.activity.dto.request.RecruitmentRequest;
+import CamNecT.server.domain.activity.dto.response.RecruitmentDetailResponse;
+import CamNecT.server.domain.activity.model.recruitment.TeamRecruitment;
+import CamNecT.server.domain.activity.service.RecruitmentService;
+import CamNecT.server.global.common.auth.UserId;
+import CamNecT.server.global.common.response.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+@Tag(name = "Activity Recruitment", description = "대외활동 내 팀원 모집 및 지원 관련 API")
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/activity/recruitment")
+public class RecruitmentController {
+
+    private final RecruitmentService recruitmentService;
+
+    @Operation(summary = "팀원 모집글 생성", description = "특정 대외활동(대외활동/취업공고)에 대한 팀원 모집글을 작성합니다.")
+    @PostMapping
+    public ApiResponse<TeamRecruitment> createRecruitment(
+            @UserId Long userId,
+            @RequestBody RecruitmentRequest request
+    ) {
+        return ApiResponse.success(recruitmentService.createRecruitment(userId, request));
+    }
+
+    @Operation(summary = "모집글 상세 조회", description = "특정 팀원 모집글의 상세 내용 및 팀 구성 정보를 조회합니다.")
+    @GetMapping("/{recruitmentId}")
+    public ApiResponse<RecruitmentDetailResponse> getRecruitmentDetail(
+            @UserId Long userId,
+            @PathVariable Long recruitmentId
+    ) {
+        return ApiResponse.success(recruitmentService.getRecruitmentDetail(userId, recruitmentId));
+    }
+
+    @Operation(summary = "팀원 모집글 수정", description = "팀원 모집글을 수정합니다. 작성자만 수정할 수 있습니다.")
+    @PatchMapping("/{recruitmentId}")
+    public ApiResponse<String> updateRecruitment(
+            @UserId Long userId,
+            @PathVariable Long recruitmentId,
+            @RequestBody RecruitmentRequest request
+    ) {
+        recruitmentService.updateRecruitment(userId, recruitmentId, request);
+        return ApiResponse.success("수정이 완료되었습니다.");
+    }
+
+    @Operation(summary = "모집글 북마크 설정 (토글 방식)", description = "팀원 모집글에 대한 북마크 상태를 반전(Toggle)시킵니다. 호출 시마다 등록/해제 메시지를 반환합니다.")
+    @PostMapping("/{recruitmentId}/bookmark")
+    public ApiResponse<String> toggleBookmark(
+            @UserId Long userId,
+            @PathVariable Long recruitmentId
+    ) {
+        boolean isBookmarked = recruitmentService.toggleRecruitmentBookmark(userId, recruitmentId);
+        String message = isBookmarked ? "북마크가 등록되었습니다." : "북마크가 해제되었습니다.";
+        return ApiResponse.success(message);
+    }
+
+    @Operation(summary = "팀 지원하기", description = "모집 중인 팀에 지원 신청을 보냅니다.")
+    @PostMapping("/{recruitmentId}/apply")
+    public ApiResponse<Long> applyToTeam(
+            @UserId Long userId,
+            @PathVariable Long recruitmentId,
+            @RequestBody RecruitmentApplyRequest request
+    ) {
+        Long applicationId = recruitmentService.applyToTeam(userId, recruitmentId, request);
+        return ApiResponse.success(applicationId);
+    }
+
+    /*
+    * 팀 지원에 대한 승인은
+    * ChatController에서 담당합니다!
+    * (Coffechat요청과 recruitment 지원은 같은 형식에 type enum만 다름)
+    */
+
+    @Operation(summary = "팀원 모집 마감", description = "팀원 모집을 마감합니다. 작성자만 마감할 수 있습니다.")
+    @PatchMapping("/{recruitmentId}/close")
+    public ApiResponse<String> closeRecruitment(
+            @PathVariable Long recruitmentId,
+            @UserId Long userId
+    ) {
+        recruitmentService.closeRecruitment(userId, recruitmentId);
+        return ApiResponse.success("팀원 모집이 성공적으로 마감되었습니다.");
+    }
+
+}
