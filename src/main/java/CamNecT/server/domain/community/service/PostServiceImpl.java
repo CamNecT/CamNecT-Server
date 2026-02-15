@@ -15,7 +15,6 @@ import CamNecT.server.domain.community.repository.Comments.CommentLikesRepositor
 import CamNecT.server.domain.community.repository.Comments.CommentsRepository;
 import CamNecT.server.domain.community.repository.Posts.*;
 import CamNecT.server.global.point.model.PointEvent;
-import CamNecT.server.global.point.model.TransactionType;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserRole;
 import CamNecT.server.domain.users.model.Users;
@@ -38,10 +37,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -203,8 +199,7 @@ public class PostServiceImpl implements PostService {
                     && post.getBoard().getCode()==BoardCode.INFO) {
                 // 작성자에게 지급 (본인 글이면 지급 안 줄지 정책 결정)
                 Long authorId = post.getUser().getUserId();
-                pointService.changePoint(authorId,rewardFirstThreeLikes,
-                        TransactionType.EARN, PointEvent.threeLikeReward(authorId,postId));
+                pointService.earnPoint(authorId, rewardFirstThreeLikes, PointEvent.threeLikeReward(authorId,postId));
             }
         }
         return new ToggleLikeResponse(liked, stats.getLikeCount());
@@ -232,23 +227,19 @@ public class PostServiceImpl implements PostService {
                 .map(pt -> pt.getTag().getId())
                 .toList();
 
-        Long acceptedCommentId = acceptedCommentsRepository.findByPost_Id(postId)
+        Optional<AcceptedComments> acceptedOpt = acceptedCommentsRepository.findByPost_Id(postId);
+        Long acceptedCommentId = acceptedOpt
                 .map(ac -> ac.getComment().getId())
                 .orElse(null);
 
-        boolean isQuestion = post.getBoard().getCode() == BoardCode.QUESTION;
+        ///  접근권한 관련 설정파트
+        boolean payRequired = post.getBoard().getCode() == BoardCode.QUESTION && acceptedOpt.isPresent();
 
         ContentAccessStatus accessStatus;
         Integer requiredPoints = null;
         Integer myPoints = null;
 
-        /// 글쓴이 프로필
-        AuthorDto author = authorAssembler
-                .buildAuthorMap(List.of(post.getUser().getUserId()))
-                .get(post.getUser().getUserId());
-
-        /// 접근권한 관련 설정파트
-        if (isQuestion) {
+        if (payRequired) {
             // 작성자 무료
             if (Objects.equals(userId, post.getUser().getUserId())) {
                 accessStatus = ContentAccessStatus.GRANTED;
@@ -267,6 +258,11 @@ public class PostServiceImpl implements PostService {
             accessStatus = ContentAccessStatus.GRANTED;
         }
         String content = (accessStatus == ContentAccessStatus.GRANTED) ? post.getContent() : null;
+
+        /// 글쓴이 프로필
+        AuthorDto author = authorAssembler
+                .buildAuthorMap(List.of(post.getUser().getUserId()))
+                .get(post.getUser().getUserId());
 
         /// 첨부파일 내려주는 파트
         List<PostAttachmentItemResponse> attachments = null;
@@ -384,8 +380,7 @@ public class PostServiceImpl implements PostService {
 
         Long receiverId = comment.getUserId();
         if (receiverId != null && !Objects.equals(receiverId, userId)) {
-            pointService.earnPointByCommentSelection(receiverId, postId, commentId, rewardAcceptedComment);
-
+            pointService.earnPoint(receiverId,rewardAcceptedComment,PointEvent.commentSelection(postId,commentId));
             eventPublisher.publishEvent(SimpleNotifiableEvent.of(
                     receiverId,
                     userId,

@@ -13,7 +13,6 @@ public enum PointSource {
     THREELIKES_REWARD("정보글 좋아요 첫 3개 달성 시 제공"),
 
     // 사용(SPEND) 관련
-    COFFEECHAT_REQUEST("커피챗 요청 사용"),
     POST_ACCESS_PURCHASE("정보글 열람권 구매"),
     GIFTICON_PURCHASE("기프티콘 구매"),
 

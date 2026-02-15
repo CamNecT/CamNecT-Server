@@ -1,9 +1,11 @@
 package CamNecT.server.domain.alumni.repository;
 
+import CamNecT.server.domain.users.model.QUserProfile;
 import CamNecT.server.domain.users.model.QUsers;
 import CamNecT.server.domain.users.model.QUserTagMap;
 import CamNecT.server.domain.users.model.UserStatus;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -26,38 +28,37 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
     public List<Long> findAlumniIdsByConditions(Long myId, String name, List<Long> tagIdList, Pageable pageable) {
 
         QUsers user = QUsers.users;
+        QUserProfile profile = QUserProfile.userProfile;
         QUserTagMap commonTagMap = new QUserTagMap("commonTagMap");
 
-        // 1. 내 태그 ID 리스트 조회 (로그인 상태일 때만)
         List<Long> myTagIds = (myId != null) ? queryFactory
                 .select(QUserTagMap.userTagMap.tagId)
                 .from(QUserTagMap.userTagMap)
                 .where(QUserTagMap.userTagMap.userId.eq(myId))
-                .fetch() : Collections.emptyList();
+                .fetch()
+                : Collections.emptyList();
 
-        // 2. 공통 태그 카운트 (Null 방지를 위해 coalesce 사용)
+        // 항상 left join은 한다 (별칭이 SQL에 항상 등장)
+        BooleanExpression joinCond = myTagIds.isEmpty()
+                ? Expressions.FALSE
+                : commonTagMap.tagId.in(myTagIds);
+
         NumberExpression<Long> commonTagCount = commonTagMap.tagId.count().coalesce(0L);
 
-        var query = queryFactory
+        return queryFactory
                 .select(user.userId)
-                .from(user);
-
-        // 3. 내 태그가 있을 때만 Left Join 수행 (없으면 조인할 필요 없음)
-        if (!myTagIds.isEmpty()) {
-            query.leftJoin(commonTagMap).on(
-                    commonTagMap.userId.eq(user.userId)
-                            .and(commonTagMap.tagId.in(myTagIds))
-            );
-        }
-
-        return query
+                .from(user)
+                .join(profile).on(profile.userId.eq(user.userId))
+                .leftJoin(commonTagMap).on(
+                        commonTagMap.userId.eq(user.userId).and(joinCond)
+                )
                 .where(
-                        user.userId.ne(myId),
+                        myId == null ? null : user.userId.ne(myId),
                         user.status.eq(UserStatus.ACTIVE),
                         nameContains(name),
                         hasAllTags(tagIdList, user.userId)
                 )
-                .groupBy(user.userId, user.createdAt) // 정렬 컬럼 포함하여 그룹화
+                .groupBy(user.userId, user.createdAt)
                 .orderBy(
                         commonTagCount.desc(),
                         user.createdAt.desc(),

@@ -86,6 +86,9 @@ public class DocumentVerificationService {
 
         UploadTicket t = ticketRepo.findByStorageKey(documentKey)
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.FILE_NOT_FOUND));
+        if (!t.getUserId().equals(userId)) {
+            throw new CustomException(VerificationErrorCode.TICKET_USER_NOT_MATCH);
+        }
 
         String ct = normalize(t.getContentType());
         if (!StringUtils.hasText(ct)) {
