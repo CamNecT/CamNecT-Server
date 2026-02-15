@@ -9,6 +9,9 @@ import lombok.Getter;
 @Builder
 public class ChatRoomListDetailDto {
     private Long roomId;
+    private boolean isClosed;
+    private boolean isOpponentExited;
+
     private Long opponentId;
     private String opponentName;
     private String opponentProfileImgUrl;
@@ -24,11 +27,16 @@ public class ChatRoomListDetailDto {
     public static ChatRoomListDetailDto of(ChatRoom room, Users me, Long count,
                                            String major, String studentYear, String lastMessage, String profileImgUrl) {
 
+        boolean isMeRequester = room.getRequester().getUserId().equals(me.getUserId());
         Users opponent = room.getRequester().getUserId().equals(me.getUserId())
                 ? room.getReceiver() : room.getRequester();
 
+        boolean opponentExited = isMeRequester ? room.isReceiverExited() : room.isRequesterExited();
+
         return ChatRoomListDetailDto.builder()
                 .roomId(room.getId())
+                .isClosed(room.getStatus().equals(ChatRoom.RoomStatus.CLOSE))
+                .isOpponentExited(opponentExited)
                 .opponentId(opponent.getUserId())
                 .opponentName(opponent.getName())
                 .opponentProfileImgUrl(profileImgUrl)
@@ -36,7 +44,7 @@ public class ChatRoomListDetailDto {
                 .opponentMajor(major)
                 .opponentStudentYear(studentYear)
                 .lastMessage(lastMessage)
-                .lastMessageTime(room.getUpdatedAt().toString())
+                .lastMessageTime(room.getLastMessageAt() != null ? room.getLastMessageAt().toString() : room.getCreatedAt().toString())
 
                 .unreadCount(count)
                 .build();
