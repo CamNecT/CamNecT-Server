@@ -37,10 +37,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -230,23 +227,19 @@ public class PostServiceImpl implements PostService {
                 .map(pt -> pt.getTag().getId())
                 .toList();
 
-        Long acceptedCommentId = acceptedCommentsRepository.findByPost_Id(postId)
+        Optional<AcceptedComments> acceptedOpt = acceptedCommentsRepository.findByPost_Id(postId);
+        Long acceptedCommentId = acceptedOpt
                 .map(ac -> ac.getComment().getId())
                 .orElse(null);
 
-        boolean isQuestion = post.getBoard().getCode() == BoardCode.QUESTION;
+        ///  접근권한 관련 설정파트
+        boolean payRequired = post.getBoard().getCode() == BoardCode.QUESTION && acceptedOpt.isPresent();
 
         ContentAccessStatus accessStatus;
         Integer requiredPoints = null;
         Integer myPoints = null;
 
-        /// 글쓴이 프로필
-        AuthorDto author = authorAssembler
-                .buildAuthorMap(List.of(post.getUser().getUserId()))
-                .get(post.getUser().getUserId());
-
-        /// 접근권한 관련 설정파트
-        if (isQuestion) {
+        if (payRequired) {
             // 작성자 무료
             if (Objects.equals(userId, post.getUser().getUserId())) {
                 accessStatus = ContentAccessStatus.GRANTED;
@@ -265,6 +258,11 @@ public class PostServiceImpl implements PostService {
             accessStatus = ContentAccessStatus.GRANTED;
         }
         String content = (accessStatus == ContentAccessStatus.GRANTED) ? post.getContent() : null;
+
+        /// 글쓴이 프로필
+        AuthorDto author = authorAssembler
+                .buildAuthorMap(List.of(post.getUser().getUserId()))
+                .get(post.getUser().getUserId());
 
         /// 첨부파일 내려주는 파트
         List<PostAttachmentItemResponse> attachments = null;

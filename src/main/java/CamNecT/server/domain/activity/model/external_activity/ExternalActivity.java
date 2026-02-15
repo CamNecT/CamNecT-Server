@@ -45,8 +45,8 @@ public class ExternalActivity {
     @Column(name = "target_description", length = 300)
     private String targetDescription;
 
-    @Column(name = "thumbnail_url", length = 500)
-    private String thumbnailUrl;
+    @Column(name = "thumbnail_key", length = 500)
+    private String thumbnailKey;
 
     @Column(name = "apply_start_date")
     private LocalDate applyStartDate;
@@ -76,8 +76,8 @@ public class ExternalActivity {
     @Column(name = "context", columnDefinition = "TEXT")
     private String context;
 
-    public void updateThumbnail(String thumbnailUrl) {
-        this.thumbnailUrl = thumbnailUrl;
+    public void updateThumbnailKey(String thumbnailKey) {
+        this.thumbnailKey = thumbnailKey;
     }
 
     public void update(ActivityRequest request) {
