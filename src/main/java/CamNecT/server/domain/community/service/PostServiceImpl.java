@@ -384,8 +384,7 @@ public class PostServiceImpl implements PostService {
 
         Long receiverId = comment.getUserId();
         if (receiverId != null && !Objects.equals(receiverId, userId)) {
-            pointService.earnPointByCommentSelection(receiverId, postId, commentId, rewardAcceptedComment);
-
+            pointService.earnPoint(receiverId,rewardAcceptedComment,PointEvent.commentSelection(postId,commentId));
             eventPublisher.publishEvent(SimpleNotifiableEvent.of(
                     receiverId,
                     userId,

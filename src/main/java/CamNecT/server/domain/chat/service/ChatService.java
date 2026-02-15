@@ -34,6 +34,7 @@ import CamNecT.server.global.notification.event.CoffeeChatAcceptedEvent;
 import CamNecT.server.global.notification.event.CoffeeChatRequestedEvent;
 import CamNecT.server.global.notification.event.NewChatMessageEvent;
 import CamNecT.server.global.notification.event.TeamRecruitAcceptedEvent;
+import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import CamNecT.server.global.tag.model.Tag;
@@ -157,18 +158,14 @@ public class ChatService {
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUEST_NOT_FOUND));
 
         // 본인 요청인지 검증
-        if (!request.getReceiver().getUserId().equals(userId)) {
-            throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
-        }
+        if (!request.getReceiver().getUserId().equals(userId)) throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
 
         if (isAccepted) {
             request.accept();
+            Long requesterId = request.getRequester().getUserId();
             Long roomId = createChatRoom(request);
-            pointService.earnPointByCoffeeChatAcceptance(
-                    request.getRequester().getUserId(),
-                    request.getId(),
-                    rewardCoffeeChatAccepted
-            );
+            pointService.earnPoint(requesterId, rewardCoffeeChatAccepted,
+                    PointEvent.coffeeChatAccepted(requesterId,request.getId()));
             tryRewardCoffeeChatAcceptedPoint(request);
             publishAcceptedNotification(request, roomId);
         } else {
@@ -688,11 +685,8 @@ public class ChatService {
             return;
         }
         try {
-            pointService.earnPointByCoffeeChatAcceptance(
-                    targetUserId,
-                    requestId,
-                    rewardCoffeeChatAccepted
-            );
+            pointService.earnPoint(targetUserId, rewardCoffeeChatAccepted,
+                    PointEvent.coffeeChatAccepted(targetUserId,request.getId()));
         } catch (Exception ex) {
             log.warn("[coffeechat] point reward failed. requestId={}, userId={}", requestId, targetUserId, ex);
         }
