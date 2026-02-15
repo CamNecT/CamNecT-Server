@@ -70,18 +70,21 @@ public class AlumniService {
         // 5. DTO 변환 (정렬 유지)
         List<AlumniPreviewResponse> content = targetIds.stream()
                 .map(id -> {
-                    Users user = usersMap.get(id);
                     UserProfile profile = profileMap.get(id);
-                    if (user == null || profile == null) return null;
+                    if (profile == null) return null;
 
-                    String imgUrl = null;
-                    if (StringUtils.hasText(profile.getProfileImageKey())) {
-                        imgUrl = publicUrlIssuer.issuePublicUrl(profile.getProfileImageKey());
-                    }
+                    String imgUrl = StringUtils.hasText(profile.getProfileImageKey())
+                            ? publicUrlIssuer.issuePublicUrl(profile.getProfileImageKey())
+                            : null;
 
-                    UserProfileDto dto = UserProfileDto.from(profile).withProfileImageUrl(imgUrl);
+                    UserProfileDto profileDto = UserProfileDto.from(profile).withProfileImageUrl(imgUrl);
 
-                    return new AlumniPreviewResponse(id, user.getName(), dto, tagMap.getOrDefault(id, List.of()));
+                    return new AlumniPreviewResponse(
+                            id,
+                            profile.getUser().getName(),
+                            profileDto,
+                            tagMap.getOrDefault(id, List.of())
+                    );
                 })
                 .filter(Objects::nonNull)
                 .toList();
