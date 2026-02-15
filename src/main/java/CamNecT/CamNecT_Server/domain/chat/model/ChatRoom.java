@@ -53,6 +53,12 @@ public class ChatRoom {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "requester_exited", nullable = false)
+    private boolean requesterExited = false;
+
+    @Column(name = "receiver_exited", nullable = false)
+    private boolean receiverExited = false;
+
     public enum RoomStatus {
         OPEN, CLOSE
     }
@@ -78,11 +84,6 @@ public class ChatRoom {
         this.lastMessageAt = LocalDateTime.now();
     }
 
-    public void closeRoom() {
-        this.status = RoomStatus.CLOSE;
-    }
-
-
     // 채팅방에 연결된 태그들 객체 반환
     public List<Tag> getTags() {
         return this.request.getRequestInterests();
@@ -91,4 +92,33 @@ public class ChatRoom {
     // 커피챗/팀원모집 타입 구분
     public ChatRequest.RequestType getType() {
         return this.request.getType();
-    }}
+    }
+
+    // 채팅방 종료
+    public void closeRoom() {
+        this.status = RoomStatus.CLOSE;
+    }
+
+    // 채팅방 나가기
+    public void leave(Long userId) {
+        if (this.requester.getUserId().equals(userId)) {
+            this.requesterExited = true;
+        } else if (this.receiver.getUserId().equals(userId)) {
+            this.receiverExited = true;
+        }
+
+        this.status = RoomStatus.CLOSE;
+    }
+
+    public boolean isVisibleTo(Long userId) {
+        if (this.requester.getUserId().equals(userId)) {
+            return !this.requesterExited;
+        }
+
+        if (this.receiver.getUserId().equals(userId)) {
+            return !this.receiverExited;
+        }
+
+        return false;
+    }
+}
