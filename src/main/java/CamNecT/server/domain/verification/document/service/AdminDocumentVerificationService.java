@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class AdminDocumentVerificationService {
-    @Value("${app.point.reward.sign-up=300}")
+    @Value("${app.point.reward.sign-up:300}")
     private int rewardSignup;
 
     private final DocumentVerificationSubmissionRepository submissionRepo;
