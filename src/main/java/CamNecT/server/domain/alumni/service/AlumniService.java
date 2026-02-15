@@ -7,7 +7,6 @@ import CamNecT.server.domain.alumni.dto.UserProfileDto;
 import CamNecT.server.domain.alumni.repository.AlumniRepository;
 import CamNecT.server.domain.home.dto.HomeResponse;
 import CamNecT.server.domain.users.model.UserProfile;
-import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.domain.users.repository.UserTagMapRepository;
@@ -51,15 +50,11 @@ public class AlumniService {
             return new SliceImpl<>(List.of(), pageable, false);
         }
 
-        // 2. Users 조회
-        Map<Long, Users> usersMap = usersRepository.findAllById(targetIds).stream()
-                .collect(Collectors.toMap(Users::getUserId, u -> u));
-
-        // 3. Profile 조회
+        // 2. Profile 조회
         Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(targetIds).stream()
                 .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
 
-        // 4. Tags 조회
+        // 3. Tags 조회
         Map<Long, List<String>> tagMap = userTagMapRepository.findTagNamesWithUserIdByUserIdIn(targetIds)
                 .stream()
                 .collect(Collectors.groupingBy(
@@ -67,7 +62,7 @@ public class AlumniService {
                         Collectors.mapping(row -> (String) row[1], Collectors.toList())
                 ));
 
-        // 5. DTO 변환 (정렬 유지)
+        // 4. DTO 변환 (정렬 유지)
         List<AlumniPreviewResponse> content = targetIds.stream()
                 .map(id -> {
                     UserProfile profile = profileMap.get(id);
