@@ -16,8 +16,8 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "JOIN FETCH r.request " +
             "JOIN FETCH r.requester " +
             "JOIN FETCH r.receiver " +
-            "WHERE (r.requester.userId = :userId OR r.receiver.userId = :userId) " +
-            "AND r.status = 'OPEN' " +
+            "WHERE (r.requester.userId = :userId AND r.requesterExited = false) " +
+            "OR (r.receiver.userId = :userId AND r.receiverExited = false) " +
             "ORDER BY r.lastMessageAt DESC")
     List<ChatRoom> findAllByUserIdWithBasicInfo(@Param("userId") Long userId);
 
@@ -26,9 +26,9 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "JOIN FETCH r.request req " +
             "JOIN FETCH r.requester " +
             "JOIN FETCH r.receiver " +
-            "WHERE (r.requester.userId = :userId OR r.receiver.userId = :userId) " +
+            "WHERE ((r.requester.userId = :userId AND r.requesterExited = false) " +
+            "OR (r.receiver.userId = :userId AND r.receiverExited = false)) " +
             "AND req.type = :type " +
-            "AND r.status = 'OPEN' " +
             "ORDER BY r.lastMessageAt DESC")
     List<ChatRoom> findAllByUserIdAndType(@Param("userId") Long userId,
                                           @Param("type") ChatRequest.RequestType type);
@@ -40,7 +40,8 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "JOIN FETCH r.request req " +
             "JOIN FETCH req.requestInterests " +
             "WHERE r.id = :roomId " +
-            "AND (r.requester.userId = :userId OR r.receiver.userId = :userId)")
+            "AND ((r.requester.userId = :userId AND r.requesterExited = false) " +
+            "OR (r.receiver.userId = :userId AND r.receiverExited = false))")
     Optional<ChatRoom> findByUserIdWithDetails(@Param("roomId") Long roomId, @Param("userId") Long userId);
 
 }

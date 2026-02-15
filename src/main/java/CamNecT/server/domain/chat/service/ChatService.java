@@ -647,11 +647,17 @@ public class ChatService {
 
         requests.forEach(ChatRequest::reject);
     }
-
-    public void outOfChatRoom(Long roomId, Long userId) {
+    
+    public void closeChatRoom(Long roomId, Long userId) {
         ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
         room.closeRoom();
+    }
+
+    public void exitOfChatRoom(Long roomId, Long userId) {
+        ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
+        room.leave(userId);
 
         ChatRequest request = room.getRequest();
         if (request == null) {
