@@ -3,7 +3,9 @@ package CamNecT.server.domain.activity.service;
 import CamNecT.server.domain.activity.dto.request.RecruitmentApplyRequest;
 import CamNecT.server.domain.activity.dto.request.RecruitmentRequest;
 import CamNecT.server.domain.activity.dto.response.RecruitmentDetailResponse;
+import CamNecT.server.domain.activity.model.enums.ActivityCategory;
 import CamNecT.server.domain.activity.model.enums.RecruitStatus;
+import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
 import CamNecT.server.domain.activity.model.recruitment.RecruitmentBookmark;
 import CamNecT.server.domain.activity.model.recruitment.TeamApplication;
 import CamNecT.server.domain.activity.model.recruitment.TeamRecruitment;
@@ -53,9 +55,12 @@ public class RecruitmentService {
     public TeamRecruitment createRecruitment(Long userId, RecruitmentRequest request) {
 
         //대외활동 검증
-        if (!activityRepository.existsById(request.activityId())) {
-            throw new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND);
-        }
+        ExternalActivity activity = activityRepository.findById(request.activityId()).orElseThrow(
+                ()-> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND)
+        );
+
+        if(activity.getCategory() == ActivityCategory.CLUB || activity.getCategory() == ActivityCategory.STUDY)
+            throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
 
         TeamRecruitment recruitment = TeamRecruitment.builder()
                 .activityId(request.activityId())

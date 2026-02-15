@@ -189,6 +189,8 @@ public class ActivityService {
                 .thumbnailUrl(DEFAULT_THUMB)
                 .build());
 
+        saveTags(saved, request.tagIds());
+
         // 3. 썸네일 처리 (관리자용은 userId를 0L 또는 특정 관리자 ID로 설정)
         String finalThumbPrefix = "activity/activities/activity-" + saved.getActivityId() + "/attachments/thumbnail";
 
