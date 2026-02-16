@@ -4,6 +4,7 @@ import CamNecT.server.domain.activity.model.enums.ActivityCategory;
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityTagRepository;
 import CamNecT.server.domain.profile.components.archive.dto.response.MyArchiveResponse;
+import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,7 @@ import java.util.*;
 public class ExternalArchiveAssembler {
 
     private final ExternalActivityTagRepository externalActivityTagRepository;
+    private final PublicUrlIssuer publicUrlIssuer;
 
     public ExternalAssembleResult assemble(List<Object[]> rows) {
         if (rows == null || rows.isEmpty()) {
@@ -47,7 +49,7 @@ public class ExternalArchiveAssembler {
                     a.getActivityId(),
                     a.getTitle(),
                     contextDisplay,
-                    a.getThumbnailUrl(),
+                    publicUrlIssuer.issueImagePublicUrl(a.getThumbnailKey()),
                     tagsMap.getOrDefault(a.getActivityId(), List.of()),
                     bookmarkCount,
                     a.getOrganizer(),

@@ -5,7 +5,7 @@ import CamNecT.server.domain.activity.model.props.ActivityThumbnailProps;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.StorageErrorCode;
-import CamNecT.server.global.common.service.GlobalPresignMethods;
+import CamNecT.server.global.storage.service.GlobalPresignMethods;
 import CamNecT.server.global.storage.dto.request.PresignUploadBatchRequest;
 import CamNecT.server.global.storage.dto.request.PresignUploadRequest;
 import CamNecT.server.global.storage.dto.response.PresignUploadBatchResponse;
@@ -29,7 +29,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ActivityAttachmentService {
 
-    private static final Set<String> THUMB_ALLOWED = Set.of("image/jpeg","image/png","image/webp");
+    protected static final Set<String> THUMB_ALLOWED = Set.of("image/jpeg","image/png","image/webp");
 
     private final UserRepository userRepository;
     private final PresignEngine presignEngine;

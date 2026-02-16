@@ -122,7 +122,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                             activity.getActivityId(),
                             activity.getTitle(),
                             contextDisplay,
-                            activity.getThumbnailUrl(),
+                            activity.getThumbnailKey(),
                             tags,
                             bookmarkCount,
                             activity.getOrganizer(),

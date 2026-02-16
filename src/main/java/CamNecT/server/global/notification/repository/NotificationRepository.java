@@ -11,13 +11,13 @@ import org.springframework.data.repository.query.Param;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    Slice<Notification> findByReceiverUserIdAndTypeNotOrderByIdDesc(
+    Slice<Notification> findByReceiverUserIdAndReadFalseAndTypeNotOrderByIdDesc(
             Long receiverUserId,
             NotificationType type,
             Pageable pageable
     );
 
-    Slice<Notification> findByReceiverUserIdAndTypeNotAndIdLessThanOrderByIdDesc(
+    Slice<Notification> findByReceiverUserIdAndReadFalseAndTypeNotAndIdLessThanOrderByIdDesc(
             Long receiverUserId,
             NotificationType type,
             Long cursorId,
@@ -27,6 +27,11 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     long countByReceiverUserIdAndReadFalseAndTypeNot(Long receiverUserId, NotificationType type);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update Notification n set n.read = true where n.receiverUserId = :receiverUserId and n.read = false")
+    @Query("""
+        update Notification n
+           set n.read = true
+         where n.receiverUserId = :receiverUserId
+           and n.read = false
+    """)
     int markAllRead(@Param("receiverUserId") Long receiverUserId);
 }

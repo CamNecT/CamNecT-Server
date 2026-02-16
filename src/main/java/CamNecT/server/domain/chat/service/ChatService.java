@@ -34,6 +34,7 @@ import CamNecT.server.global.notification.event.CoffeeChatAcceptedEvent;
 import CamNecT.server.global.notification.event.CoffeeChatRequestedEvent;
 import CamNecT.server.global.notification.event.NewChatMessageEvent;
 import CamNecT.server.global.notification.event.TeamRecruitAcceptedEvent;
+import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import CamNecT.server.global.tag.model.Tag;
@@ -157,18 +158,17 @@ public class ChatService {
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUEST_NOT_FOUND));
 
         // 본인 요청인지 검증
-        if (!request.getReceiver().getUserId().equals(userId)) {
-            throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
-        }
+        if (!request.getReceiver().getUserId().equals(userId)) throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
+
+        if (request.getStatus().equals(ChatRequest.RequestStatus.ACCEPTED)) { return; }
+        if (request.getStatus().equals(ChatRequest.RequestStatus.REJECTED)) { return; }
 
         if (isAccepted) {
             request.accept();
+            Long requesterId = request.getRequester().getUserId();
             Long roomId = createChatRoom(request);
-            pointService.earnPointByCoffeeChatAcceptance(
-                    request.getRequester().getUserId(),
-                    request.getId(),
-                    rewardCoffeeChatAccepted
-            );
+            pointService.earnPoint(requesterId, rewardCoffeeChatAccepted,
+                    PointEvent.coffeeChatAccepted(requesterId,request.getId()));
             tryRewardCoffeeChatAcceptedPoint(request);
             publishAcceptedNotification(request, roomId);
         } else {
@@ -285,9 +285,21 @@ public class ChatService {
      2-1. 채팅방 생성 (수락 시 자동 호출)
      */
     private Long createChatRoom(ChatRequest request) {
-        ChatRoom chatRoom = ChatRoom.createRoom(request, request.getRequester(), request.getReceiver());
-        ChatRoom saved = chatRoomRepository.save(chatRoom);
-        return saved.getId();
+        // 1) 이미 생성된 방이 있으면 그대로 반환 (중복 호출/재시도 대비)
+        Optional<ChatRoom> existing = chatRoomRepository.findByRequest_Id(request.getId());
+        if (existing.isPresent()) return existing.get().getId();
+
+        // 2) 없으면 생성 시도 (동시성 대비: 유니크 터지면 다시 조회)
+        try {
+            ChatRoom chatRoom = ChatRoom.createRoom(request, request.getRequester(), request.getReceiver());
+            ChatRoom saved = chatRoomRepository.save(chatRoom);
+            return saved.getId();
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // request_id UNIQUE에 걸린 케이스 → 이미 누가 만들었음
+            return chatRoomRepository.findByRequest_Id(request.getId())
+                    .map(ChatRoom::getId)
+                    .orElseThrow(() -> e);
+        }
     }
 
     @Transactional
@@ -694,11 +706,8 @@ public class ChatService {
             return;
         }
         try {
-            pointService.earnPointByCoffeeChatAcceptance(
-                    targetUserId,
-                    requestId,
-                    rewardCoffeeChatAccepted
-            );
+            pointService.earnPoint(targetUserId, rewardCoffeeChatAccepted,
+                    PointEvent.coffeeChatAccepted(targetUserId,request.getId()));
         } catch (Exception ex) {
             log.warn("[coffeechat] point reward failed. requestId={}, userId={}", requestId, targetUserId, ex);
         }
