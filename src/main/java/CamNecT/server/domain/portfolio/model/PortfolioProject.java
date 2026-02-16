@@ -48,11 +48,6 @@ public class PortfolioProject {
     @Builder.Default
     private boolean isFavorite = false;
 
-    @Column(name = "project_field", nullable = false)
-    @Convert(converter = StringListConverter.class)
-    @Builder.Default
-    private List<String> projectField = new ArrayList<>();
-
     @Column(name = "assigned_role", nullable = false)
     @Convert(converter = StringListConverter.class)
     @Builder.Default
