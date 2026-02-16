@@ -134,9 +134,16 @@ public class ActivityService {
         List<String> attachmentKeys = (request.attachmentKey() == null) ? List.of() : request.attachmentKey();
         List<String> finalAttachmentKeysInOrder = new ArrayList<>(attachmentKeys.size());
 
-        for (String tempKey : attachmentKeys) {
-            if (!StringUtils.hasText(tempKey)) continue;
+        // 요청 key 정리: 공백 제거 + 중복 제거 + (썸네일 key가 attachment에 섞여오면 스킵)
+        String reqThumbKey = request.thumbnailKey();
+        LinkedHashSet<String> reqAttachKeys = new LinkedHashSet<>();
 
+        for (String k : attachmentKeys) {
+            if (!StringUtils.hasText(k)) continue;
+            if (StringUtils.hasText(reqThumbKey) && k.equals(reqThumbKey)) continue; // 중복 consume 방지
+            reqAttachKeys.add(k);
+        }
+        for (String tempKey : reqAttachKeys) {
             String finalKey = presignEngine.consume(
                     userId,
                     UploadPurpose.ACTIVITY_ATTACHMENT,
@@ -150,7 +157,8 @@ public class ActivityService {
                     .activity(saved)
                     .fileKey(finalKey)
                     .build());
-            finalAttachmentKeysInOrder.add(finalKey);
+
+            finalAttachmentKeysInOrder.add(finalKey); // 순서 유지
         }
 
         // 3.5) 썸네일이 비어있으면, 첨부 중 첫 이미지를 썸네일 copy해서 주입
@@ -335,8 +343,16 @@ public class ActivityService {
             if (!StringUtils.hasText(reqThumb)) {
                 // 첨부를 같이 넘긴 경우, 남는 첨부 중 "첫 번째 이미지"를 썸네일로 복사 저장
                 String candidateImageKey = null;
-                if (reqAttachList != null && !finalAttachmentKeysInOrder.isEmpty()) {
-                    candidateImageKey = pickFirstImageKey(finalAttachmentKeysInOrder);
+
+                if (reqAttachList != null) {
+                    if (!finalAttachmentKeysInOrder.isEmpty()) candidateImageKey = pickFirstImageKey(finalAttachmentKeysInOrder);
+                } else {
+                    // 첨부 유지(null) + 썸네일 삭제 => "현재 첨부"에서 첫 이미지로 fallback
+                    List<String> currentKeys = activityAttachmentRepository.findAllByActivity_ActivityId(activityId).stream()
+                            .map(ExternalActivityAttachment::getFileKey)
+                            .filter(StringUtils::hasText)
+                            .toList();
+                    candidateImageKey = pickFirstImageKey(currentKeys);
                 }
                 // 기존 썸네일 삭제 예약
                 if (StringUtils.hasText(activity.getThumbnailKey())

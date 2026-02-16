@@ -1,5 +1,7 @@
 package CamNecT.server.domain.alumni.repository;
 
+import CamNecT.server.domain.chat.model.ChatRequest;
+import CamNecT.server.domain.chat.model.QChatRequest;
 import CamNecT.server.domain.users.model.QUserProfile;
 import CamNecT.server.domain.users.model.QUsers;
 import CamNecT.server.domain.users.model.QUserTagMap;
@@ -7,6 +9,7 @@ import CamNecT.server.domain.users.model.UserStatus;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.core.types.dsl.NumberPath;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
@@ -56,7 +59,8 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
                         myId == null ? null : user.userId.ne(myId),
                         user.status.eq(UserStatus.ACTIVE),
                         nameContains(name),
-                        hasAllTags(tagIdList, user.userId)
+                        hasAllTags(tagIdList, user.userId),
+                        excludeAlreadyCoffeeChatAccepted(myId, user.userId)
                 )
                 .groupBy(user.userId, user.createdAt)
                 .orderBy(
@@ -99,5 +103,22 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
                         .groupBy(subTagMap.userId)
                         .having(subTagMap.tagId.countDistinct().eq((long) tagIdList.size()))
         );
+    }
+
+    private BooleanExpression excludeAlreadyCoffeeChatAccepted(Long myId, NumberPath<Long> targetUserId) {
+        if (myId == null) return null;
+
+        QChatRequest cr = new QChatRequest("cr");
+
+        BooleanExpression meToYou = cr.requester.userId.eq(myId).and(cr.receiver.userId.eq(targetUserId));
+        BooleanExpression youToMe = cr.requester.userId.eq(targetUserId).and(cr.receiver.userId.eq(myId));
+
+        return JPAExpressions
+                .selectOne().from(cr)
+                .where(
+                        cr.type.eq(ChatRequest.RequestType.COFFEE_CHAT),
+                        cr.status.eq(ChatRequest.RequestStatus.ACCEPTED),
+                        meToYou.or(youToMe)
+                ).notExists();
     }
 }
