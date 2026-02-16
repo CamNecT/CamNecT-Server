@@ -36,9 +36,7 @@ public class NotificationDebugService {
         var tokens = pushDeviceService.findEnabledTokens(userId);
 
         var result = fcmSender.sendToTokens(
-                tokens,
-                "Camnect 테스트 푸시",
-                "FCM 연결 확인용 테스트 메시지입니다.",
+                tokens, //이앞 title,body 삭제(중복오류 제거를 위해)
                 Map.of("type", "TEST")
         );
 
