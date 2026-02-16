@@ -2,12 +2,15 @@ package CamNecT.server.domain.portfolio.dto.response;
 
 import CamNecT.server.domain.portfolio.model.PortfolioProject;
 
+import java.time.LocalDate;
+
 public record PortfolioPreviewResponse(
         Long portfolioId,
         String title,
         String thumbnailUrl,
         boolean isPublic,
-        boolean isFavorite
+        boolean isFavorite,
+        LocalDate updatedAt
 ) {
     public static PortfolioPreviewResponse of(PortfolioProject project) {
         return new PortfolioPreviewResponse(
@@ -15,7 +18,8 @@ public record PortfolioPreviewResponse(
                 project.getTitle(),
                 project.getThumbnailUrl(),
                 project.isPublic(),
-                project.isFavorite()
+                project.isFavorite(),
+                project.getUpdatedAt()
         );
     }
 }

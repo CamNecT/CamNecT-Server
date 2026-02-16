@@ -1,5 +1,7 @@
 package CamNecT.server.domain.portfolio.service;
 
+import CamNecT.server.domain.community.dto.AuthorDto;
+import CamNecT.server.domain.community.service.AuthorAssembler;
 import CamNecT.server.domain.portfolio.dto.PortfolioProjectDto;
 import CamNecT.server.domain.portfolio.dto.request.PortfolioRequest;
 import CamNecT.server.domain.portfolio.dto.response.PortfolioAssetView;
@@ -11,8 +13,10 @@ import CamNecT.server.domain.portfolio.model.PortfolioProject;
 import CamNecT.server.domain.portfolio.repository.PortfolioAssetRepository;
 import CamNecT.server.domain.portfolio.repository.PortfolioRepository;
 import CamNecT.server.domain.users.model.UserRole;
+import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.ActivityErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.storage.model.UploadTicket;
 import CamNecT.server.global.storage.repository.UploadTicketRepository;
@@ -38,6 +42,7 @@ public class PortfolioService {
     private final PortfolioRepository portfolioRepository;
     private final PortfolioAssetRepository portfolioAssetRepository;
     private final UploadTicketRepository uploadTicketRepository;
+    private final AuthorAssembler authorAssembler;
 
     private final PresignEngine presignEngine;
     private final PublicUrlIssuer publicUrlIssuer;
@@ -56,7 +61,8 @@ public class PortfolioService {
                         r.title(),
                         cdnOrNull(r.thumbnailUrl()),
                         r.isPublic(),
-                        r.isFavorite()
+                        r.isFavorite(),
+                        r.updatedAt()
                 ))
                 .toList();
 
@@ -115,7 +121,14 @@ public class PortfolioService {
                 ))
                 .toList();
 
-        return PortfolioResponse.of(isMine, new PortfolioDetailResponse(projectDto, views));
+        /// 글쓴이 프로필
+        Long authorId = Optional.ofNullable(project.getUserId())
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.USER_NOT_FOUND));
+
+        AuthorDto author = authorAssembler.buildAuthorMap(List.of(authorId))
+                .get(authorId);
+
+        return PortfolioResponse.of(isMine, new PortfolioDetailResponse(author, projectDto, views));
     }
 
     @Transactional
@@ -160,7 +173,8 @@ public class PortfolioService {
                 saved.getTitle(),
                 cdnOrNull(saved.getThumbnailUrl()),
                 saved.isPublic(),
-                saved.isFavorite()
+                saved.isFavorite(),
+                saved.getUpdatedAt()
         );
     }
 
@@ -202,7 +216,8 @@ public class PortfolioService {
                 project.getTitle(),
                 cdnOrNull(project.getThumbnailUrl()),
                 project.isPublic(),
-                project.isFavorite()
+                project.isFavorite(),
+                project.getUpdatedAt()
         );
     }
 
