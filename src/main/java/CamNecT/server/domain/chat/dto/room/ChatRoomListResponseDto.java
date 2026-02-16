@@ -9,5 +9,4 @@ public record ChatRoomListResponseDto(
         List<ChatRoomListDetailDto> chatRoomList,
         Long totalUnreadCount,
         boolean requestExists
-) {
-}
+) {}

@@ -473,6 +473,9 @@ public class ActivityService {
                 .forEach(a -> {
                     if (StringUtils.hasText(a.getFileKey())) deleteAfterCommit.add(a.getFileKey());
                 });
+        activityTagRepository.deleteAllByActivityId(activityId);       // 태그 삭제
+        activityBookmarkRepository.deleteAllByActivityId(activityId);  // 북마크 삭제
+        activityAttachmentRepository.deleteAllByActivityId(activityId); // 첨부파일 삭제
 
         activityRepository.delete(activity);
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);

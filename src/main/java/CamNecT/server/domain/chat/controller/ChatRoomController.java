@@ -5,7 +5,6 @@ import CamNecT.server.domain.chat.dto.room.ChatRoomListResponseDto;
 import CamNecT.server.domain.chat.dto.room.ChatRoomWithDetailDto;
 import CamNecT.server.domain.chat.model.ChatRequest;
 import CamNecT.server.domain.chat.repository.ChatRequestRepository;
-import CamNecT.server.domain.chat.repository.ChatRoomRepository;
 import CamNecT.server.domain.chat.service.ChatService;
 import CamNecT.server.global.common.auth.UserId;
 import CamNecT.server.global.common.response.ApiResponse;
