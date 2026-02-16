@@ -299,7 +299,6 @@ public class ActivityService {
                 if (!keepKeys.contains(oldKey)) deleteAfterCommit.add(oldKey);
             }
 
-
             // DB에서 삭제할 첨부파일 제거
             activityAttachmentRepository.deleteAll(
                     currentByKey.values().stream()
@@ -361,6 +360,8 @@ public class ActivityService {
 
         // 5. 기본 정보 업데이트 (ExternalActivity에 updateAdmin 메서드 추가 필요)
         activity.updateAdmin(request);
+
+        saveTags(activity, request.tagIds());
 
         // 6. S3 파일 삭제 예약
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);

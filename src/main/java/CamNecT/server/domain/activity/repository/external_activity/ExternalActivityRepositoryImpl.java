@@ -202,7 +202,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                 );
                 yield recruitCount.desc();
             }
-            default -> externalActivity.applyStartDate.desc();
+            default -> externalActivity.applyStartDate.asc();
         };
     }
 
