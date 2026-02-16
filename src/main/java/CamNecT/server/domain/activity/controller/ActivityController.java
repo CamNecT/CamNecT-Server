@@ -118,10 +118,10 @@ public class ActivityController {
     )
     @PostMapping("/admin")
     public ApiResponse<ActivityPreviewResponse> createAdmin(
-            @UserId Long userId,
+            @UserId Long adminId,
             @RequestBody @Valid AdminActivityRequest request
     ){
-        return ApiResponse.success(activityService.createAdmin(userId, request));
+        return ApiResponse.success(activityService.createAdmin(adminId, request));
     }
 
     @Operation(
@@ -130,10 +130,11 @@ public class ActivityController {
     )
     @PatchMapping("/admin/{activityId}")
     public ApiResponse<String> updateAdmin(
+            @UserId Long adminId,
             @PathVariable Long activityId,
             @RequestBody @Valid AdminActivityRequest request
     ) {
-        activityService.updateAdmin(activityId, request);
+        activityService.updateAdmin(adminId, activityId, request);
         return ApiResponse.success("수정이 완료되었습니다.");
     }
 

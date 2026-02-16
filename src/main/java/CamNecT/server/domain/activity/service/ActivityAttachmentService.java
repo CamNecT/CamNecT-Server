@@ -29,7 +29,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ActivityAttachmentService {
 
-    private static final Set<String> THUMB_ALLOWED = Set.of("image/jpeg","image/png","image/webp");
+    protected static final Set<String> THUMB_ALLOWED = Set.of("image/jpeg","image/png","image/webp");
 
     private final UserRepository userRepository;
     private final PresignEngine presignEngine;
