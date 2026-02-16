@@ -8,7 +8,7 @@ import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.StorageErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
-import CamNecT.server.global.common.service.GlobalPresignMethods;
+import CamNecT.server.global.storage.service.GlobalPresignMethods;
 import CamNecT.server.global.storage.dto.request.PresignUploadBatchRequest;
 import CamNecT.server.global.storage.dto.request.PresignUploadRequest;
 import CamNecT.server.global.storage.dto.response.PresignUploadBatchResponse;
@@ -124,14 +124,14 @@ public class PortfolioAttachmentService {
         String finalThumbPrefix = "portfolio/user-" + userId + "/portfolio-" + project.getPortfolioId() + "/thumbnail";
         String finalAssetPrefix = "portfolio/user-" + userId + "/portfolio-" + project.getPortfolioId() + "/assets";
 
-        // thumbnail
+        // thumbnail (create에서는 "있으면 세팅", 없으면 DEFAULT 유지)
         if (hasText(thumbnailKey) && !DEFAULT_THUMB.equals(thumbnailKey)) {
             ensureThumbnailIsImage(thumbnailKey);
             String finalKey = consume(userId, project.getPortfolioId(), thumbnailKey, finalThumbPrefix);
             project.updateThumbnail(finalKey);
         }
 
-        // assets (thumbKey는 제거됨)
+        // assets (thumbKey는 제거됨 - 중복 consume 방지)
         LinkedHashSet<String> reqKeys = distinctKeys(attachmentKeys, thumbnailKey);
         int order = 1;
 
@@ -162,20 +162,22 @@ public class PortfolioAttachmentService {
         String finalAssetPrefix = "portfolio/user-" + userId + "/portfolio-" + project.getPortfolioId() + "/assets";
 
         // thumbnail 교체(요청이 있고, 기존과 다를 때만)
-        if (DEFAULT_THUMB.equals(newThumbnailKey)) {
-            String old = project.getThumbnailUrl();
-            if (hasText(old) && !DEFAULT_THUMB.equals(old)) deleteAfterCommit.add(old);
-            project.updateThumbnail(DEFAULT_THUMB);
-        } else if (hasText(newThumbnailKey) && !Objects.equals(newThumbnailKey, project.getThumbnailUrl())) {
-            ensureThumbnailIsImage(newThumbnailKey);
+        if (newThumbnailKey != null) { // null이면 유지
+            if (!hasText(newThumbnailKey) || DEFAULT_THUMB.equals(newThumbnailKey)) {
+                // 삭제 요청(또는 기본이미지로 명시)
+                String old = project.getThumbnailUrl();
+                if (hasText(old) && !DEFAULT_THUMB.equals(old)) deleteAfterCommit.add(old);
+                project.updateThumbnail(DEFAULT_THUMB);
+            } else if (!Objects.equals(newThumbnailKey, project.getThumbnailUrl())) {
+                // 교체
+                ensureThumbnailIsImage(newThumbnailKey);
 
-            String old = project.getThumbnailUrl();
-            if (hasText(old) && !DEFAULT_THUMB.equals(old)) {
-                deleteAfterCommit.add(old);
+                String old = project.getThumbnailUrl();
+                if (hasText(old) && !DEFAULT_THUMB.equals(old)) deleteAfterCommit.add(old);
+
+                String finalKey = consume(userId, project.getPortfolioId(), newThumbnailKey, finalThumbPrefix);
+                project.updateThumbnail(finalKey);
             }
-
-            String finalKey = consume(userId, project.getPortfolioId(), newThumbnailKey, finalThumbPrefix);
-            project.updateThumbnail(finalKey);
         }
 
         // assets 교체(요청이 들어온 경우만)
@@ -184,8 +186,13 @@ public class PortfolioAttachmentService {
                     .filter(a -> hasText(a.getFileKey()))
                     .collect(Collectors.toMap(PortfolioAsset::getFileKey, a -> a, (a, b) -> a));
 
-            // thumbKey는 제거됨(중복 consume 방지)
-            LinkedHashSet<String> reqKeys = distinctKeys(newAttachmentKeys, newThumbnailKey);
+            // (포트폴리오는 "썸네일/첨부 별개"지만,
+            // 기존 코드 유지 원하면 distinctKeys 그대로 써도 무방합니다.
+            // 단, attachmentKeys에 thumbnailKey가 들어올 일이 없다면 distinctKeys 대신 distinct만 해도 됩니다.)
+            LinkedHashSet<String> reqKeys = new LinkedHashSet<>();
+            for (String k : newAttachmentKeys) {
+                if (hasText(k)) reqKeys.add(k);
+            }
 
             Set<String> keepKeys = new HashSet<>();
             int order = 1;

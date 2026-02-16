@@ -30,7 +30,7 @@ import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.StorageErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
-import CamNecT.server.global.common.service.GlobalPresignMethods;
+import CamNecT.server.global.storage.service.GlobalPresignMethods;
 import CamNecT.server.global.storage.dto.request.PresignUploadRequest;
 import CamNecT.server.global.storage.dto.response.PresignUploadResponse;
 import CamNecT.server.global.storage.model.UploadPurpose;

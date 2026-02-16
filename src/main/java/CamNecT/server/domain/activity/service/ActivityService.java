@@ -22,12 +22,13 @@ import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepo
 import CamNecT.server.domain.community.dto.AuthorDto;
 import CamNecT.server.domain.community.service.AuthorAssembler;
 import CamNecT.server.domain.home.dto.HomeResponse;
+import CamNecT.server.domain.users.model.UserRole;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.ActivityErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
-import CamNecT.server.global.common.service.GlobalPresignMethods;
+import CamNecT.server.global.storage.service.GlobalPresignMethods;
 import CamNecT.server.global.storage.model.UploadPurpose;
 import CamNecT.server.global.storage.model.UploadRefType;
 import CamNecT.server.global.storage.model.UploadTicket;
@@ -46,6 +47,8 @@ import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static CamNecT.server.domain.activity.service.ActivityAttachmentService.THUMB_ALLOWED;
 
 @Slf4j
 @Service
@@ -129,6 +132,7 @@ public class ActivityService {
 
         // 3. 첨부파일 Consume 및 저장
         List<String> attachmentKeys = (request.attachmentKey() == null) ? List.of() : request.attachmentKey();
+        List<String> finalAttachmentKeysInOrder = new ArrayList<>(attachmentKeys.size());
 
         for (String tempKey : attachmentKeys) {
             if (!StringUtils.hasText(tempKey)) continue;
@@ -146,6 +150,16 @@ public class ActivityService {
                     .activity(saved)
                     .fileKey(finalKey)
                     .build());
+            finalAttachmentKeysInOrder.add(finalKey);
+        }
+
+        // 3.5) 썸네일이 비어있으면, 첨부 중 첫 이미지를 썸네일 copy해서 주입
+        if (!StringUtils.hasText(request.thumbnailKey()) && !finalAttachmentKeysInOrder.isEmpty()) {
+            String candidate = pickFirstImageKey(finalAttachmentKeysInOrder); // update에서 쓰던 그대로
+            if (candidate != null) {
+                String copiedThumbKey = globalPresignMethods.copyToPrefix(candidate, finalThumbPrefix);
+                saved.updateThumbnailKey(copiedThumbKey);
+            }
         }
 
         // 4. 태그 저장
@@ -167,14 +181,15 @@ public class ActivityService {
 
     @Transactional
     public ActivityPreviewResponse createAdmin(Long userId, AdminActivityRequest request) {
-        // 1. 관리자는 대외활동과 취업정보만 작성 가능
         if (request.category() != ActivityCategory.EXTERNAL && request.category() != ActivityCategory.RECRUITMENT) {
             throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
         }
 
-        Users adminUser = userRepository.findByUserId(userId).orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+        Users adminUser = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
 
-        // 2. 엔티티 생성 및 저장
+        if (adminUser.getRole() != UserRole.ADMIN) throw new CustomException(UserErrorCode.USER_NOT_ADMIN);
+
         ExternalActivity saved = activityRepository.save(ExternalActivity.builder()
                 .user(adminUser)
                 .title(request.title())
@@ -190,14 +205,11 @@ public class ActivityService {
                 .thumbnailKey(DEFAULT_THUMB)
                 .build());
 
-        saveTags(saved, request.tagIds());
-
-        // 3. 썸네일 처리 (관리자용은 userId를 0L 또는 특정 관리자 ID로 설정)
         String finalThumbPrefix = "activity/activities/activity-" + saved.getActivityId() + "/attachments/thumbnail";
 
         if (StringUtils.hasText(request.thumbnailKey())) {
             String finalKey = presignEngine.consume(
-                    userId,  // 관리자용 userId (실제 관리자 ID로 변경 가능)
+                    userId,
                     UploadPurpose.ACTIVITY_THUMBNAIL,
                     UploadRefType.ACTIVITY,
                     saved.getActivityId(),
@@ -205,7 +217,11 @@ public class ActivityService {
                     finalThumbPrefix
             );
             saved.updateThumbnailKey(finalKey);
+
+            activityRepository.flush(); // 또는 saveAndFlush(saved)
         }
+
+        saveTags(saved, request.tagIds());
 
         return new ActivityPreviewResponse(
                 saved.getActivityId(),
@@ -231,96 +247,141 @@ public class ActivityService {
         }
 
         Set<String> deleteAfterCommit = new HashSet<>();
+
         String finalAttachPrefix = "activity/activities/activity-" + activity.getActivityId() + "/attachments";
         String finalThumbPrefix = "activity/activities/activity-" + activity.getActivityId() + "/attachments/thumbnail";
 
-        // 1. 썸네일 교체 로직
-        if (StringUtils.hasText(request.thumbnailKey())
-                && !request.thumbnailKey().equals(activity.getThumbnailKey())) {
+        // ----------------------------------------------------------------------
+        // 규칙
+        // - thumbnailKey: null=유지, ""=삭제(기본썸네일로), 값=교체(consume)
+        // - attachmentKey: null=유지, []=전부삭제, 값=리스트 기준 전체교체(consume + keep)
+        // ----------------------------------------------------------------------
+        String reqThumb = request.thumbnailKey();
+        List<String> reqAttachList = request.attachmentKey();
+        // - attachmentKey가 null(유지)면 비워둠
+        List<String> finalAttachmentKeysInOrder = List.of();
 
-            // 기존 썸네일이 있으면 삭제 대상에 추가
-            if (StringUtils.hasText(activity.getThumbnailKey()) && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
-                deleteAfterCommit.add(activity.getThumbnailKey());
+        // 1) 첨부파일 처리
+        if (reqAttachList != null) { // null이면 유지
+            List<ExternalActivityAttachment> current =
+                    activityAttachmentRepository.findAllByActivity_ActivityId(activityId);
+
+            Map<String, ExternalActivityAttachment> currentByKey = current.stream()
+                    .filter(a -> StringUtils.hasText(a.getFileKey()))
+                    .collect(Collectors.toMap(
+                            ExternalActivityAttachment::getFileKey,
+                            a -> a,
+                            (a, b) -> a
+                    ));
+
+            // 요청 키 정리(중복 제거 + 공백 제거)
+            LinkedHashSet<String> reqKeys = new LinkedHashSet<>();
+            for (String k : reqAttachList) {
+                if (StringUtils.hasText(k)) reqKeys.add(k);
             }
 
-            String finalKey = presignEngine.consume(
-                    userId,
-                    UploadPurpose.ACTIVITY_THUMBNAIL,
-                    UploadRefType.ACTIVITY,
-                    activityId,
-                    request.thumbnailKey(),
-                    finalThumbPrefix
-            );
-            activity.updateThumbnailKey(finalKey);
+            // [] (또는 공백만) => 전부 삭제
+            if (reqKeys.isEmpty()) {
+                for (ExternalActivityAttachment a : current) {
+                    if (StringUtils.hasText(a.getFileKey())) deleteAfterCommit.add(a.getFileKey());
+                }
+                if (!current.isEmpty()) activityAttachmentRepository.deleteAll(current);
+                finalAttachmentKeysInOrder = List.of();
+            } else {
+                Set<String> keepFinalKeys = new HashSet<>();
+                List<String> orderedFinalKeys = new ArrayList<>(reqKeys.size());
+
+                for (String k : reqKeys) {
+                    ExternalActivityAttachment existing = currentByKey.get(k);
+                    if (existing != null) {
+                        keepFinalKeys.add(k); // 이미 finalKey로 존재하면 유지
+                        orderedFinalKeys.add(k);
+                        continue;
+                    }
+
+                    String finalKey = presignEngine.consume(
+                            userId,
+                            UploadPurpose.ACTIVITY_ATTACHMENT,
+                            UploadRefType.ACTIVITY,
+                            activityId,
+                            k,
+                            finalAttachPrefix
+                    );
+
+                    activityAttachmentRepository.save(ExternalActivityAttachment.builder()
+                            .activity(activity)
+                            .fileKey(finalKey)
+                            .build());
+
+                    keepFinalKeys.add(finalKey);
+                    orderedFinalKeys.add(finalKey);
+                }
+
+                // 삭제 예약 + DB 삭제
+                List<ExternalActivityAttachment> toDelete = currentByKey.values().stream()
+                        .filter(a -> !keepFinalKeys.contains(a.getFileKey()))
+                        .toList();
+
+                for (ExternalActivityAttachment a : toDelete) {
+                    if (StringUtils.hasText(a.getFileKey())) deleteAfterCommit.add(a.getFileKey());
+                }
+                if (!toDelete.isEmpty()) activityAttachmentRepository.deleteAll(toDelete);
+                finalAttachmentKeysInOrder = orderedFinalKeys;
+            }
         }
 
-        // 2. 첨부파일 교체 로직 (요청이 들어온 경우만)
-        if (request.attachmentKey() != null) {
-            // 기존 첨부파일 목록을 Map으로 관리
-            Map<String, ExternalActivityAttachment> currentByKey =
-                    activityAttachmentRepository.findAllByActivity_ActivityId(activityId).stream()
-                            .filter(a -> StringUtils.hasText(a.getFileKey()))
-                            .collect(Collectors.toMap(
-                                    ExternalActivityAttachment::getFileKey,
-                                    a -> a, (a, b) -> a
-                            ));
+        // 2) 썸네일 처리
+        if (reqThumb != null) { // null이면 유지
+            if (!StringUtils.hasText(reqThumb)) {
+                // 첨부를 같이 넘긴 경우, 남는 첨부 중 "첫 번째 이미지"를 썸네일로 복사 저장
+                String candidateImageKey = null;
+                if (reqAttachList != null && !finalAttachmentKeysInOrder.isEmpty()) {
+                    candidateImageKey = pickFirstImageKey(finalAttachmentKeysInOrder);
+                }
+                // 기존 썸네일 삭제 예약
+                if (StringUtils.hasText(activity.getThumbnailKey())
+                        && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
+                    deleteAfterCommit.add(activity.getThumbnailKey());
+                }
+                if (candidateImageKey != null) {
+                    // 첨부 -> 썸네일 경로로 복사
+                    String copiedThumbKey = globalPresignMethods.copyToPrefix(candidateImageKey, finalThumbPrefix);
+                    activity.updateThumbnailKey(copiedThumbKey);
+                } else {
+                    // 이미지 첨부가 없으면 기존 정책대로 기본썸네일
+                    activity.updateThumbnailKey(DEFAULT_THUMB);
+                }
+            }
+            else if (!reqThumb.equals(activity.getThumbnailKey())) {
+                if (StringUtils.hasText(activity.getThumbnailKey())
+                        && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
+                    deleteAfterCommit.add(activity.getThumbnailKey());
+                }
 
-            Set<String> keepKeys = new HashSet<>();
-            LinkedHashSet<String> reqKeys = new LinkedHashSet<>();
-            for (String k : request.attachmentKey()) if (StringUtils.hasText(k)) reqKeys.add(k);
-
-            // 새로운 첨부파일 처리
-            for (String k : reqKeys) {
-                ExternalActivityAttachment existing = currentByKey.get(k);
-                if (existing != null) {
-                    keepKeys.add(k);
-                    continue;
-                } // 이미 존재하는 키면 유지
-
-                // 새로운 temp 키면 consume
                 String finalKey = presignEngine.consume(
                         userId,
-                        UploadPurpose.ACTIVITY_ATTACHMENT,
+                        UploadPurpose.ACTIVITY_THUMBNAIL,
                         UploadRefType.ACTIVITY,
                         activityId,
-                        k,
-                        finalAttachPrefix
+                        reqThumb,
+                        finalThumbPrefix
                 );
-
-                activityAttachmentRepository.save(ExternalActivityAttachment.builder()
-                        .activity(activity)
-                        .fileKey(finalKey)
-                        .build());
-
-                keepKeys.add(finalKey);
+                activity.updateThumbnailKey(finalKey);
             }
-
-            // 삭제할 첨부파일 식별
-            for (String oldKey : currentByKey.keySet()) {
-                if (!keepKeys.contains(oldKey)) deleteAfterCommit.add(oldKey);
-            }
-
-
-            // DB에서 삭제할 첨부파일 제거
-            activityAttachmentRepository.deleteAll(
-                    currentByKey.values().stream()
-                            .filter(a -> !keepKeys.contains(a.getFileKey()))
-                            .collect(Collectors.toList())
-            );
         }
 
-        // 3. 기본 정보 업데이트
+        // 3) 기본 정보 업데이트
         activity.update(request);
 
-        // 4. 태그 저장
+        // 4) 태그 저장
         saveTags(activity, request.tagIds());
 
-        // 5. S3 파일 삭제 예약
+        // 5) S3 파일 삭제 예약
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
     }
 
     @Transactional
-    public void updateAdmin(Long activityId, AdminActivityRequest request) {
+    public void updateAdmin(Long adminId, Long activityId, AdminActivityRequest request) {
         // 1. 관리자는 대외활동과 취업정보만 수정 가능
         if (request.category() != ActivityCategory.EXTERNAL && request.category() != ActivityCategory.RECRUITMENT) {
             throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
@@ -334,30 +395,38 @@ public class ActivityService {
         if (activity.getCategory() != ActivityCategory.EXTERNAL && activity.getCategory() != ActivityCategory.RECRUITMENT) {
             throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
         }
+        if (!userRepository.existsByUserIdAndRole(adminId, UserRole.ADMIN)) {
+            throw new CustomException(UserErrorCode.USER_NOT_ADMIN);
+        }
 
         Set<String> deleteAfterCommit = new HashSet<>();
         String finalThumbPrefix = "activity/activities/activity-" + activity.getActivityId() + "/attachments/thumbnail";
 
+        String reqThumb = request.thumbnailKey();
+
         // 4. 썸네일 교체 로직
-        if (StringUtils.hasText(request.thumbnailKey())
-                && !request.thumbnailKey().equals(activity.getThumbnailKey())) {
+        if (reqThumb != null) {
+            if (!StringUtils.hasText(reqThumb)) {
+                if (StringUtils.hasText(activity.getThumbnailKey()) && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
+                    deleteAfterCommit.add(activity.getThumbnailKey());
+                }
+                activity.updateThumbnailKey(DEFAULT_THUMB);
 
-            // 기존 썸네일이 있으면 삭제 대상에 추가
-            if (StringUtils.hasText(activity.getThumbnailKey()) && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
-                deleteAfterCommit.add(activity.getThumbnailKey());
+            } else if (!reqThumb.equals(activity.getThumbnailKey())) {
+                if (StringUtils.hasText(activity.getThumbnailKey()) && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
+                    deleteAfterCommit.add(activity.getThumbnailKey());
+                }
+
+                String finalKey = presignEngine.consume(
+                        adminId,
+                        UploadPurpose.ACTIVITY_THUMBNAIL,
+                        UploadRefType.ACTIVITY,
+                        activityId,
+                        reqThumb,
+                        finalThumbPrefix
+                );
+                activity.updateThumbnailKey(finalKey);
             }
-
-            // presignEngine.consume()에 userId 대신 activity 작성자 ID 사용
-            Long authorId = activity.getUser().getUserId();
-            String finalKey = presignEngine.consume(
-                    authorId,
-                    UploadPurpose.ACTIVITY_THUMBNAIL,
-                    UploadRefType.ACTIVITY,
-                    activityId,
-                    request.thumbnailKey(),
-                    finalThumbPrefix
-            );
-            activity.updateThumbnailKey(finalKey);
         }
 
         // 5. 기본 정보 업데이트 (ExternalActivity에 updateAdmin 메서드 추가 필요)
@@ -614,19 +683,47 @@ public class ActivityService {
      * 활동의 태그 저장
      */
     private void saveTags(ExternalActivity activity, List<Long> tagIds) {
-        if (tagIds != null) {
-            activityTagRepository.deleteByActivity_ActivityId(activity.getActivityId());
+        if (tagIds == null) return;
 
-            LinkedHashSet<Long> uniq = new LinkedHashSet<>(tagIds);
-            for (Long id : uniq) {
-                Tag tagRef = tagRepository.getReferenceById(id);
-                activityTagRepository.save(
-                        ExternalActivityTag.builder()
-                                .activity(activity)
-                                .tag(tagRef)
-                                .build()
-                );
-            }
+        activityTagRepository.deleteAllByActivityId(activity.getActivityId());
+
+        for (Long id : new LinkedHashSet<>(tagIds)) {
+            Tag tagRef = tagRepository.getReferenceById(id);
+            activityTagRepository.save(ExternalActivityTag.builder()
+                    .activity(activity)
+                    .tag(tagRef)
+                    .build());
         }
     }
+
+    /**
+     * 요청 순서를 유지한 final attachment key 목록에서 "첫 번째 이미지" key를 반환
+     */
+    private String pickFirstImageKey(List<String> finalKeysInOrder) {
+        for (String key : finalKeysInOrder) {
+            if (!StringUtils.hasText(key)) continue;
+            if (isImageKey(key)) return key;
+        }
+        return null;
+    }
+
+    /**
+     * UploadTicket contentType 우선으로 이미지 여부 판단, 없으면 확장자 fallback
+     */
+    private boolean isImageKey(String key) {
+        String ct = uploadTicketRepository.findByStorageKey(key)
+                .map(UploadTicket::getContentType)
+                .map(globalPresignMethods::normalize)
+                .orElse(null);
+
+        if (StringUtils.hasText(ct)) {
+            return THUMB_ALLOWED.contains(ct);
+        }
+
+        String k = key.toLowerCase(Locale.ROOT);
+        return k.endsWith(".jpg") || k.endsWith(".jpeg") || k.endsWith(".png") || k.endsWith(".webp");
+    }
+
+
+
 }

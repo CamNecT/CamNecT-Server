@@ -10,7 +10,7 @@ public record PortfolioProjectDto(
         Long portfolioId,
         Long userId,
         String title,
-        String thumbnailUrl, // S3 Presigned URL이 담길 곳
+        String thumbnailUrl, // CDN URL이 담길 곳
         LocalDate startDate,
         LocalDate endDate,
         String description,
