@@ -53,28 +53,39 @@ public class GlobalPresignMethods {
     }
 
     public String copyToPrefix(String sourceKey, String destPrefix) {
-        String ext = "";
-        int slash = sourceKey.lastIndexOf('/');
-        int dot = sourceKey.lastIndexOf('.');
-        if (dot > slash) ext = sourceKey.substring(dot);
+        if (!StringUtils.hasText(sourceKey) || !StringUtils.hasText(destPrefix)) {
+            throw new CustomException(StorageErrorCode.STORAGE_KEY_REQUIRED);
+        }
 
-        String destKey = destPrefix + "/thumb-" + UUID.randomUUID() + ext;
+        // sourceKey의 루트(prefix) 추출: "camnect/"
+        String base = trimSlashes(s3Props.prefix());
+        String src = normalizeKey(sourceKey, base);
+        String dstPrefix = normalizePrefix(destPrefix, base);
+
+        String ext = "";
+        int slash = src.lastIndexOf('/');
+        int dot = src.lastIndexOf('.');
+        if (dot > slash) ext = src.substring(dot);
+
+        String destKey = dstPrefix + "/thumb-" + UUID.randomUUID() + ext;
         String bucket = s3Props.bucket();
 
         try {
             s3.copyObject(CopyObjectRequest.builder()
                     .sourceBucket(bucket)
-                    .sourceKey(sourceKey)
+                    .sourceKey(src)
                     .destinationBucket(bucket)
                     .destinationKey(destKey)
                     .metadataDirective(MetadataDirective.COPY)
                     .build());
         } catch (S3Exception e) {
-            throw new CustomException(StorageErrorCode.STORAGE_MOVE_FAILED, e); // 에러코드는 상황에 맞게
+            log.warn("copyObject failed. sourceKey={}, destKey={}, status={}, err={}",
+                    src, destKey, e.statusCode(),
+                    (e.awsErrorDetails() != null ? e.awsErrorDetails().errorMessage() : "null"), e);
+            throw new CustomException(StorageErrorCode.STORAGE_MOVE_FAILED, e);
         }
-        // 롤백되면 복사본 제거(찌꺼기 방지)
-        registerRollbackCleanup(destKey);
 
+        registerRollbackCleanup(destKey);
         return destKey;
     }
 
@@ -84,6 +95,31 @@ public class GlobalPresignMethods {
         String v = ct.trim().toLowerCase(Locale.ROOT);
         int semi = v.indexOf(';');
         return (semi >= 0) ? v.substring(0, semi).trim() : v;
+    }
+
+    private String normalizePrefix(String prefix, String base) {
+        String p = prefix.trim();
+        if (p.startsWith("/")) p = p.substring(1);
+        while (p.endsWith("/")) p = p.substring(0, p.length() - 1);
+        p = p.replaceAll("/{2,}", "/");
+
+        String basePrefix = base + "/";
+        if (p.startsWith(basePrefix)) p = p.substring(basePrefix.length());
+        return basePrefix + p;
+    }
+
+
+
+    private String normalizeKey(String key, String base) {
+        String k = key.trim();
+        if (k.startsWith("/")) k = k.substring(1);
+        k = k.replaceAll("/{2,}", "/");
+
+        String basePrefix = base + "/";
+        // 이미 camnect/...면 그대로, 아니면 camnect/ 붙이기
+        if (!k.startsWith(basePrefix)) k = basePrefix + k;
+
+        return k;
     }
 
     private void registerRollbackCleanup(String keyToDeleteOnRollback) {
@@ -104,5 +140,13 @@ public class GlobalPresignMethods {
                 }
             }
         });
+    }
+
+    private String trimSlashes(String s) {
+        if (s == null) return "";
+        String v = s.trim();
+        while (v.startsWith("/")) v = v.substring(1);
+        while (v.endsWith("/")) v = v.substring(0, v.length() - 1);
+        return v;
     }
 }
