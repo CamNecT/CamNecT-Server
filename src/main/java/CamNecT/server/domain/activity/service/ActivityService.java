@@ -231,91 +231,120 @@ public class ActivityService {
         }
 
         Set<String> deleteAfterCommit = new HashSet<>();
+
         String finalAttachPrefix = "activity/activities/activity-" + activity.getActivityId() + "/attachments";
         String finalThumbPrefix = "activity/activities/activity-" + activity.getActivityId() + "/attachments/thumbnail";
 
-        // 1. 썸네일 교체 로직
-        if (StringUtils.hasText(request.thumbnailKey())
-                && !request.thumbnailKey().equals(activity.getThumbnailKey())) {
+        // ----------------------------------------------------------------------
+        // 규칙
+        // - thumbnailKey: null=유지, ""=삭제(기본썸네일로), 값=교체(consume)
+        // - attachmentKey: null=유지, []=전부삭제, 값=리스트 기준 전체교체(consume + keep)
+        // ----------------------------------------------------------------------
 
-            // 기존 썸네일이 있으면 삭제 대상에 추가
-            if (StringUtils.hasText(activity.getThumbnailKey()) && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
-                deleteAfterCommit.add(activity.getThumbnailKey());
+        // 1) 썸네일 처리
+        String reqThumb = request.thumbnailKey();
+
+        if (reqThumb != null) { // null이면 유지
+            if (!StringUtils.hasText(reqThumb)) {
+                if (StringUtils.hasText(activity.getThumbnailKey())
+                        && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
+                    deleteAfterCommit.add(activity.getThumbnailKey());
+                }
+                activity.updateThumbnailKey(DEFAULT_THUMB);
             }
+            else if (!reqThumb.equals(activity.getThumbnailKey())) {
+                if (StringUtils.hasText(activity.getThumbnailKey())
+                        && !DEFAULT_THUMB.equals(activity.getThumbnailKey())) {
+                    deleteAfterCommit.add(activity.getThumbnailKey());
+                }
 
-            String finalKey = presignEngine.consume(
-                    userId,
-                    UploadPurpose.ACTIVITY_THUMBNAIL,
-                    UploadRefType.ACTIVITY,
-                    activityId,
-                    request.thumbnailKey(),
-                    finalThumbPrefix
-            );
-            activity.updateThumbnailKey(finalKey);
-        }
-
-        // 2. 첨부파일 교체 로직 (요청이 들어온 경우만)
-        if (request.attachmentKey() != null) {
-            // 기존 첨부파일 목록을 Map으로 관리
-            Map<String, ExternalActivityAttachment> currentByKey =
-                    activityAttachmentRepository.findAllByActivity_ActivityId(activityId).stream()
-                            .filter(a -> StringUtils.hasText(a.getFileKey()))
-                            .collect(Collectors.toMap(
-                                    ExternalActivityAttachment::getFileKey,
-                                    a -> a, (a, b) -> a
-                            ));
-
-            Set<String> keepKeys = new HashSet<>();
-            LinkedHashSet<String> reqKeys = new LinkedHashSet<>();
-            for (String k : request.attachmentKey()) if (StringUtils.hasText(k)) reqKeys.add(k);
-
-            // 새로운 첨부파일 처리
-            for (String k : reqKeys) {
-                ExternalActivityAttachment existing = currentByKey.get(k);
-                if (existing != null) {
-                    keepKeys.add(k);
-                    continue;
-                } // 이미 존재하는 키면 유지
-
-                // 새로운 temp 키면 consume
                 String finalKey = presignEngine.consume(
                         userId,
-                        UploadPurpose.ACTIVITY_ATTACHMENT,
+                        UploadPurpose.ACTIVITY_THUMBNAIL,
                         UploadRefType.ACTIVITY,
                         activityId,
-                        k,
-                        finalAttachPrefix
+                        reqThumb,
+                        finalThumbPrefix
                 );
-
-                activityAttachmentRepository.save(ExternalActivityAttachment.builder()
-                        .activity(activity)
-                        .fileKey(finalKey)
-                        .build());
-
-                keepKeys.add(finalKey);
+                activity.updateThumbnailKey(finalKey);
             }
-
-            // 삭제할 첨부파일 식별
-            for (String oldKey : currentByKey.keySet()) {
-                if (!keepKeys.contains(oldKey)) deleteAfterCommit.add(oldKey);
-            }
-
-
-            // DB에서 삭제할 첨부파일 제거
-            activityAttachmentRepository.deleteAll(
-                    currentByKey.values().stream()
-                            .filter(a -> !keepKeys.contains(a.getFileKey()))
-                            .collect(Collectors.toList())
-            );
         }
 
-        // 3. 기본 정보 업데이트
+        // 2) 첨부 처리
+        List<String> reqAttachList = request.attachmentKey();
+
+        if (reqAttachList != null) { // null이면 유지
+            List<ExternalActivityAttachment> current = activityAttachmentRepository
+                    .findAllByActivity_ActivityId(activityId);
+
+            Map<String, ExternalActivityAttachment> currentByKey = current.stream()
+                    .filter(a -> StringUtils.hasText(a.getFileKey()))
+                    .collect(Collectors.toMap(
+                            ExternalActivityAttachment::getFileKey,
+                            a -> a,
+                            (a, b) -> a
+                    ));
+
+            // 요청 키 정리(중복 제거 + 공백 제거)
+            LinkedHashSet<String> reqKeys = new LinkedHashSet<>();
+            for (String k : reqAttachList) {
+                if (StringUtils.hasText(k)) reqKeys.add(k);
+            }
+
+            // [] (또는 공백만) => 전부 삭제
+            if (reqKeys.isEmpty()) {
+                for (ExternalActivityAttachment a : current) {
+                    if (StringUtils.hasText(a.getFileKey())) deleteAfterCommit.add(a.getFileKey());
+                }
+                if (!current.isEmpty()) activityAttachmentRepository.deleteAll(current);
+            }
+            // 값 있음 => 리스트 기준 전체 교체
+            else {
+                Set<String> keepFinalKeys = new HashSet<>();
+
+                for (String k : reqKeys) {
+                    ExternalActivityAttachment existing = currentByKey.get(k);
+                    if (existing != null) {
+                        keepFinalKeys.add(k); // 이미 finalKey로 존재하면 유지
+                        continue;
+                    }
+
+                    String finalKey = presignEngine.consume(
+                            userId,
+                            UploadPurpose.ACTIVITY_ATTACHMENT,
+                            UploadRefType.ACTIVITY,
+                            activityId,
+                            k,
+                            finalAttachPrefix
+                    );
+
+                    activityAttachmentRepository.save(ExternalActivityAttachment.builder()
+                            .activity(activity)
+                            .fileKey(finalKey)
+                            .build());
+
+                    keepFinalKeys.add(finalKey);
+                }
+
+                // 삭제 예약 + DB 삭제
+                List<ExternalActivityAttachment> toDelete = currentByKey.values().stream()
+                        .filter(a -> !keepFinalKeys.contains(a.getFileKey()))
+                        .toList();
+
+                for (ExternalActivityAttachment a : toDelete) {
+                    if (StringUtils.hasText(a.getFileKey())) deleteAfterCommit.add(a.getFileKey());
+                }
+                if (!toDelete.isEmpty()) activityAttachmentRepository.deleteAll(toDelete);
+            }
+        }
+
+        // 3) 기본 정보 업데이트
         activity.update(request);
 
-        // 4. 태그 저장
+        // 4) 태그 저장
         saveTags(activity, request.tagIds());
 
-        // 5. S3 파일 삭제 예약
+        // 5) S3 파일 삭제 예약
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
     }
 
