@@ -8,10 +8,6 @@ public record UserProfileDto(
         Long userId,
         String bio, // 설명
         Boolean openToCoffeeChat, // 커피챗 허용 여부
-        Boolean isFollowerVisible, // 팔로워 공개여부
-        Boolean isEducationVisible, // 학력 공개여부
-        Boolean isExperienceVisible, // 경력 공개여부
-        Boolean isCertificateVisible, // 자격증 공개여부
         String profileImageUrl,  // presigned URL이 적용됨
         String studentNo, // 학번
         Integer yearLevel, // 학년
@@ -23,10 +19,6 @@ public record UserProfileDto(
                 .userId(profile.getUserId())
                 .bio(profile.getBio())
                 .openToCoffeeChat(profile.getOpenToCoffeeChat())
-                .isFollowerVisible(profile.getIsFollowerVisible())
-                .isEducationVisible(profile.getIsEducationVisible())
-                .isExperienceVisible(profile.getIsExperienceVisible())
-                .isCertificateVisible(profile.getIsCertificateVisible())
                 .profileImageUrl(profile.getProfileImageKey()) // 초기값은 원본 S3 key
                 .studentNo(profile.getStudentNo())
                 .yearLevel(profile.getYearLevel())
@@ -43,10 +35,6 @@ public record UserProfileDto(
                 .userId(this.userId)
                 .bio(this.bio)
                 .openToCoffeeChat(this.openToCoffeeChat)
-                .isFollowerVisible(this.isFollowerVisible)
-                .isEducationVisible(this.isEducationVisible)
-                .isExperienceVisible(this.isExperienceVisible)
-                .isCertificateVisible(this.isCertificateVisible)
                 .profileImageUrl(presignedUrl) // 새로운 URL 적용
                 .studentNo(this.studentNo)
                 .yearLevel(this.yearLevel)
