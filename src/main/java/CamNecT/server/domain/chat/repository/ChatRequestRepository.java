@@ -92,6 +92,19 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
             @Param("recruitmentId") Long recruitmentId,
             @Param("accepted") ChatRequest.RequestStatus accepted
     );
+
+    @Query("""
+        select (count(cr) > 0)
+        from ChatRequest cr
+        where cr.receiver.userId = :userId
+        and cr.status = :status
+        and (:type is null or cr.type = :type)
+        """)
+    boolean existsReceivedPending(
+            @Param("userId") Long userId,
+            @Param("status") ChatRequest.RequestStatus status,
+            @Param("type") ChatRequest.RequestType type
+    );
 }
 
 
