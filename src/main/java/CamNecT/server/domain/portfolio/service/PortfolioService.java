@@ -185,13 +185,10 @@ public class PortfolioService {
         );
 
         // 2. S3 첨부파일/썸네일 업데이트 로직 (Null 및 빈 값 방어)
-        // 수정 시에는 기존 파일을 유지할지, 새로 교체할지 판단이 필요하므로
-        // 최소한의 데이터가 있을 때만 요청을 보냅니다.
-        boolean hasThumbnail = StringUtils.hasText(request.thumbnailKey());
-        boolean hasAttachments = request.attachmentKeys() != null && !request.attachmentKeys().isEmpty();
+        boolean thumbTouched = request.thumbnailKey() != null;         // null 아니면 변경 의도 있음 ("" 포함)
+        boolean assetsTouched = request.attachmentKeys() != null;      // null 아니면 교체/삭제 의도 있음 ([] 포함)
 
-        // 서비스 기획에 따라 '수정 시 아무것도 안 보내면 기존 유지'라면 아래 처리가 맞습니다.
-        if (hasThumbnail || hasAttachments) {
+        if (thumbTouched || assetsTouched) {
             portfolioAttachmentService.applyOnUpdate(
                     project,
                     userId,
