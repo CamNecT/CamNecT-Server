@@ -11,6 +11,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "external_activities")
@@ -75,6 +77,18 @@ public class ExternalActivity {
     @Lob
     @Column(name = "context", columnDefinition = "TEXT")
     private String context;
+
+    // 1. 태그 연결 관계 (활동 삭제 시 태그 매핑 데이터도 삭제)
+    @OneToMany(mappedBy = "activity", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<ExternalActivityTag> tags = new ArrayList<>();
+
+    // 2. 북마크 연결 관계 (활동 삭제 시 유저들의 북마크 내역도 삭제)
+    @OneToMany(mappedBy = "activity", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<ExternalActivityBookmark> bookmarks = new ArrayList<>();
+
+    // 3. 첨부파일 연결 관계 (활동 삭제 시 첨부파일 데이터도 삭제)
+    @OneToMany(mappedBy = "activity", cascade = CascadeType.REMOVE, orphanRemoval = true)
+    private List<ExternalActivityAttachment> attachments = new ArrayList<>();
 
     public void updateThumbnailKey(String thumbnailKey) {
         this.thumbnailKey = thumbnailKey;
