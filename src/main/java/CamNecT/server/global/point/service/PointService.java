@@ -1,5 +1,7 @@
 package CamNecT.server.global.point.service;
 
+import CamNecT.server.domain.users.model.Users;
+import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.point.model.*;
 import CamNecT.server.global.point.repository.PointTransactionRepository;
 import CamNecT.server.global.point.repository.PointWalletRepository;
@@ -23,6 +25,7 @@ public class PointService {
     private final PointWalletRepository walletRepository;
     private final PointTransactionRepository transactionRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserRepository userRepository;
 
     @Transactional
     public void spendPoint(Long userId, int amount, PointEvent event) {
@@ -114,5 +117,12 @@ public class PointService {
         return walletRepository.findByUserId(userId)
                 .map(PointWallet::getBalance)
                 .orElse(0);
+    }
+
+    @Transactional(readOnly = true)
+    public String getPhoneNum(Long userId) {
+        Users user = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+        return user.getPhoneNum();
     }
 }
