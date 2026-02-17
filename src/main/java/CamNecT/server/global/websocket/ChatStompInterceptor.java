@@ -2,7 +2,7 @@ package CamNecT.server.global.websocket;
 
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
-import CamNecT.server.global.jwt.JwtUtil;
+import CamNecT.server.global.jwt.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;

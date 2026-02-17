@@ -1,4 +1,4 @@
-package CamNecT.server.global.jwt;
+package CamNecT.server.global.jwt.util;
 
 import CamNecT.server.domain.users.model.UserRole;
 import CamNecT.server.global.common.exception.CustomException;

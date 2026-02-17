@@ -3,25 +3,24 @@ package CamNecT.server.domain.auth.controller;
 import CamNecT.server.domain.auth.dto.login.LoginRequest;
 import CamNecT.server.domain.auth.dto.login.LoginResponse;
 import CamNecT.server.domain.auth.dto.login.VerificationCompleteResponse;
+import CamNecT.server.domain.auth.dto.others.TokenRefreshRequest;
+import CamNecT.server.domain.auth.dto.others.TokenRefreshResponse;
 import CamNecT.server.domain.auth.dto.others.WithdrawRequest;
 import CamNecT.server.domain.auth.dto.signup.*;
 import CamNecT.server.domain.auth.dto.signup.SendSignupEmailRequest;
 import CamNecT.server.domain.auth.dto.signup.SendSignupEmailResponse;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailRequest;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailResponse;
+import CamNecT.server.domain.auth.service.AuthTokenService;
 import CamNecT.server.domain.auth.service.LoginService;
 import CamNecT.server.domain.profile.dto.request.UpdateOnboardingRequest;
 import CamNecT.server.domain.profile.dto.response.ProfileStatusResponse;
 import CamNecT.server.domain.profile.service.ProfileService;
 import CamNecT.server.domain.users.repository.UserRepository;
-import CamNecT.server.domain.verification.email.dto.VerifyEmailCodeResponse;
 import CamNecT.server.domain.verification.email.service.EmailVerificationService;
 import CamNecT.server.global.common.auth.UserId;
+import CamNecT.server.global.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -38,20 +37,12 @@ public class AuthController {
     private final UserRepository userRepository;
     private final EmailVerificationService emailVerificationService;
     private final ProfileService profileService;
+    private final AuthTokenService authTokenService;
 
     @Operation(
             summary = "로그인",
             description = "아이디/비밀번호로 로그인하고 토큰을 발급합니다."
     )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "로그인 성공",
-                    content = @Content(schema = @Schema(implementation = LoginResponse.class))
-            ),
-            @ApiResponse(responseCode = "400", description = "요청값 검증 실패", content = @Content),
-            @ApiResponse(responseCode = "401", description = "인증 실패(아이디/비밀번호 불일치 등)", content = @Content)
-    })
     @PostMapping("/login")
     public LoginResponse login(@RequestBody @Valid LoginRequest req) {
         return loginService.login(req);
@@ -75,15 +66,6 @@ public class AuthController {
             summary = "회원가입 이메일 인증코드 발송",
             description = "입력한 이메일로 6자리 인증코드를 발송합니다. (아직 유저는 생성하지 않습니다.)"
     )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "인증코드 발송 성공",
-                    content = @Content(schema = @Schema(implementation = SendSignupEmailResponse.class))
-            ),
-            @ApiResponse(responseCode = "400", description = "요청값 검증 실패", content = @Content),
-            @ApiResponse(responseCode = "409", description = "이미 가입된 이메일", content = @Content)
-    })
     @PostMapping("/signup/email/send")
     @ResponseStatus(HttpStatus.OK)
     public SendSignupEmailResponse sendSignupEmail(@RequestBody @Valid SendSignupEmailRequest req) {
@@ -99,15 +81,6 @@ public class AuthController {
             summary = "회원가입 이메일 인증 + 유저 생성",
             description = "이메일 인증코드를 검증한 뒤, 회원 정보를 확정하여 유저를 생성합니다."
     )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "이메일 인증 성공 및 유저 생성 완료",
-                    content = @Content(schema = @Schema(implementation = VerifyEmailCodeResponse.class))
-            ),
-            @ApiResponse(responseCode = "400", description = "요청값 검증 실패/인증코드 불일치/약관 미동의/비밀번호 정책 위반 등", content = @Content),
-            @ApiResponse(responseCode = "409", description = "중복(이메일/아이디/전화번호)으로 유저 생성 불가", content = @Content)
-    })
     @PostMapping("/signup/email/verify")
     @ResponseStatus(HttpStatus.OK)
     public VerifySignupEmailResponse verifySignupEmail(@RequestBody @Valid VerifySignupEmailRequest req) {
@@ -133,10 +106,6 @@ public class AuthController {
             summary = "로그아웃",
             description = "클라이언트에서 access token을 삭제합니다. 서버는 별도 세션/리프레시 토큰을 관리하지 않으므로 200 OK만 반환합니다."
     )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "로그아웃 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 실패(토큰 누락/만료 등)", content = @Content)
-    })
     @PostMapping("/logout")
     public void logout(@UserId Long loginUserId) {
         loginService.logout(loginUserId);
@@ -148,12 +117,13 @@ public class AuthController {
         return loginService.getVerificationCompleteInfo(userId);
     }
 
+    @Operation(summary = "AccessToken 재발급", description = "유효한 refreshToken으로 새 accessToken을 발급합니다.")
+    @PostMapping("/refresh")
+    public ApiResponse<TokenRefreshResponse> refresh(@RequestBody TokenRefreshRequest req) {
+        return ApiResponse.success(authTokenService.refreshAccessToken(req.refreshToken()));
+    }
+
     @Operation(summary = "회원 탈퇴", description = "비밀번호 확인 후 계정을 탈퇴 처리(익명화)합니다.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "탈퇴 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 실패", content = @Content),
-            @ApiResponse(responseCode = "400", description = "비밀번호 불일치 등", content = @Content)
-    })
     @DeleteMapping("/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void withdraw(
@@ -162,4 +132,6 @@ public class AuthController {
     ) {
         loginService.withdraw(userId, req);
     }
+
+
 }
