@@ -78,7 +78,6 @@ public class PortfolioProject {
         this.thumbnailUrl = url;
     }
 
-    // PortfolioProject.java 내 수정
     public void updateInfo(String title, String description, String review,
                            LocalDate startDate, LocalDate endDate,
                            String projectRole, List<String> techStack) {
@@ -87,17 +86,12 @@ public class PortfolioProject {
         this.review = review;
         this.startDate = startDate;
         this.endDate = endDate;
-        // String으로 받은 역할을 List로 변환하여 저장
-        this.assignedRole.clear();
+        this.assignedRole = new ArrayList<>();
         if (StringUtils.hasText(projectRole)) {
             this.assignedRole.add(projectRole);
         }
+        this.techStack = (techStack == null) ? new ArrayList<>() : new ArrayList<>(techStack);
 
-        // techStack (in-place update)
-        this.techStack.clear();
-        if (techStack != null) {
-            this.techStack.addAll(techStack);
-        }
         this.updatedAt = LocalDate.now();
     }
 }
