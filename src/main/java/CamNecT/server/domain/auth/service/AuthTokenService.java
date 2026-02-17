@@ -15,8 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -46,11 +45,13 @@ public class AuthTokenService {
 
         String incomingHash = TokenUtil.sha256Hex(refreshToken);
 
-        if (saved.getExpiresAt().isBefore(LocalDateTime.now())) {
+        Instant now = Instant.now();
+        if (saved.getExpiresAt().isBefore(now)) {
             throw new CustomException(AuthErrorCode.REFRESH_TOKEN_EXPIRED);
         }
 
         if (!saved.getRefreshTokenHash().equals(incomingHash)) {
+            refreshTokenRepository.delete(saved);
             throw new CustomException(AuthErrorCode.REFRESH_TOKEN_REUSED);
         }
 
@@ -59,7 +60,7 @@ public class AuthTokenService {
 
         // 3) 저장값을 새 refresh로 교체(= 기존 refresh 즉시 무효화)
         String newHash = TokenUtil.sha256Hex(newRefresh);
-        LocalDateTime newExp = LocalDateTime.ofInstant(jwtUtil.getExpiration(newRefresh), ZoneId.systemDefault());
+        Instant newExp = jwtUtil.getExpiration(newRefresh); // 이미 Instant로 주는 메서드 있음
         saved.rotate(newHash, newExp);
 
         return new TokenRefreshResponse(

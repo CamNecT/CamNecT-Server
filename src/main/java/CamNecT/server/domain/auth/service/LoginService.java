@@ -34,8 +34,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -216,19 +215,17 @@ public class LoginService {
 
     private void upsertRefreshToken(Long userId, String refreshToken) {
         String hash = TokenUtil.sha256Hex(refreshToken);
-        LocalDateTime expiresAt = LocalDateTime.ofInstant(jwtUtil.getExpiration(refreshToken), ZoneId.systemDefault());
-
+        Instant expiresAt = jwtUtil.getExpiration(refreshToken);
         UserRefreshToken row = userRefreshTokenRepository.findByIdForUpdate(userId).orElse(null);
-
         if (row == null) {
             userRefreshTokenRepository.save(UserRefreshToken.builder()
                     .userId(userId)
                     .refreshTokenHash(hash)
                     .expiresAt(expiresAt)
-                    .updatedAt(LocalDateTime.now())
+                    .updatedAt(Instant.now())
                     .build());
             return;
         }
-        row.rotate(hash, expiresAt);
+        row.rotate(hash, expiresAt); // rotate도 Instant 받도록
     }
 }
