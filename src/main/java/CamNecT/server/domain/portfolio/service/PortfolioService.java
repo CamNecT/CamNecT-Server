@@ -145,8 +145,10 @@ public class PortfolioService {
                 .startDate(request.startedAt())
                 .endDate(request.endedAt())
                 .review(request.review())
-                .assignedRole(List.of(request.project_role())) // String을 List로 변환하여 저장
-                .techStack(request.techStack()) // 추가
+                .assignedRole(StringUtils.hasText(request.project_role())
+                        ? new ArrayList<>(List.of(request.project_role()))
+                        : new ArrayList<>())
+                .techStack(new ArrayList<>(request.techStack()))
                 .isPublic(true)
                 .createdAt(LocalDate.now())
                 .updatedAt(LocalDate.now())
