@@ -13,7 +13,6 @@ import CamNecT.server.domain.portfolio.model.PortfolioProject;
 import CamNecT.server.domain.portfolio.repository.PortfolioAssetRepository;
 import CamNecT.server.domain.portfolio.repository.PortfolioRepository;
 import CamNecT.server.domain.users.model.UserRole;
-import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.ActivityErrorCode;
