@@ -39,6 +39,7 @@ import CamNecT.server.global.storage.service.PresignEngine;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import CamNecT.server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProfileService {
@@ -58,6 +60,8 @@ public class ProfileService {
 
     private static final Set<String> PROFILE_IMAGE_ALLOWED =
             Set.of("image/jpeg", "image/png", "image/webp");
+
+    private static final String DEFAULT_THUMB = "기본이미지";
 
     private final UserRepository userRepository;
     private final CertificateRepository certificateRepository;
@@ -94,7 +98,10 @@ public class ProfileService {
         int follower = showFollower ? userFollowRepository.countByFollowingId(profileUserId) : 0;
         int myPoints = isOwner ? pointService.getBalance(profileUserId) : 0;
 
-        List<PortfolioPreviewResponse> portfolioPreviewResponses = portfolioRepository.findPreviewsByUserId(profileUserId);
+        List<PortfolioPreviewResponse> portfolioPreviewResponses =
+                portfolioRepository.findPreviewsByUserId(profileUserId).stream()
+                        .map(this::toCdnPreview)
+                        .toList();
 
         List<EducationResponse> educationResponses = showEducation
                 ? educationRepository.findAllByUserIdWithDetails(profileUserId)
@@ -342,5 +349,21 @@ public class ProfileService {
                 user.getPhoneNum(),
                 user.getEmail()
         );
+    }
+
+    private PortfolioPreviewResponse toCdnPreview(PortfolioPreviewResponse p) {
+        return new PortfolioPreviewResponse(
+                p.portfolioId(),
+                p.title(),
+                portfolioThumbOrNull(p.thumbnailUrl()),
+                p.isPublic(),
+                p.isFavorite(),
+                p.updatedAt()
+        );
+    }
+
+    private String portfolioThumbOrNull(String key) {
+        if (!StringUtils.hasText(key) || DEFAULT_THUMB.equals(key)) return null;
+        return publicUrlIssuer.issueImagePublicUrl(key);
     }
 }
