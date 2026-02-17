@@ -25,13 +25,13 @@ public class AuthTokenService {
     private final UserRepository userRepository;
     private final UserRefreshTokenRepository refreshTokenRepository;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TokenRefreshResponse refreshAccessToken(String rawRefreshToken) {
         String refreshToken = normalize(rawRefreshToken);
         // 1) 서명/만료 검증
         jwtUtil.validateOrThrow(refreshToken);
         if (jwtUtil.getTokenType(refreshToken) != TokenType.REFRESH) {
-            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+            throw new CustomException(AuthErrorCode.TOKEN_TYPE_NOT_ALLOWED);
         }
 
         Long userId = jwtUtil.getUserId(refreshToken);
@@ -41,18 +41,17 @@ public class AuthTokenService {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }
 
-        UserRefreshToken saved = refreshTokenRepository.findById(userId)
+        UserRefreshToken saved = refreshTokenRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
         String incomingHash = TokenUtil.sha256Hex(refreshToken);
 
         if (saved.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+            throw new CustomException(AuthErrorCode.REFRESH_TOKEN_EXPIRED);
         }
 
         if (!saved.getRefreshTokenHash().equals(incomingHash)) {
-            // 누군가 예전 refresh 재사용(탈취/중복로그인/레이스) 가능
-            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+            throw new CustomException(AuthErrorCode.REFRESH_TOKEN_REUSED);
         }
 
         String newAccess = jwtUtil.generateAccessToken(userId, user.getRole());

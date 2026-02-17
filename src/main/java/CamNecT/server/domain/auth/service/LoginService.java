@@ -216,19 +216,19 @@ public class LoginService {
 
     private void upsertRefreshToken(Long userId, String refreshToken) {
         String hash = TokenUtil.sha256Hex(refreshToken);
-
         LocalDateTime expiresAt = LocalDateTime.ofInstant(jwtUtil.getExpiration(refreshToken), ZoneId.systemDefault());
 
-        UserRefreshToken row = userRefreshTokenRepository.findById(userId)
-                .orElseGet(() -> UserRefreshToken.builder()
-                        .userId(userId)
-                        .refreshTokenHash(hash)
-                        .expiresAt(expiresAt)
-                        .updatedAt(LocalDateTime.now())
-                        .build()
-                );
-        if (row.getUserId() != null && row.getUpdatedAt() != null) row.rotate(hash, expiresAt);
+        UserRefreshToken row = userRefreshTokenRepository.findByIdForUpdate(userId).orElse(null);
 
-        userRefreshTokenRepository.save(row);
+        if (row == null) {
+            userRefreshTokenRepository.save(UserRefreshToken.builder()
+                    .userId(userId)
+                    .refreshTokenHash(hash)
+                    .expiresAt(expiresAt)
+                    .updatedAt(LocalDateTime.now())
+                    .build());
+            return;
+        }
+        row.rotate(hash, expiresAt);
     }
 }
