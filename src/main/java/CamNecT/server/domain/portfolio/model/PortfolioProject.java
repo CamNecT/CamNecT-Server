@@ -3,6 +3,8 @@ package CamNecT.server.domain.portfolio.model;
 import CamNecT.server.global.common.util.StringListConverter;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.util.StringUtils;
+
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,8 +88,16 @@ public class PortfolioProject {
         this.startDate = startDate;
         this.endDate = endDate;
         // String으로 받은 역할을 List로 변환하여 저장
-        this.assignedRole = (projectRole != null) ? List.of(projectRole) : new ArrayList<>();
-        this.techStack = (techStack != null) ? techStack : new ArrayList<>();
+        this.assignedRole.clear();
+        if (StringUtils.hasText(projectRole)) {
+            this.assignedRole.add(projectRole);
+        }
+
+        // techStack (in-place update)
+        this.techStack.clear();
+        if (techStack != null) {
+            this.techStack.addAll(techStack);
+        }
         this.updatedAt = LocalDate.now();
     }
 }
