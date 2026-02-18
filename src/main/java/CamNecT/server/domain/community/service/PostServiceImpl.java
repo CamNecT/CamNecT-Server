@@ -84,9 +84,6 @@ public class PostServiceImpl implements PostService {
     private final ApplicationEventPublisher eventPublisher;
     private final AuthorAssembler authorAssembler;
 
-    private final NotificationService notificationService;
-    private final NotificationLinkResolver notificationLinkResolver;
-
     @Transactional
     @Override
     public CreatePostResponse create(Long userId, CreatePostRequest req) {
@@ -109,46 +106,23 @@ public class PostServiceImpl implements PostService {
 
         postAttachmentsService.replace(saved, userId, req.attachments());
 
-        try {
-            List<Long> followerIds = followRepository.findFollowerIdsByFollowingId(userId);
-            log.info("[PostCreate] 팔로워 조회 결과 - userId={}, count={}", userId, followerIds.size());
+        List<Long> followerIds = followRepository.findFollowerIdsByFollowingId(userId);
 
-            if (!followerIds.isEmpty()) {
-                String message = user.getName() + "님이 새 글을 게시했습니다.";
+        if (!followerIds.isEmpty()) {
+            String message = user.getName() + "님이 새 글을 게시했습니다.";
 
-                for (Long followerId : followerIds) {
-                    SimpleNotifiableEvent event = SimpleNotifiableEvent.of(
-                            followerId,
-                            userId,
-                            NotificationType.FOLLOWING_POSTED,
-                            message,
-                            saved.getId(),
-                            null
-                    );
-
-                    String link = notificationLinkResolver.resolve(event);
-
-                    notificationService.create(
-                            event.receiverUserId(),
-                            event.actorUserId(),
-                            event.type(),
-                            event.message(),
-                            event.postId(),
-                            event.commentId(),
-                            event.requestId(),
-                            link
-                    );
-                    log.info("[PostCreate] 알림 DB 저장 성공 - receiverId={}, postId={}", followerId, saved.getId());
-
-                    eventPublisher.publishEvent(event);
-                }
-                log.info("[PostCreate] 모든 팔로워 알림 처리 완료");
-            } else {
-                log.info("[PostCreate] 팔로워가 없어 알림을 건너뜁니다.");
+            for (Long followerId : followerIds) {
+                eventPublisher.publishEvent(SimpleNotifiableEvent.of(
+                        followerId,
+                        userId,
+                        NotificationType.FOLLOWING_POSTED,
+                        message,
+                        saved.getId(),
+                        null
+                ));
             }
-        } catch (Exception e) {
-            log.error("[PostCreate] 알림 발송 중 오류 발생 - postId={}", saved.getId(), e);
         }
+
         return new CreatePostResponse(saved.getId());
     }
 
