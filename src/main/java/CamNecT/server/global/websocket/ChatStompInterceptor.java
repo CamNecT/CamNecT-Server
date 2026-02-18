@@ -52,7 +52,7 @@ public class ChatStompInterceptor implements ChannelInterceptor {
         String rawToken = accessor.getFirstNativeHeader("Authorization");
 
         if (rawToken == null || !rawToken.startsWith("Bearer ")) {
-            throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
+            throw new CustomException(AuthErrorCode.TOKEN_SHAPE_NOT_ALLOWED);
         }
 
         return rawToken.substring(7);

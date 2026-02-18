@@ -58,7 +58,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
 
         if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
-            throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
         }
         return header.substring(7);
     }
