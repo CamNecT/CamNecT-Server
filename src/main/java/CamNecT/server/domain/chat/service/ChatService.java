@@ -158,17 +158,22 @@ public class ChatService {
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUEST_NOT_FOUND));
 
         // 본인 요청인지 검증
-        if (!request.getReceiver().getUserId().equals(userId)) throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
+        if (!request.getReceiver().getUserId().equals(userId))
+            throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
 
-        if (request.getStatus().equals(ChatRequest.RequestStatus.ACCEPTED)) { return; }
-        if (request.getStatus().equals(ChatRequest.RequestStatus.REJECTED)) { return; }
+        if (request.getStatus().equals(ChatRequest.RequestStatus.ACCEPTED)) {
+            return;
+        }
+        if (request.getStatus().equals(ChatRequest.RequestStatus.REJECTED)) {
+            return;
+        }
 
         if (isAccepted) {
             request.accept();
             Long requesterId = request.getRequester().getUserId();
             Long roomId = createChatRoom(request);
             pointService.earnPoint(requesterId, rewardCoffeeChatAccepted,
-                    PointEvent.coffeeChatAccepted(requesterId,request.getId()));
+                    PointEvent.coffeeChatAccepted(requesterId, request.getId()));
             tryRewardCoffeeChatAcceptedPoint(request);
             publishAcceptedNotification(request, roomId);
         } else {
@@ -311,9 +316,12 @@ public class ChatService {
 
         markAllAsRead(roomId, opponent);
 
-        List<Chat> chatHistory = chatRepository.findAllByRoomId(roomId);
+        List<Chat> chatHistory = chatRepository.findTop1000ByRoomId(
+                roomId, PageRequest.of(0, 1000)
+        );
 
         return chatHistory.stream()
+                .sorted(Comparator.comparing(Chat::getId))
                 .map(ChatMessageResponseDto::toDto)
                 .toList();
     }
@@ -662,7 +670,7 @@ public class ChatService {
 
         requests.forEach(ChatRequest::reject);
     }
-    
+
     public void closeChatRoom(Long roomId, Long userId) {
         ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
@@ -707,7 +715,7 @@ public class ChatService {
         }
         try {
             pointService.earnPoint(targetUserId, rewardCoffeeChatAccepted,
-                    PointEvent.coffeeChatAccepted(targetUserId,request.getId()));
+                    PointEvent.coffeeChatAccepted(targetUserId, request.getId()));
         } catch (Exception ex) {
             log.warn("[coffeechat] point reward failed. requestId={}, userId={}", requestId, targetUserId, ex);
         }

@@ -2,6 +2,7 @@ package CamNecT.server.domain.chat.repository;
 
 import CamNecT.server.domain.chat.model.Chat;
 import CamNecT.server.domain.chat.model.ChatRoom;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,8 +16,8 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
             "JOIN FETCH c.sender " +
             "JOIN FETCH c.receiver " +
             "WHERE c.room.id = :roomId " +
-            "ORDER BY c.createdAt ASC")
-    List<Chat> findAllByRoomId(@Param("roomId") Long roomId);
+            "ORDER BY c.id DESC")
+    List<Chat> findTop1000ByRoomId(@Param("roomId") Long roomId, Pageable pageable);
 
     // 내가 받은 안 읽은 메시지
     @Query("""
