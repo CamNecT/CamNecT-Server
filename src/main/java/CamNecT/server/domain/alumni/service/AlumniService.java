@@ -8,7 +8,6 @@ import CamNecT.server.domain.alumni.repository.AlumniRepository;
 import CamNecT.server.domain.home.dto.HomeResponse;
 import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
-import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.domain.users.repository.UserTagMapRepository;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
@@ -29,17 +28,19 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AlumniService {
 
+    private static final long LEGACY_TAG_ID = 111L;
+    private static final long CANONICAL_TAG_ID = 53L;
+
     private final UserTagMapRepository userTagMapRepository;
     private final UserProfileRepository userProfileRepository;
     private final AlumniRepository alumniRepository;
-    private final UserRepository usersRepository;
     private final PublicUrlIssuer publicUrlIssuer;
 
     @Transactional(readOnly = true)
     public Slice<AlumniPreviewResponse> searchAlumni(Long userId, String name, List<Long> tagIdList, Pageable pageable) {
-
+        List<Long> normalizedTagIds = normalizeTagIds(tagIdList);
         // 1. ID 페이징 조회
-        List<Long> targetIds = alumniRepository.findAlumniIdsByConditions(userId, name, tagIdList, pageable);
+        List<Long> targetIds = alumniRepository.findAlumniIdsByConditions(userId, name, normalizedTagIds, pageable);
 
         boolean hasNext = targetIds.size() > pageable.getPageSize();
         if (hasNext) {
@@ -138,5 +139,14 @@ public class AlumniService {
         return new HomeResponse.AlumniSection(items, hasMore);
     }
 
+    private List<Long> normalizeTagIds(List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) return List.of();
+
+        return tagIds.stream()
+                .filter(Objects::nonNull)
+                .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
+                .distinct()
+                .toList();
+    }
 
 }
