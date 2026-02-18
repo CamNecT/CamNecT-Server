@@ -40,6 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -188,8 +189,7 @@ public class PostServiceImpl implements PostService {
         // 4) 첨부 정리 (S3 after-commit 삭제 포함)
         postAttachmentsService.purgeAllByPostId(postId);
 
-        // 5) 마지막: 게시글 soft delete
-        post.deleteSoft();
+        postsRepository.softDeleteById(postId, LocalDateTime.now());
     }
 
     @Transactional
