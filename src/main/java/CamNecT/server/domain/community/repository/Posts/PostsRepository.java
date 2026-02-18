@@ -6,8 +6,11 @@ import CamNecT.server.domain.community.model.enums.PostStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.time.LocalDateTime;
 
 public interface PostsRepository extends JpaRepository<Posts, Long> {
 
@@ -222,4 +225,8 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
             @Param("cursorId") Long cursorId,
             Pageable pageable
     );
+
+    @Modifying
+    @Query("UPDATE Posts p SET p.status = 'DELETED', p.deletedAt = :now WHERE p.id = :id")
+    void softDeleteById(@Param("id") Long id, @Param("now") LocalDateTime now);
 }
