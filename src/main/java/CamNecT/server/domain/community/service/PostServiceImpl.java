@@ -188,8 +188,12 @@ public class PostServiceImpl implements PostService {
         // 4) 첨부 정리 (S3 after-commit 삭제 포함)
         postAttachmentsService.purgeAllByPostId(postId);
 
+        postsRepository.flush();
+
         // 5) 마지막: 게시글 soft delete
         post.deleteSoft();
+
+        postsRepository.save(post);
     }
 
     @Transactional
