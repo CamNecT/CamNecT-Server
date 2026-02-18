@@ -90,6 +90,7 @@ public class Posts {
     public void deleteSoft() {
         this.status = PostStatus.DELETED;
         this.deletedAt = LocalDateTime.now();
+        this.stats = null;
     }
 
     public void applyAccess(PostAccessType accessType) {
