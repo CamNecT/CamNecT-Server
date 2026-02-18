@@ -15,6 +15,8 @@ import CamNecT.server.domain.community.repository.Comments.CommentLikesRepositor
 import CamNecT.server.domain.community.repository.Comments.CommentsRepository;
 import CamNecT.server.domain.community.repository.Posts.*;
 import CamNecT.server.domain.users.repository.UserFollowRepository;
+import CamNecT.server.global.notification.service.NotificationService;
+import CamNecT.server.global.notification.util.NotificationLinkResolver;
 import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserRole;
@@ -82,6 +84,9 @@ public class PostServiceImpl implements PostService {
     private final ApplicationEventPublisher eventPublisher;
     private final AuthorAssembler authorAssembler;
 
+    private final NotificationService notificationService;
+    private final NotificationLinkResolver notificationLinkResolver;
+
     @Transactional
     @Override
     public CreatePostResponse create(Long userId, CreatePostRequest req) {
@@ -103,23 +108,35 @@ public class PostServiceImpl implements PostService {
 
         postAttachmentsService.replace(saved, userId, req.attachments());
 
-        if (!Boolean.TRUE.equals(req.anonymous())) {
+        // 알림 발송 로직
+        List<Long> followerIds = followRepository.findFollowerIdsByFollowingId(userId);
 
-            List<Long> followerIds = followRepository.findFollowerIdsByFollowingId(userId);
+        if (!followerIds.isEmpty()) {
+            String message = user.getName() + "님이 새 글을 게시했습니다.";
 
-            if (!followerIds.isEmpty()) {
-                String message = user.getName() + "님이 새 글을 게시했습니다.";
+            for (Long followerId : followerIds) {
+                SimpleNotifiableEvent event = SimpleNotifiableEvent.of(
+                        followerId,
+                        userId,
+                        NotificationType.FOLLOWING_POSTED,
+                        message,
+                        saved.getId(),
+                        null
+                );
 
-                for (Long followerId : followerIds) {
-                    eventPublisher.publishEvent(SimpleNotifiableEvent.of(
-                            followerId,
-                            userId,
-                            NotificationType.FOLLOWING_POSTED,
-                            message,
-                            saved.getId(),
-                            null
-                    ));
-                }
+                String link = notificationLinkResolver.resolve(event);
+                notificationService.create(
+                        event.receiverUserId(),
+                        event.actorUserId(),
+                        event.type(),
+                        event.message(),
+                        event.postId(),
+                        event.commentId(),
+                        event.requestId(),
+                        link
+                );
+
+                eventPublisher.publishEvent(event);
             }
         }
 
