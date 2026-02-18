@@ -60,8 +60,9 @@ public class ProfileService {
 
     private static final Set<String> PROFILE_IMAGE_ALLOWED =
             Set.of("image/jpeg", "image/png", "image/webp");
-
-    private static final String DEFAULT_THUMB = "기본이미지";
+    
+    private static final String DEFAULT_PORTFOLIO_THUMB_KEY =
+            "camnect/portfolio/default/camnect_default_portfolio_thumbnail.png";
 
     private final UserRepository userRepository;
     private final CertificateRepository certificateRepository;
@@ -355,15 +356,22 @@ public class ProfileService {
         return new PortfolioPreviewResponse(
                 p.portfolioId(),
                 p.title(),
-                portfolioThumbOrNull(p.thumbnailUrl()),
+                portfolioThumbOrDefault(p.thumbnailUrl()),
                 p.isPublic(),
                 p.isFavorite(),
                 p.updatedAt()
         );
     }
 
-    private String portfolioThumbOrNull(String key) {
-        if (!StringUtils.hasText(key) || DEFAULT_THUMB.equals(key)) return null;
-        return publicUrlIssuer.issueImagePublicUrl(key);
+    private String portfolioThumbOrDefault(String key) {
+        String safeKey = StringUtils.hasText(key) ? key : DEFAULT_PORTFOLIO_THUMB_KEY;
+
+        try {
+            String url = publicUrlIssuer.issueImagePublicUrl(safeKey);
+            return StringUtils.hasText(url) ? url : ("https://cdn.camnect.site/" + DEFAULT_PORTFOLIO_THUMB_KEY);
+        } catch (Exception e) {
+            log.warn("issueImagePublicUrl failed. key={}", safeKey, e);
+            return "https://cdn.camnect.site/" + DEFAULT_PORTFOLIO_THUMB_KEY;
+        }
     }
 }
