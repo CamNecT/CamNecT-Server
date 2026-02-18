@@ -63,6 +63,8 @@ public class ChatService {
 
     @Value("${app.point.reward.coffee-chat-accepted:500}")
     private int rewardCoffeeChatAccepted;
+    private static final long LEGACY_TAG_ID = 111L;
+    private static final long CANONICAL_TAG_ID = 53L;
 
     private final UserRepository userRepository;
     private final ChatRepository chatRepository;
@@ -116,9 +118,10 @@ public class ChatService {
         Users receiver = userRepository.findById(receiverId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.RECEIVER_NOT_FOUND));
 
-        List<Tag> tags = tagRepository.findAllById(tagIds);
+        List<Long> normalizedTagIds = normalizeTagIds(tagIds);
 
-        if (tags.size() != tagIds.size()) {
+        List<Tag> tags = tagRepository.findAllById(normalizedTagIds);
+        if (tags.size() != normalizedTagIds.size()) {
             throw new CustomException(CoffeeChatErrorCode.TAG_NOT_FOUND);
         }
 
@@ -719,5 +722,16 @@ public class ChatService {
         } catch (Exception ex) {
             log.warn("[coffeechat] point reward failed. requestId={}, userId={}", requestId, targetUserId, ex);
         }
+    }
+
+    private List<Long> normalizeTagIds(List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) return List.of();
+
+        // 순서 유지가 필요 없으면 Set으로 가도 되는데, 혹시 프론트가 순서 의미를 두면 LinkedHashSet 권장
+        return tagIds.stream()
+                .filter(Objects::nonNull)
+                .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
+                .distinct()
+                .toList();
     }
 }

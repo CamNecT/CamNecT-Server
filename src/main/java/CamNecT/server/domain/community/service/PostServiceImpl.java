@@ -51,6 +51,8 @@ public class PostServiceImpl implements PostService {
     private int rewardFirstThreeLikes;
     @Value("${app.point.cost.question-view:100}")
     private int questionViewCost;
+    private static final long LEGACY_TAG_ID = 111L;
+    private static final long CANONICAL_TAG_ID = 53L;
 
 
     private final BoardsRepository boardsRepository;
@@ -468,17 +470,29 @@ public class PostServiceImpl implements PostService {
     private void replaceTags(Posts post, List<Long> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) return;
 
-        List<Long> ids = tagIds.stream().filter(Objects::nonNull).distinct().toList();
+        List<Long> ids = normalizeTagIds(tagIds);
         if (ids.isEmpty()) return;
 
         List<Tag> tags = tagRepository.findAllById(ids);
         if (tags.size() != ids.size()) throw new CustomException(CommunityErrorCode.INVALID_TAG_IDS);
 
-
         for (Tag t : tags) if (!t.isActive()) throw new CustomException(CommunityErrorCode.INACTIVE_TAG);
-        List<PostTags> links = tags.stream().map(t -> PostTags.link(post, t)).toList();
+
+        List<PostTags> links = tags.stream()
+                .map(t -> PostTags.link(post, t))
+                .toList();
 
         postTagsRepository.saveAll(links);
+    }
+
+    private List<Long> normalizeTagIds(List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) return List.of();
+
+        return tagIds.stream()
+                .filter(Objects::nonNull)
+                .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
+                .distinct()
+                .toList();
     }
 
     private void touchStats(Long postId) {
