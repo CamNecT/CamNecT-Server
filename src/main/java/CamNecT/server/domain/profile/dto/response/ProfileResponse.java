@@ -11,6 +11,7 @@ public record ProfileResponse(
         Long userId,
         String name,
         ProfileBasicsDto basics,
+        Boolean isFollowing,
         int following,
         int follower,
         Integer myPoint,
