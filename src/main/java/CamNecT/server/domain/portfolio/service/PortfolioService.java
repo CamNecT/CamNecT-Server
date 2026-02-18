@@ -282,11 +282,11 @@ public class PortfolioService {
         String safeKey = (StringUtils.hasText(key)) ? key : DEFAULT_THUMB_KEY;
         try {
             String url = publicUrlIssuer.issuePublicUrl(safeKey);
-            return StringUtils.hasText(url) ? url : publicUrlIssuer.issuePublicUrl(DEFAULT_THUMB);
+            return StringUtils.hasText(url) ? url : publicUrlIssuer.issuePublicUrl(DEFAULT_THUMB_KEY);
         } catch (Exception e) {
             log.warn("issuePublicUrl failed. key={}", safeKey, e);
             // 최후의 최후: 하드코딩 URL로라도 반환 (여기서도 null 금지)
-            return "https://cdn.camnect.site/" + DEFAULT_THUMB;
+            return "https://cdn.camnect.site/" + DEFAULT_THUMB_KEY;
         }
     }
 }
