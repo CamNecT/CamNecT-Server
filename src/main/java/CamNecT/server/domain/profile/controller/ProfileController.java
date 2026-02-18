@@ -32,7 +32,7 @@ public class ProfileController {
 
     @Operation(
             summary = "유저 프로필 조회",
-            description = "특정 사용자의 ID를 통해 프로필 정보를 조회합니다. (다른 사용자의 프로필 뿐만 아니라 마이페이지도 조회합니다.)"
+            description = "특정 사용자의 ID를 통해 프로필 정보를 조회합니다."
     )
     @GetMapping("/{profileUserId}")
     public ApiResponse<ProfileResponse> getUserProfile(@UserId Long loginUserId,

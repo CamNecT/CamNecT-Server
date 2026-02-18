@@ -90,6 +90,9 @@ public class ProfileService {
 
         boolean isOwner = (loginUserId != null) && loginUserId.equals(profileUserId);
 
+        boolean isFollowing = (loginUserId != null && !isOwner)
+                && userFollowRepository.existsByFollowerIdAndFollowingId(loginUserId, profileUserId);
+
         boolean showFollower = isOwner || Boolean.TRUE.equals(userProfile.getIsFollowerVisible());
         boolean showEducation = isOwner || Boolean.TRUE.equals(userProfile.getIsEducationVisible());
         boolean showExperience = isOwner || Boolean.TRUE.equals(userProfile.getIsExperienceVisible());
@@ -141,6 +144,7 @@ public class ProfileService {
                 user.getUserId(),
                 user.getName(),
                 basicProfile,
+                isFollowing,
                 following,
                 follower,
                 myPoints,
