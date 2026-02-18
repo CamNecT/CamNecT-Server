@@ -190,8 +190,6 @@ public class PostServiceImpl implements PostService {
 
         // 5) 마지막: 게시글 soft delete
         post.deleteSoft();
-
-        postsRepository.saveAndFlush(post);
     }
 
     @Transactional
