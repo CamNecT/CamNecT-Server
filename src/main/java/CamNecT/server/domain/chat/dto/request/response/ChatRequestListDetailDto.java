@@ -33,7 +33,7 @@ public record ChatRequestListDetailDto(
                 .opponentId(opponent.getUserId())
                 .opponentName(opponent.getName())
                 .opponentMajor(majorName)
-                .opponentStudentYear(opProfile != null && opProfile.getYearLevel() != null ? opProfile.getYearLevel().toString() : "")
+                .opponentStudentYear(opProfile != null && opProfile.getStudentNo() != null ? opProfile.getStudentNo() : "")
                 .opponentProfileImg(profileImgUrl)
 
                 .requestId(request.getId())
