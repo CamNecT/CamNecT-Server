@@ -68,9 +68,6 @@ public class PostQueryServiceImpl implements PostQueryService {
             case BOOKMARK -> postsRepository.findFeedBookmarkDesc(
                     PostStatus.PUBLISHED, code, tagId, kw, cv, cursorId, PageRequest.of(0, limit)
             );
-            default -> postsRepository.findFeedLatestWithFilter(
-                    PostStatus.PUBLISHED, code, tagId, kw, cursorId, PageRequest.of(0, limit)
-            );
         };
 
         return mapToListResponse(userId, slice, sort);
