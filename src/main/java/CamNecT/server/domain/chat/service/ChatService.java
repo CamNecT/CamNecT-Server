@@ -415,11 +415,11 @@ public class ChatService {
                     UserProfile opProfile = profileMap.get(opponent.getUserId());
 
                     String majorName = "전공 미입력";
-                    String studentYear = "";
+                    String studentNo = "";
                     String profileImgUrl = "/images/default.png";
 
                     if (opProfile != null) {
-                        studentYear = (opProfile.getYearLevel() != null) ? opProfile.getYearLevel().toString() : "미입력";
+                        studentNo = (opProfile.getStudentNo() != null) ? opProfile.getStudentNo() : "미입력";
                         if (opProfile.getMajorId() != null) {
                             majorName = majorRepository.findById(opProfile.getMajorId())
                                     .map(Majors::getMajorNameKor)
@@ -432,7 +432,7 @@ public class ChatService {
                     Long count = unreadCounts.getOrDefault(room.getId(), 0L);
                     String lastMessage = lastMessageMap.getOrDefault(room.getId(), "대화 내용이 없습니다.");
 
-                    return ChatRoomListDetailDto.of(room, me, count, majorName, studentYear, lastMessage, profileImgUrl);
+                    return ChatRoomListDetailDto.of(room, me, count, majorName, studentNo, lastMessage, profileImgUrl);
                 })
                 .toList();
     }
