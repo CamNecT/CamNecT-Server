@@ -20,6 +20,11 @@
 | Realtime/Push | WebSocket(STOMP), Firebase Cloud Messaging | - |
 | CI/CD | GitHub Actions | - |
 
+
+## Server Architecture
+<img width="1187" height="502" alt="image" src="https://github.com/user-attachments/assets/a5a8c94d-c62e-46ec-a8ea-36c9fb8ecfac" />
+
+
 ---
 
 ## ✅ Prerequisites
@@ -126,4 +131,5 @@ Swagger 설정이 포함되어 있으므로, 서버 실행 후 아래 경로로 
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
 
