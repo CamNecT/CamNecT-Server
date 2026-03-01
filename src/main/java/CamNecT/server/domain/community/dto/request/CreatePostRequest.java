@@ -10,7 +10,7 @@ import java.util.List;
 public record CreatePostRequest(
         @NotNull BoardCode boardCode,
         @NotBlank @Size(max = 200) String title,
-        @NotBlank String content,
+        @NotBlank @Size(max = 20000) String content,
         Boolean anonymous,
         List<Long> tagIds, // <- global tags.tag_id들
         List<AttachmentRequest> attachments
