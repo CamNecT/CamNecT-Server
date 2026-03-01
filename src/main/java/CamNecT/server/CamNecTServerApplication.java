@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
 @EnableJpaAuditing
 @ConfigurationPropertiesScan
-@SpringBootApplication(exclude = { SecurityAutoConfiguration.class })
 public class CamNecTServerApplication {
 
 	public static void main(String[] args) {
