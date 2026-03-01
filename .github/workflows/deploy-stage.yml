@@ -1,0 +1,90 @@
+name: CI/CD Pipeline (STAGE)
+
+on:
+  push:
+    branches: [ "develop" ]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-stage
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ${{ secrets.DOCKER_USERNAME }}/camnect-server:stage
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image (target=prod, tag=stage)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: prod
+          push: true
+          tags: ${{ env.IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Ensure stage directory exists on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: |
+            set -e
+            mkdir -p /home/${{ secrets.USERNAME }}/camnect-stage
+
+      - name: Upload docker-compose.stage.yml to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          source: "docker-compose.stage.yml"
+          target: "/home/${{ secrets.USERNAME }}/camnect-stage/"
+          overwrite: true
+
+      - name: Deploy STAGE to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          script: |
+            set -e
+            cd /home/${{ secrets.USERNAME }}/camnect-stage
+
+            if [ ! -f .env.stage ]; then
+              echo "[ERROR] .env.stage not found in camnect-stage"
+              exit 1
+            fi
+
+            export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
+
+            if command -v docker-compose >/dev/null 2>&1; then
+              DC="docker-compose"
+            else
+              DC="docker compose"
+            fi
+
+            echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+            sudo mkdir -p /home/ubuntu/app/exports/gifticon-stage
+
+            sudo -E $DC -p camnect-stage -f docker-compose.stage.yml pull
+            sudo -E $DC -p camnect-stage -f docker-compose.stage.yml up -d --remove-orphans

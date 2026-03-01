@@ -1,0 +1,40 @@
+spring:
+  task:
+    scheduling:
+      enabled: false
+
+  # stage에서는 MAIL_USERNAME/MAIL_PASSWORD를 안 넣어도 뜨게(기본값 제공)
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+app:
+  # stage prefix 기본값을 stage/camnect로 (env에서 AWS_S3_PREFIX로 덮어써도 됨)
+  s3:
+    prefix: ${AWS_S3_PREFIX:stage/camnect}
+
+  gifticon:
+    # 스케줄러가 꺼져있어도, 실수로 수동 호출할 때 메일 발송 방지
+    export-mail:
+      enabled: false
+    vendor:
+      enabled: false
+
+  # 배치도 stage에서 기본 off
+  tag-batch:
+    enabled: false
+
+  push:
+    enabled: false
