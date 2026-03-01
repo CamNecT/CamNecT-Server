@@ -2,6 +2,7 @@ package CamNecT.server.global.notification.util;
 
 import com.google.firebase.messaging.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -9,10 +10,17 @@ import java.util.*;
 @Component
 @RequiredArgsConstructor
 public class FCMSender {
+    @Value("${app.push.enabled:true}")
+    private boolean pushEnabled;
+
     private static final int CHUNK_SIZE = 500; //500토큰 제한
 
     public SendResult sendToTokens(List<String> tokens, Map<String, String> data)
             throws FirebaseMessagingException {
+
+        if (!pushEnabled) {
+            return SendResult.empty();
+        }
 
         if (tokens == null || tokens.isEmpty()) {
             return SendResult.empty();
