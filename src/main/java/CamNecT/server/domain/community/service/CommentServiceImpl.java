@@ -78,6 +78,7 @@ public class CommentServiceImpl implements CommentService {
             stats.incRootComment();       // 루트 댓글 수(=답변 수) +1
         }
         stats.touch();
+        //repo 팔로워들 불러오기
 
         /// 알림 이벤트 발행
         if (parent == null) {

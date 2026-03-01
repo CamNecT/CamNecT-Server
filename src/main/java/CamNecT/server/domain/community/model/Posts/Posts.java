@@ -36,7 +36,7 @@ public class Posts {
     private String title;
 
     @Lob
-    @Column(name = "context", nullable = false)
+    @Column(name = "context", nullable = false, columnDefinition = "MEDIUMTEXT")
     private String content;
 
     @Column(name = "is_anonymous", nullable = false)

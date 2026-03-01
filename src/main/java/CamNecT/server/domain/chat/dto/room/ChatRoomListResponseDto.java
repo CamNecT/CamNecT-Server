@@ -7,6 +7,6 @@ import java.util.List;
 @Builder
 public record ChatRoomListResponseDto(
         List<ChatRoomListDetailDto> chatRoomList,
-        Long totalUnreadCount
-) {
-}
+        Long totalUnreadCount,
+        boolean requestExists
+) {}

@@ -21,7 +21,7 @@ public class NotificationLinkResolver {
             return switch (e.type()) {
 
                 // 커뮤니티: postId 필수
-                case POST_COMMENTED, COMMENT_ACCEPTED, COMMENT_REPLIED ->
+                case POST_COMMENTED, COMMENT_ACCEPTED, COMMENT_REPLIED, FOLLOWING_POSTED ->
                         template(p.getCommunityPost(), "postId", requirePostId(e));
 
                 // 요청 상세: requestId 필수 (커피챗/팀원모집 공용)

@@ -2,7 +2,7 @@ package CamNecT.server.global.websocket;
 
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
-import CamNecT.server.global.jwt.JwtUtil;
+import CamNecT.server.global.jwt.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
@@ -52,7 +52,7 @@ public class ChatStompInterceptor implements ChannelInterceptor {
         String rawToken = accessor.getFirstNativeHeader("Authorization");
 
         if (rawToken == null || !rawToken.startsWith("Bearer ")) {
-            throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
+            throw new CustomException(AuthErrorCode.TOKEN_SHAPE_NOT_ALLOWED);
         }
 
         return rawToken.substring(7);

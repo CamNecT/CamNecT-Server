@@ -12,7 +12,7 @@ import CamNecT.server.domain.verification.email.repository.EmailVerificationToke
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.VerificationErrorCode;
-import CamNecT.server.global.jwt.JwtUtil;
+import CamNecT.server.global.jwt.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -90,9 +90,9 @@ public class EmailVerificationService {
         token.linkUser(user);
 
         // 임시 토큰 발급(기존 로직 유지)
-        String tempToken = jwtUtil.generateVerificationToken(user.getUserId(), user.getRole());
+        String verificationToken = jwtUtil.generateVerificationToken(user.getUserId(), user.getRole());
         long expiresMinutes = jwtUtil.getVerificationTokenExpirationMs() / 60000L;
 
-        return new VerifySignupEmailResponse(user.getUserId(), false, tempToken, expiresMinutes);
+        return new VerifySignupEmailResponse(user.getUserId(), false, verificationToken, expiresMinutes);
     }
 }

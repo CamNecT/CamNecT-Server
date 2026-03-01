@@ -4,6 +4,7 @@ import CamNecT.server.domain.activity.model.external_activity.ExternalActivityBo
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -107,5 +108,9 @@ public interface ExternalActivityBookmarkRepository extends JpaRepository<Extern
             @Param("cursorId") Long cursorId,
             Pageable pageable
     );
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from ExternalActivityBookmark b where b.activity.activityId = :activityId")
+    void deleteAllByActivityId(@Param("activityId") Long activityId);
 
 }

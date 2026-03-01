@@ -63,6 +63,8 @@ public class ChatService {
 
     @Value("${app.point.reward.coffee-chat-accepted:500}")
     private int rewardCoffeeChatAccepted;
+    private static final long LEGACY_TAG_ID = 111L;
+    private static final long CANONICAL_TAG_ID = 53L;
 
     private final UserRepository userRepository;
     private final ChatRepository chatRepository;
@@ -116,9 +118,10 @@ public class ChatService {
         Users receiver = userRepository.findById(receiverId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.RECEIVER_NOT_FOUND));
 
-        List<Tag> tags = tagRepository.findAllById(tagIds);
+        List<Long> normalizedTagIds = normalizeTagIds(tagIds);
 
-        if (tags.size() != tagIds.size()) {
+        List<Tag> tags = tagRepository.findAllById(normalizedTagIds);
+        if (tags.size() != normalizedTagIds.size()) {
             throw new CustomException(CoffeeChatErrorCode.TAG_NOT_FOUND);
         }
 
@@ -158,17 +161,22 @@ public class ChatService {
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUEST_NOT_FOUND));
 
         // 본인 요청인지 검증
-        if (!request.getReceiver().getUserId().equals(userId)) throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
+        if (!request.getReceiver().getUserId().equals(userId))
+            throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
 
-        if (request.getStatus().equals(ChatRequest.RequestStatus.ACCEPTED)) { return; }
-        if (request.getStatus().equals(ChatRequest.RequestStatus.REJECTED)) { return; }
+        if (request.getStatus().equals(ChatRequest.RequestStatus.ACCEPTED)) {
+            return;
+        }
+        if (request.getStatus().equals(ChatRequest.RequestStatus.REJECTED)) {
+            return;
+        }
 
         if (isAccepted) {
             request.accept();
             Long requesterId = request.getRequester().getUserId();
             Long roomId = createChatRoom(request);
             pointService.earnPoint(requesterId, rewardCoffeeChatAccepted,
-                    PointEvent.coffeeChatAccepted(requesterId,request.getId()));
+                    PointEvent.coffeeChatAccepted(requesterId, request.getId()));
             tryRewardCoffeeChatAcceptedPoint(request);
             publishAcceptedNotification(request, roomId);
         } else {
@@ -311,9 +319,12 @@ public class ChatService {
 
         markAllAsRead(roomId, opponent);
 
-        List<Chat> chatHistory = chatRepository.findAllByRoomId(roomId);
+        List<Chat> chatHistory = chatRepository.findTop1000ByRoomId(
+                roomId, PageRequest.of(0, 1000)
+        );
 
         return chatHistory.stream()
+                .sorted(Comparator.comparing(Chat::getId))
                 .map(ChatMessageResponseDto::toDto)
                 .toList();
     }
@@ -415,11 +426,11 @@ public class ChatService {
                     UserProfile opProfile = profileMap.get(opponent.getUserId());
 
                     String majorName = "전공 미입력";
-                    String studentYear = "";
+                    String studentNo = "";
                     String profileImgUrl = "/images/default.png";
 
                     if (opProfile != null) {
-                        studentYear = (opProfile.getYearLevel() != null) ? opProfile.getYearLevel().toString() : "미입력";
+                        studentNo = (opProfile.getStudentNo() != null) ? opProfile.getStudentNo() : "미입력";
                         if (opProfile.getMajorId() != null) {
                             majorName = majorRepository.findById(opProfile.getMajorId())
                                     .map(Majors::getMajorNameKor)
@@ -432,7 +443,7 @@ public class ChatService {
                     Long count = unreadCounts.getOrDefault(room.getId(), 0L);
                     String lastMessage = lastMessageMap.getOrDefault(room.getId(), "대화 내용이 없습니다.");
 
-                    return ChatRoomListDetailDto.of(room, me, count, majorName, studentYear, lastMessage, profileImgUrl);
+                    return ChatRoomListDetailDto.of(room, me, count, majorName, studentNo, lastMessage, profileImgUrl);
                 })
                 .toList();
     }
@@ -662,7 +673,7 @@ public class ChatService {
 
         requests.forEach(ChatRequest::reject);
     }
-    
+
     public void closeChatRoom(Long roomId, Long userId) {
         ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
@@ -707,9 +718,20 @@ public class ChatService {
         }
         try {
             pointService.earnPoint(targetUserId, rewardCoffeeChatAccepted,
-                    PointEvent.coffeeChatAccepted(targetUserId,request.getId()));
+                    PointEvent.coffeeChatAccepted(targetUserId, request.getId()));
         } catch (Exception ex) {
             log.warn("[coffeechat] point reward failed. requestId={}, userId={}", requestId, targetUserId, ex);
         }
+    }
+
+    private List<Long> normalizeTagIds(List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) return List.of();
+
+        // 순서 유지가 필요 없으면 Set으로 가도 되는데, 혹시 프론트가 순서 의미를 두면 LinkedHashSet 권장
+        return tagIds.stream()
+                .filter(Objects::nonNull)
+                .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
+                .distinct()
+                .toList();
     }
 }

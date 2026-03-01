@@ -13,7 +13,6 @@ import CamNecT.server.domain.portfolio.model.PortfolioProject;
 import CamNecT.server.domain.portfolio.repository.PortfolioAssetRepository;
 import CamNecT.server.domain.portfolio.repository.PortfolioRepository;
 import CamNecT.server.domain.users.model.UserRole;
-import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.ActivityErrorCode;
@@ -37,6 +36,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PortfolioService {
     private static final String DEFAULT_THUMB = "기본이미지";
+    private static final String DEFAULT_THUMB_KEY = "camnect/portfolio/default/thumbnail.png";
 
     private final UserRepository userRepository;
     private final PortfolioRepository portfolioRepository;
@@ -59,7 +59,7 @@ public class PortfolioService {
                 .map(r -> new PortfolioPreviewResponse(
                         r.portfolioId(),
                         r.title(),
-                        cdnOrNull(r.thumbnailUrl()),
+                        cdnOrDefault(r.thumbnailUrl()),
                         r.isPublic(),
                         r.isFavorite(),
                         r.updatedAt()
@@ -80,7 +80,7 @@ public class PortfolioService {
             throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
         }
 
-        String thumbUrl = cdnOrNull(project.getThumbnailUrl());
+        String thumbUrl = cdnOrDefault(project.getThumbnailUrl());
         PortfolioProjectDto projectDto = PortfolioProjectDto.from(project, thumbUrl);
 
         List<PortfolioAsset> assets = portfolioAssetRepository.findAssetsByPortfolioId(portfolioId);
@@ -136,6 +136,8 @@ public class PortfolioService {
 
         if (!Objects.equals(userId, portfolioUserId)) throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
 
+        if (request.thumbnailKey() == null) throw new CustomException(UserErrorCode.PORTFOLIO_THUMBNAIL_REQUIRED);
+
         // 1. 엔티티 생성 시 누락된 필드(assignedRole, techStack) 추가
         PortfolioProject project = PortfolioProject.builder()
                 .userId(userId)
@@ -145,8 +147,10 @@ public class PortfolioService {
                 .startDate(request.startedAt())
                 .endDate(request.endedAt())
                 .review(request.review())
-                .assignedRole(List.of(request.project_role())) // String을 List로 변환하여 저장
-                .techStack(request.techStack()) // 추가
+                .assignedRole(StringUtils.hasText(request.project_role())
+                        ? new ArrayList<>(List.of(request.project_role()))
+                        : new ArrayList<>())
+                .techStack(new ArrayList<>(request.techStack()))
                 .isPublic(true)
                 .createdAt(LocalDate.now())
                 .updatedAt(LocalDate.now())
@@ -171,7 +175,7 @@ public class PortfolioService {
         return new PortfolioPreviewResponse(
                 saved.getPortfolioId(),
                 saved.getTitle(),
-                cdnOrNull(saved.getThumbnailUrl()),
+                cdnOrDefault(saved.getThumbnailUrl()),
                 saved.isPublic(),
                 saved.isFavorite(),
                 saved.getUpdatedAt()
@@ -214,7 +218,7 @@ public class PortfolioService {
         return new PortfolioPreviewResponse(
                 project.getPortfolioId(),
                 project.getTitle(),
-                cdnOrNull(project.getThumbnailUrl()),
+                cdnOrDefault(project.getThumbnailUrl()),
                 project.isPublic(),
                 project.isFavorite(),
                 project.getUpdatedAt()
@@ -274,13 +278,15 @@ public class PortfolioService {
         if (!Objects.equals(project.getUserId(), userId)) throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
     }
 
-    private String cdnOrNull(String key) {
-        if (!StringUtils.hasText(key) || DEFAULT_THUMB.equals(key)) return null;
+    private String cdnOrDefault(String key) {
+        String safeKey = (StringUtils.hasText(key)) ? key : DEFAULT_THUMB_KEY;
         try {
-            return publicUrlIssuer.issuePublicUrl(key);
+            String url = publicUrlIssuer.issuePublicUrl(safeKey);
+            return StringUtils.hasText(url) ? url : publicUrlIssuer.issuePublicUrl(DEFAULT_THUMB_KEY);
         } catch (Exception e) {
-            log.warn("issuePublicUrl failed. key={}", key, e);
-            return null;
+            log.warn("issuePublicUrl failed. key={}", safeKey, e);
+            // 최후의 최후: 하드코딩 URL로라도 반환 (여기서도 null 금지)
+            return "https://cdn.camnect.site/" + DEFAULT_THUMB_KEY;
         }
     }
 }

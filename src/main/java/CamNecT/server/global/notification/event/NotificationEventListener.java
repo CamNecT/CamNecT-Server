@@ -84,16 +84,17 @@ public class NotificationEventListener {
 
         Map<String, String> data = new java.util.HashMap<>();
         data.put("type", e.type().name());
+        data.put("title", title);                 // data로 title 전달 (중복제거 위해 추가)
+        data.put("body", body == null ? "" : body); // data로 body 전달 (중복제거 위해 추가)
+        data.put("link", link);
         if (e.postId() != null) data.put("postId", String.valueOf(e.postId()));
         if (e.commentId() != null) data.put("commentId", String.valueOf(e.commentId()));
         if (e.requestId() != null) data.put("requestId", String.valueOf(e.requestId()));
 
-        data.put("link", link);
-
         try {
             log.info("[notif] fcm send start receiver={}, title={}, bodyLen={}, dataKeys={}",
                     e.receiverUserId(), title, body == null ? 0 : body.length(), data.keySet());
-            FCMSender.SendResult result = fcmSender.sendToTokens(tokens, title, body, data);
+            FCMSender.SendResult result = fcmSender.sendToTokens(tokens, data); //이앞 title,body 지웠다.
             log.info("[notif] fcm send done receiver={}, requested={}, success={}, failure={}, invalid={}",
                     e.receiverUserId(),
                     result.requested(), result.success(), result.failure(),

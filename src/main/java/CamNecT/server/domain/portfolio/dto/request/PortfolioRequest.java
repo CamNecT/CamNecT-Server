@@ -16,7 +16,6 @@ public record PortfolioRequest(
 ) {
     // null 방어: attachmentKeys가 null로 들어오면 빈 리스트로 초기화
     public PortfolioRequest {
-        if (attachmentKeys == null) attachmentKeys = List.of();
-        if (techStack == null) techStack = List.of();
+        techStack = (techStack == null) ? new java.util.ArrayList<>() : new java.util.ArrayList<>(techStack);
     }
 }

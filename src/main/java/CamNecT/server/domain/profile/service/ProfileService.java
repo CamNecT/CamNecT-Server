@@ -39,6 +39,7 @@ import CamNecT.server.global.storage.service.PresignEngine;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import CamNecT.server.global.tag.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProfileService {
@@ -58,6 +60,9 @@ public class ProfileService {
 
     private static final Set<String> PROFILE_IMAGE_ALLOWED =
             Set.of("image/jpeg", "image/png", "image/webp");
+    
+    private static final String DEFAULT_PORTFOLIO_THUMB_KEY =
+            "camnect/portfolio/default/camnect_default_portfolio_thumbnail.png";
 
     private final UserRepository userRepository;
     private final CertificateRepository certificateRepository;
@@ -85,6 +90,9 @@ public class ProfileService {
 
         boolean isOwner = (loginUserId != null) && loginUserId.equals(profileUserId);
 
+        boolean isFollowing = (loginUserId != null && !isOwner)
+                && userFollowRepository.existsByFollowerIdAndFollowingId(loginUserId, profileUserId);
+
         boolean showFollower = isOwner || Boolean.TRUE.equals(userProfile.getIsFollowerVisible());
         boolean showEducation = isOwner || Boolean.TRUE.equals(userProfile.getIsEducationVisible());
         boolean showExperience = isOwner || Boolean.TRUE.equals(userProfile.getIsExperienceVisible());
@@ -94,7 +102,10 @@ public class ProfileService {
         int follower = showFollower ? userFollowRepository.countByFollowingId(profileUserId) : 0;
         int myPoints = isOwner ? pointService.getBalance(profileUserId) : 0;
 
-        List<PortfolioPreviewResponse> portfolioPreviewResponses = portfolioRepository.findPreviewsByUserId(profileUserId);
+        List<PortfolioPreviewResponse> portfolioPreviewResponses =
+                portfolioRepository.findPreviewsByUserId(profileUserId).stream()
+                        .map(this::toCdnPreview)
+                        .toList();
 
         List<EducationResponse> educationResponses = showEducation
                 ? educationRepository.findAllByUserIdWithDetails(profileUserId)
@@ -133,6 +144,7 @@ public class ProfileService {
                 user.getUserId(),
                 user.getName(),
                 basicProfile,
+                isFollowing,
                 following,
                 follower,
                 myPoints,
@@ -342,5 +354,28 @@ public class ProfileService {
                 user.getPhoneNum(),
                 user.getEmail()
         );
+    }
+
+    private PortfolioPreviewResponse toCdnPreview(PortfolioPreviewResponse p) {
+        return new PortfolioPreviewResponse(
+                p.portfolioId(),
+                p.title(),
+                portfolioThumbOrDefault(p.thumbnailUrl()),
+                p.isPublic(),
+                p.isFavorite(),
+                p.updatedAt()
+        );
+    }
+
+    private String portfolioThumbOrDefault(String key) {
+        String safeKey = StringUtils.hasText(key) ? key : DEFAULT_PORTFOLIO_THUMB_KEY;
+
+        try {
+            String url = publicUrlIssuer.issueImagePublicUrl(safeKey);
+            return StringUtils.hasText(url) ? url : ("https://cdn.camnect.site/" + DEFAULT_PORTFOLIO_THUMB_KEY);
+        } catch (Exception e) {
+            log.warn("issueImagePublicUrl failed. key={}", safeKey, e);
+            return "https://cdn.camnect.site/" + DEFAULT_PORTFOLIO_THUMB_KEY;
+        }
     }
 }

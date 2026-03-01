@@ -62,7 +62,7 @@ public class PortfolioAttachmentService {
 
         return presignEngine.issueUpload(
                 userId,
-                UploadPurpose.PORTFOLIO_ATTACHMENT,
+                UploadPurpose.PORTFOLIO_THUMBNAIL,
                 prefix,
                 ct,
                 req.size(),
@@ -127,7 +127,8 @@ public class PortfolioAttachmentService {
         // thumbnail (create에서는 "있으면 세팅", 없으면 DEFAULT 유지)
         if (hasText(thumbnailKey) && !DEFAULT_THUMB.equals(thumbnailKey)) {
             ensureThumbnailIsImage(thumbnailKey);
-            String finalKey = consume(userId, project.getPortfolioId(), thumbnailKey, finalThumbPrefix);
+            String finalKey = consume(userId, project.getPortfolioId(), thumbnailKey,
+                    finalThumbPrefix,UploadPurpose.PORTFOLIO_THUMBNAIL);
             project.updateThumbnail(finalKey);
         }
 
@@ -136,7 +137,8 @@ public class PortfolioAttachmentService {
         int order = 1;
 
         for (String k : reqKeys) {
-            String finalKey = consume(userId, project.getPortfolioId(), k, finalAssetPrefix);
+            String finalKey = consume(userId, project.getPortfolioId(), k,
+                    finalAssetPrefix, UploadPurpose.PORTFOLIO_ATTACHMENT);
 
             UploadTicket t = ticketRepo.findByStorageKey(finalKey)
                     .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
@@ -175,7 +177,7 @@ public class PortfolioAttachmentService {
                 String old = project.getThumbnailUrl();
                 if (hasText(old) && !DEFAULT_THUMB.equals(old)) deleteAfterCommit.add(old);
 
-                String finalKey = consume(userId, project.getPortfolioId(), newThumbnailKey, finalThumbPrefix);
+                String finalKey = consume(userId, project.getPortfolioId(), newThumbnailKey, finalThumbPrefix, UploadPurpose.PORTFOLIO_THUMBNAIL);
                 project.updateThumbnail(finalKey);
             }
         }
@@ -186,9 +188,6 @@ public class PortfolioAttachmentService {
                     .filter(a -> hasText(a.getFileKey()))
                     .collect(Collectors.toMap(PortfolioAsset::getFileKey, a -> a, (a, b) -> a));
 
-            // (포트폴리오는 "썸네일/첨부 별개"지만,
-            // 기존 코드 유지 원하면 distinctKeys 그대로 써도 무방합니다.
-            // 단, attachmentKeys에 thumbnailKey가 들어올 일이 없다면 distinctKeys 대신 distinct만 해도 됩니다.)
             LinkedHashSet<String> reqKeys = new LinkedHashSet<>();
             for (String k : newAttachmentKeys) {
                 if (hasText(k)) reqKeys.add(k);
@@ -205,7 +204,7 @@ public class PortfolioAttachmentService {
                     continue;
                 }
 
-                String finalKey = consume(userId, project.getPortfolioId(), k, finalAssetPrefix);
+                String finalKey = consume(userId, project.getPortfolioId(), k, finalAssetPrefix, UploadPurpose.PORTFOLIO_ATTACHMENT);
 
                 UploadTicket t = ticketRepo.findByStorageKey(finalKey)
                         .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
@@ -252,10 +251,10 @@ public class PortfolioAttachmentService {
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
     }
 
-    private String consume(Long userId, Long portfolioId, String keyFromClient, String finalPrefix) {
+    private String consume(Long userId, Long portfolioId, String keyFromClient, String finalPrefix, UploadPurpose purpose) {
         return presignEngine.consume(
                 userId,
-                UploadPurpose.PORTFOLIO_ATTACHMENT,
+                purpose,
                 UploadRefType.PORTFOLIO,
                 portfolioId,
                 keyFromClient,
@@ -272,11 +271,14 @@ public class PortfolioAttachmentService {
     private LinkedHashSet<String> distinctKeys(List<String> keys, String thumbnailKey) {
         LinkedHashSet<String> out = new LinkedHashSet<>();
         if (keys == null) return out;
-
+        String cleanThumb = (thumbnailKey != null) ? thumbnailKey.trim() : null;
         for (String k : keys) {
             if (!hasText(k)) continue;
-            if (hasText(thumbnailKey) && Objects.equals(k, thumbnailKey)) continue; //thumbKey 중복 제거
-            out.add(k);
+            String cleanK = k.trim();
+            if (hasText(cleanThumb) && Objects.equals(cleanK, cleanThumb)) {
+                continue;
+            }
+            out.add(cleanK);
         }
         return out;
     }

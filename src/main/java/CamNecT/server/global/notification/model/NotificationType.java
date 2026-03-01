@@ -10,6 +10,7 @@ public enum NotificationType {
     POST_COMMENTED,
     COMMENT_ACCEPTED,
     COMMENT_REPLIED,
+    FOLLOWING_POSTED,
 
     //COFFEE_CHAT로직관련(전송)
     COFFEE_CHAT_REQUESTED,

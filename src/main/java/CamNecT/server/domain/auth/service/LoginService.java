@@ -23,13 +23,18 @@ import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
-import CamNecT.server.global.jwt.JwtFacade;
-import CamNecT.server.global.jwt.JwtUtil;
+import CamNecT.server.global.jwt.model.UserRefreshToken;
+import CamNecT.server.global.jwt.repository.UserRefreshTokenRepository;
+import CamNecT.server.global.jwt.util.JwtFacade;
+import CamNecT.server.global.jwt.util.JwtUtil;
 
+import CamNecT.server.global.jwt.util.TokenUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +52,7 @@ public class LoginService {
     private final ExperienceRepository experienceRepository;
     private final EducationRepository educationRepository;
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private final UserRefreshTokenRepository userRefreshTokenRepository;
 
     @Transactional
     public LoginResponse login(LoginRequest req) {
@@ -66,6 +72,8 @@ public class LoginService {
         if (user.getRole() == UserRole.ADMIN) {
             String access = jwtFacade.createAccessToken(user);
             String refresh = jwtFacade.createRefreshToken(user);
+
+            upsertRefreshToken(user.getUserId(), refresh);
 
             return new LoginResponse(
                     "Bearer", access, refresh,
@@ -106,7 +114,8 @@ public class LoginService {
         String access = jwtFacade.createAccessToken(user);
         String refresh = jwtFacade.createRefreshToken(user);
 
-        //TODO : 인증완료화면에서 이름,학과,학번,대학 4가지 return해줘야됨 -> response를 손보기? 첫 로그인한정 api 추가?
+        upsertRefreshToken(user.getUserId(), refresh);
+
         return new LoginResponse(
                 "Bearer", access, refresh,
                 jwtUtil.getAccessTokenExpirationMs(),
@@ -169,9 +178,7 @@ public class LoginService {
                 || nextStep == LoginNextStep.DOCUMENT_REVIEW_WAITING;
     }
 
-    public void logout(Long loginUserId) {
-        /* stateless access-token only 구조: 서버에서 할 일 없음
-                                            (추후 필요하면 푸시토큰 해제, 디바이스 세션 정리 등을 여기서 처리) */}
+    public void logout(Long loginUserId) { userRefreshTokenRepository.deleteById(loginUserId); }
 
     @Transactional
     public void withdraw(Long userId, WithdrawRequest req) {
@@ -204,5 +211,21 @@ public class LoginService {
 
         // 저장
         userRepository.save(user);
+    }
+
+    private void upsertRefreshToken(Long userId, String refreshToken) {
+        String hash = TokenUtil.sha256Hex(refreshToken);
+        Instant expiresAt = jwtUtil.getExpiration(refreshToken);
+        UserRefreshToken row = userRefreshTokenRepository.findByIdForUpdate(userId).orElse(null);
+        if (row == null) {
+            userRefreshTokenRepository.save(UserRefreshToken.builder()
+                    .userId(userId)
+                    .refreshTokenHash(hash)
+                    .expiresAt(expiresAt)
+                    .updatedAt(Instant.now())
+                    .build());
+            return;
+        }
+        row.rotate(hash, expiresAt); // rotate도 Instant 받도록
     }
 }

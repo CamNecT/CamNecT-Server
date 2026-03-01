@@ -50,7 +50,11 @@ public class PortfolioController {
 
     @Operation(summary = "포트폴리오 수정", description = "기존 포트폴리오의 정보를 수정합니다.")
     @PatchMapping("/{portfolioId}")
-    public ApiResponse<PortfolioPreviewResponse> updatePortfolio (@UserId Long userId, @PathVariable Long portfolioId, @PathVariable Long portfolioUserId, @RequestBody @Valid PortfolioRequest portfolioRequest){
+    public ApiResponse<PortfolioPreviewResponse> updatePortfolio (
+            @UserId Long userId,
+            @PathVariable Long portfolioId,
+            @PathVariable Long portfolioUserId,
+            @RequestBody @Valid PortfolioRequest portfolioRequest){
         return ApiResponse.success(portfolioService.update(userId, portfolioUserId, portfolioId,portfolioRequest));
     }
 

@@ -4,6 +4,7 @@ import CamNecT.server.domain.chat.dto.room.ChatRoomListDetailDto;
 import CamNecT.server.domain.chat.dto.room.ChatRoomListResponseDto;
 import CamNecT.server.domain.chat.dto.room.ChatRoomWithDetailDto;
 import CamNecT.server.domain.chat.model.ChatRequest;
+import CamNecT.server.domain.chat.repository.ChatRequestRepository;
 import CamNecT.server.domain.chat.service.ChatService;
 import CamNecT.server.global.common.auth.UserId;
 import CamNecT.server.global.common.response.ApiResponse;
@@ -23,6 +24,7 @@ import java.util.List;
 public class ChatRoomController {
 
     private final ChatService chatService;
+    private final ChatRequestRepository chatRequestRepository;
 
     @Operation(summary = "내 채팅방 목록 조회", description = "참여 중인 모든 채팅방 목록과 전체 안 읽은 메시지 수를 반환합니다. 요청 타입(COFFEE_CHAT, TEAM_RECRUIT)의 리스트를 조회합니다. 아무것도 넘기지 않을 시 전체 조회합니다.")
     @GetMapping("/rooms")
@@ -34,10 +36,13 @@ public class ChatRoomController {
 
         List<ChatRoomListDetailDto> roomList = chatService.getChatRoomList(userId, type);
         long totalUnreadCount = roomList.stream().mapToLong(ChatRoomListDetailDto::getUnreadCount).sum();
+        ChatRequest.RequestStatus pending = ChatRequest.RequestStatus.WAITING;
+        boolean requestExists = chatRequestRepository.existsReceivedPending(userId, pending, type);
 
         ChatRoomListResponseDto response = ChatRoomListResponseDto.builder()
                 .chatRoomList(roomList)
                 .totalUnreadCount(totalUnreadCount)
+                .requestExists(requestExists)
                 .build();
 
         return ApiResponse.success(response);

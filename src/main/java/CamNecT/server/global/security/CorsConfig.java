@@ -19,7 +19,8 @@ public class CorsConfig {
                 "https://camnect-web.vercel.app",
                 "http://localhost:5173",
                 "https://camnect.site",
-                "https://www.camnect.site"
+                "https://www.camnect.site",
+                "https://stage.camnect.site"
         ));
 
         config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
