@@ -14,6 +14,9 @@ import CamNecT.server.domain.community.repository.Comments.AcceptedCommentsRepos
 import CamNecT.server.domain.community.repository.Comments.CommentLikesRepository;
 import CamNecT.server.domain.community.repository.Comments.CommentsRepository;
 import CamNecT.server.domain.community.repository.Posts.*;
+import CamNecT.server.domain.users.repository.UserFollowRepository;
+import CamNecT.server.global.notification.service.NotificationService;
+import CamNecT.server.global.notification.util.NotificationLinkResolver;
 import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserRole;
@@ -37,6 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -71,6 +75,7 @@ public class PostServiceImpl implements PostService {
 
     private final TagRepository tagRepository;
     private final UserRepository userRepository;
+    private final UserFollowRepository followRepository;
     private final UploadTicketRepository uploadTicketRepository;
 
     private final PostAttachmentsService postAttachmentsService;
@@ -78,7 +83,7 @@ public class PostServiceImpl implements PostService {
     private final PresignEngine presignEngine;
 
     private final ApplicationEventPublisher eventPublisher;
-    private final AuthorAssembler  authorAssembler;
+    private final AuthorAssembler authorAssembler;
 
     @Transactional
     @Override
@@ -96,10 +101,28 @@ public class PostServiceImpl implements PostService {
 
         Posts saved = postsRepository.save(post);
         postStatsRepository.save(PostStats.init(saved));
+        log.info("[PostCreate] 게시글 저장 완료 - postId={}", saved.getId());
 
         replaceTags(saved, req.tagIds());
 
         postAttachmentsService.replace(saved, userId, req.attachments());
+
+        List<Long> followerIds = followRepository.findFollowerIdsByFollowingId(userId);
+
+        if (!followerIds.isEmpty()) {
+            String message = user.getName() + "님이 새 글을 게시했습니다.";
+
+            for (Long followerId : followerIds) {
+                eventPublisher.publishEvent(SimpleNotifiableEvent.of(
+                        followerId,
+                        userId,
+                        NotificationType.FOLLOWING_POSTED,
+                        message,
+                        saved.getId(),
+                        null
+                ));
+            }
+        }
 
         return new CreatePostResponse(saved.getId());
     }
@@ -107,7 +130,7 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public void update(Long userId, Long postId, UpdatePostRequest req) {
-        if(userId == null) throw new CustomException(CommunityErrorCode.USER_NOT_FOUND);
+        if (userId == null) throw new CustomException(CommunityErrorCode.USER_NOT_FOUND);
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -166,8 +189,7 @@ public class PostServiceImpl implements PostService {
         // 4) 첨부 정리 (S3 after-commit 삭제 포함)
         postAttachmentsService.purgeAllByPostId(postId);
 
-        // 5) 마지막: 게시글 soft delete
-        post.deleteSoft();
+        postsRepository.softDeleteById(postId, LocalDateTime.now());
     }
 
     @Transactional
@@ -183,7 +205,8 @@ public class PostServiceImpl implements PostService {
                 .orElseGet(() -> postStatsRepository.save(PostStats.init(post)));
 
         //작성자면 본인글 좋아요 불가
-        if(Objects.equals(userId, post.getUser().getUserId())) throw new CustomException(CommunityErrorCode.CANNOT_LIKE_OWN_POST);
+        if (Objects.equals(userId, post.getUser().getUserId()))
+            throw new CustomException(CommunityErrorCode.CANNOT_LIKE_OWN_POST);
 
         boolean liked;
         if (postLikesRepository.existsByPost_IdAndUser_UserId(postId, userId)) {
@@ -198,10 +221,10 @@ public class PostServiceImpl implements PostService {
 
             // 좋아요 3개 이상 “첫 1회” 보상 -> 정보글 한정
             if (stats.getLikeCount() >= 3 && stats.tryMarkLikeRewarded3()
-                    && post.getBoard().getCode()==BoardCode.INFO) {
+                    && post.getBoard().getCode() == BoardCode.INFO) {
                 // 작성자에게 지급 (본인 글이면 지급 안 줄지 정책 결정)
                 Long authorId = post.getUser().getUserId();
-                pointService.earnPoint(authorId, rewardFirstThreeLikes, PointEvent.threeLikeReward(authorId,postId));
+                pointService.earnPoint(authorId, rewardFirstThreeLikes, PointEvent.threeLikeReward(authorId, postId));
             }
         }
         return new ToggleLikeResponse(liked, stats.getLikeCount());
@@ -382,7 +405,7 @@ public class PostServiceImpl implements PostService {
 
         Long receiverId = comment.getUserId();
         if (receiverId != null && !Objects.equals(receiverId, userId)) {
-            pointService.earnPoint(receiverId,rewardAcceptedComment,PointEvent.commentSelection(postId,commentId));
+            pointService.earnPoint(receiverId, rewardAcceptedComment, PointEvent.commentSelection(postId, commentId));
             eventPublisher.publishEvent(SimpleNotifiableEvent.of(
                     receiverId,
                     userId,
@@ -441,19 +464,19 @@ public class PostServiceImpl implements PostService {
 
         if (!isQuestion && post.getAccessType() != PostAccessType.POINT_REQUIRED) {
             int bal = pointService.getBalance(user.getUserId());
-            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal,true);
+            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal, true);
         }
 
         // 2) 작성자는 무료
         if (userId.equals(post.getUser().getUserId())) {
             int bal = pointService.getBalance(user.getUserId());
-            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal,true);
+            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal, true);
         }
 
         // 3) 이미 구매했으면 무료
         if (postAccessRepository.existsByPost_IdAndUser_UserId(postId, userId)) {
             int bal = pointService.getBalance(user.getUserId());
-            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal,true);
+            return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, bal, true);
         }
 
         pointService.spendPoint(userId, questionViewCost, PointEvent.postAccess(userId, postId));
@@ -464,7 +487,7 @@ public class PostServiceImpl implements PostService {
         }
 
         int remaining = pointService.getBalance(userId);
-        return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, remaining,false);
+        return new PurchasePostAccessResponse(postId, ContentAccessStatus.GRANTED, remaining, false);
     }
 
     private void replaceTags(Posts post, List<Long> tagIds) {
