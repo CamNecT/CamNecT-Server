@@ -1,8 +1,4 @@
 spring:
-  task:
-    scheduling:
-      enabled: false
-
   # stage에서는 MAIL_USERNAME/MAIL_PASSWORD를 안 넣어도 뜨게(기본값 제공)
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
