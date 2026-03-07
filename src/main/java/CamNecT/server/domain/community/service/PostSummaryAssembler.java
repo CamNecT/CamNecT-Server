@@ -9,7 +9,6 @@ import CamNecT.server.domain.community.model.enums.ContentAccessStatus;
 import CamNecT.server.domain.community.model.enums.PostAccessType;
 import CamNecT.server.domain.community.repository.Comments.AcceptedCommentsRepository;
 import CamNecT.server.domain.community.repository.Posts.PostAccessRepository;
-import CamNecT.server.domain.community.repository.Posts.PostAttachmentsRepository;
 import CamNecT.server.domain.community.repository.Posts.PostStatsRepository;
 import CamNecT.server.domain.community.repository.Posts.PostTagsRepository;
 import CamNecT.server.global.point.service.PointService;
@@ -30,7 +29,6 @@ public class PostSummaryAssembler {
     private static final int MAX_CONTENT = 80;
 
     private final PostStatsRepository postStatsRepository;
-    private final PostAttachmentsRepository postAttachmentsRepository;
     private final PostTagsRepository postTagsRepository;
     private final PostAccessRepository postAccessRepository;
     private final AcceptedCommentsRepository acceptedCommentsRepository;

@@ -81,18 +81,22 @@ public class PostAttachmentsService {
     @Transactional
     public void replace(Posts post, Long userId, List<AttachmentRequest> attachments) {
 
-        if (attachments != null && attachments.size() > attachmentProps.maxFiles()) {
-            throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
-        }
+        // update에서 null은 "첨부 수정 안 함"
+        // create에서 null이어도 어차피 아무 작업 안 하면 됨
+        if (attachments == null) return;
+        if (attachments.size() > attachmentProps.maxFiles()) throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
 
         // 기존 활성 첨부파일
-        List<PostAttachments> oldActive =
-                postAttachmentsRepository.findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(post.getId());
+        List<PostAttachments> oldActive = postAttachmentsRepository.
+                findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(post.getId());
 
         Set<String> oldKeys = new HashSet<>();
+        Map<String, PostAttachments> oldByKey = new HashMap<>();
         for (PostAttachments a : oldActive) {
-            if (StringUtils.hasText(a.getFileKey())) oldKeys.add(a.getFileKey());
-            // thumbnailKey는 더 이상 여기서 관리 안 함
+            if (StringUtils.hasText(a.getFileKey())) {
+                oldKeys.add(a.getFileKey());
+                oldByKey.put(a.getFileKey(), a);
+            }
         }
         String oldThumbnailKey = post.getThumbnailKey();
 
@@ -100,7 +104,7 @@ public class PostAttachmentsService {
         postAttachmentsRepository.softDeleteByPostId(post.getId());
 
         // 새 첨부 없으면: 기존 파일 전부 삭제 예약
-        if (attachments == null || attachments.isEmpty()) {
+        if (attachments.isEmpty()) {
             post.updateThumbnailKey(null);
             registerAfterCommitDelete(oldActive, Set.of(), oldThumbnailKey, null);
             return;
@@ -113,13 +117,18 @@ public class PostAttachmentsService {
         List<String> finalKeysInOrder = new ArrayList<>();
         Set<String> newFinalKeys = new HashSet<>();
         Map<String, String> resolvedThisRequest = new HashMap<>();
+        Set<String> seenInputKeys = new HashSet<>();
+
         int order = 0;
 
         for (AttachmentRequest req : attachments) {
-            if (req == null || !StringUtils.hasText(req.fileKey())) continue;
+            if (req == null) continue;
 
             String inFileKey = req.fileKey();
             if (!StringUtils.hasText(inFileKey)) continue;
+
+            // 같은 key가 중복으로 오면 1번만 처리
+            if (!seenInputKeys.add(inFileKey)) continue;
 
             String finalFileKey = resolveFinalKey(
                     userId,
@@ -129,12 +138,26 @@ public class PostAttachmentsService {
                     req.fileKey(),
                     finalAttachPrefix
             );
+            PostAttachments old = oldByKey.get(finalFileKey);
+
+            Integer width = (req.width() != null)
+                    ? req.width()
+                    : (old != null ? old.getWidth() : null);
+
+            Integer height = (req.height() != null)
+                    ? req.height()
+                    : (old != null ? old.getHeight() : null);
+
+            Long fileSize = (req.fileSize() != null)
+                    ? req.fileSize()
+                    : (old != null ? old.getFileSize() : null);
+
             toSave.add(PostAttachments.create(
                     post,
                     finalFileKey,
-                    req.width(),
-                    req.height(),
-                    req.fileSize(),
+                    width,
+                    height,
+                    fileSize,
                     order
             ));
 

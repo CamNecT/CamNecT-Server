@@ -225,8 +225,4 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
             @Param("cursorId") Long cursorId,
             Pageable pageable
     );
-
-    @Modifying
-    @Query("UPDATE Posts p SET p.status = 'DELETED', p.deletedAt = :now WHERE p.id = :id")
-    void softDeleteById(@Param("id") Long id, @Param("now") LocalDateTime now);
 }

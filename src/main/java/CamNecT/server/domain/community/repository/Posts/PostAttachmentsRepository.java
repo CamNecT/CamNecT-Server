@@ -15,26 +15,16 @@ public interface PostAttachmentsRepository extends JpaRepository<PostAttachments
     // 상세: 첨부 전체(active만)
     List<PostAttachments> findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(Long postId);
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(flushAutomatically = true)
     @Query("""
-           update PostAttachments a
-              set a.status = false
-            where a.post.id = :postId
-              and a.status = true
-           """)
+       update PostAttachments a
+          set a.status = false
+        where a.post.id = :postId
+          and a.status = true
+       """)
     void softDeleteByPostId(@Param("postId") Long postId);
 
     Optional<PostAttachments> findByIdAndPost_IdAndStatusTrue(Long id, Long postId);
-
-    @Query("""
-        select a
-        from PostAttachments a
-        where a.status = true
-        and a.post.id in :postIds
-        and a.sortOrder = 0
-        order by a.post.id asc, a.id asc
-        """)
-    List<PostAttachments> findThumbCandidates(@Param("postIds") Collection<Long> postIds);
 
 }
 
