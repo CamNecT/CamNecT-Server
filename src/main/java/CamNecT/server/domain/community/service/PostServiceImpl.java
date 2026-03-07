@@ -15,8 +15,6 @@ import CamNecT.server.domain.community.repository.Comments.CommentLikesRepositor
 import CamNecT.server.domain.community.repository.Comments.CommentsRepository;
 import CamNecT.server.domain.community.repository.Posts.*;
 import CamNecT.server.domain.users.repository.UserFollowRepository;
-import CamNecT.server.global.notification.service.NotificationService;
-import CamNecT.server.global.notification.util.NotificationLinkResolver;
 import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserRole;
@@ -187,7 +185,7 @@ public class PostServiceImpl implements PostService {
         acceptedCommentsRepository.deleteByPost_Id(postId);
 
         // 4) 첨부 정리 (S3 after-commit 삭제 포함)
-        postAttachmentsService.purgeAllByPostId(postId);
+        postAttachmentsService.purgeAll(post);
 
         postsRepository.softDeleteById(postId, LocalDateTime.now());
     }

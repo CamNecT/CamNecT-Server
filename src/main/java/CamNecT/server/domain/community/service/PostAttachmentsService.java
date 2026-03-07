@@ -8,6 +8,8 @@ import CamNecT.server.domain.community.repository.Posts.PostAttachmentsRepositor
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.StorageErrorCode;
+import CamNecT.server.global.storage.model.UploadTicket;
+import CamNecT.server.global.storage.repository.UploadTicketRepository;
 import CamNecT.server.global.storage.service.GlobalPresignMethods;
 import CamNecT.server.global.storage.dto.request.PresignUploadBatchRequest;
 import CamNecT.server.global.storage.dto.response.PresignUploadBatchResponse;
@@ -24,8 +26,11 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class PostAttachmentsService {
+    protected static final Set<String> THUMB_ALLOWED = Set.of("image/jpeg","image/png","image/webp");
+
     private final PostAttachmentsRepository postAttachmentsRepository;
     private final UserRepository userRepository;
+    private final UploadTicketRepository uploadTicketRepository;
 
     private final PresignEngine presignEngine;
     private final CommunityAttachmentProps attachmentProps;
@@ -68,10 +73,10 @@ public class PostAttachmentsService {
     }
 
     /**
-     * 게시글 저장/수정 시 첨부 교체(consume + 정렬)
-     * - sortOrder=0의 파일이 "이미지"이면 finalPrefix=/thumbnail 로 이동
-     * - sortOrder=0의 파일이 "이미지 아님(pdf 등)"이면 finalPrefix=/attachments 로 이동 (썸네일 없음)
-     * - sortOrder>=1은 항상 /attachments
+     * 게시글 저장/수정 시 첨부 교체
+     * - 모든 첨부는 /attachments 로 이동
+     * - 첫 첨부가 이미지면 /thumbnail 로 별도 copy 후 post.thumbnailKey 저장
+     * - 첫 첨부가 이미지가 아니면 post.thumbnailKey = null
      */
     @Transactional
     public void replace(Posts post, Long userId, List<AttachmentRequest> attachments) {
@@ -89,50 +94,41 @@ public class PostAttachmentsService {
             if (StringUtils.hasText(a.getFileKey())) oldKeys.add(a.getFileKey());
             // thumbnailKey는 더 이상 여기서 관리 안 함
         }
+        String oldThumbnailKey = post.getThumbnailKey();
 
         // 기존 활성건 soft delete
         postAttachmentsRepository.softDeleteByPostId(post.getId());
 
         // 새 첨부 없으면: 기존 파일 전부 삭제 예약
         if (attachments == null || attachments.isEmpty()) {
-            registerAfterCommitDelete(oldActive, Set.of());
+            post.updateThumbnailKey(null);
+            registerAfterCommitDelete(oldActive, Set.of(), oldThumbnailKey, null);
             return;
         }
 
-        String finalThumbPrefix  = "community/posts/post-" + post.getId() + "/thumbnail";
         String finalAttachPrefix = "community/posts/post-" + post.getId() + "/attachments";
+        String finalThumbPrefix  = "community/posts/post-" + post.getId() + "/thumbnail";
 
         List<PostAttachments> toSave = new ArrayList<>();
+        List<String> finalKeysInOrder = new ArrayList<>();
+        Set<String> newFinalKeys = new HashSet<>();
+        Map<String, String> resolvedThisRequest = new HashMap<>();
         int order = 0;
 
-        Set<String> newFinalKeys = new HashSet<>();
-        Set<String> consumedThisRequest = new HashSet<>();
-
         for (AttachmentRequest req : attachments) {
-            if (req == null) continue;
+            if (req == null || !StringUtils.hasText(req.fileKey())) continue;
 
             String inFileKey = req.fileKey();
             if (!StringUtils.hasText(inFileKey)) continue;
-
-            // order==0이면 "이미지인지"를 보고 thumbnail 경로로 보낼지 결정
-            String chosenPrefix;
-            if (order == 0 && isThumbCandidateKey(inFileKey)) {
-                chosenPrefix = finalThumbPrefix;
-            } else {
-                chosenPrefix = finalAttachPrefix;
-            }
 
             String finalFileKey = resolveFinalKey(
                     userId,
                     post.getId(),
                     oldKeys,
-                    consumedThisRequest,
-                    inFileKey,
-                    chosenPrefix
+                    resolvedThisRequest,
+                    req.fileKey(),
+                    finalAttachPrefix
             );
-
-            newFinalKeys.add(finalFileKey);
-
             toSave.add(PostAttachments.create(
                     post,
                     finalFileKey,
@@ -142,16 +138,27 @@ public class PostAttachmentsService {
                     order
             ));
 
+            finalKeysInOrder.add(finalFileKey);
+            newFinalKeys.add(finalFileKey);
             order++;
         }
 
         if (toSave.isEmpty()) {
-            registerAfterCommitDelete(oldActive, Set.of());
+            post.updateThumbnailKey(null);
+            registerAfterCommitDelete(oldActive, Set.of(), oldThumbnailKey, null);
             return;
         }
 
         postAttachmentsRepository.saveAll(toSave);
-        registerAfterCommitDelete(oldActive, newFinalKeys);
+
+        String newThumbnailKey = null;
+        String thumbSourceKey = pickThumbnailSourceKey(finalKeysInOrder);
+        if (thumbSourceKey != null) {
+            newThumbnailKey = globalPresignMethods.copyToPrefix(thumbSourceKey, finalThumbPrefix);
+        }
+
+        post.updateThumbnailKey(newThumbnailKey);
+        registerAfterCommitDelete(oldActive, newFinalKeys, oldThumbnailKey, newThumbnailKey);
     }
 
     private void validateAttachmentItem(PresignUploadBatchRequest.Item item) {
@@ -165,8 +172,41 @@ public class PostAttachmentsService {
         }
     }
 
-    private boolean isThumbCandidateKey(String key) {
+    /**
+     * 현재 community 정책 유지:
+     * "첫 첨부"가 이미지일 때만 썸네일 생성
+     */
+    private String pickThumbnailSourceKey(List<String> finalKeysInOrder) {
+        if (finalKeysInOrder == null || finalKeysInOrder.isEmpty()) return null;
+
+        String firstKey = finalKeysInOrder.getFirst();
+        if (isImageKey(firstKey)) return firstKey;
+
+        /*
+         * 대체 정책(현재 미사용):
+         * 첫 번째 첨부가 이미지가 아니면,
+         * 첨부 목록 중 '첫 번째 이미지'를 썸네일로 사용
+         *
+         * for (String key : finalKeysInOrder) {
+         *     if (isImageKey(key)) return key;
+         * }
+         */
+
+        return null;
+    }
+
+    private boolean isImageKey(String key) {
         if (!StringUtils.hasText(key)) return false;
+
+        String ct = uploadTicketRepository.findByStorageKey(key)
+                .map(UploadTicket::getContentType)
+                .map(globalPresignMethods::normalize)
+                .orElse(null);
+
+        if (StringUtils.hasText(ct)) {
+            return THUMB_ALLOWED.contains(ct);
+        }
+
         String k = key.toLowerCase(Locale.ROOT);
         return k.endsWith(".jpg") || k.endsWith(".jpeg") || k.endsWith(".png") || k.endsWith(".webp");
     }
@@ -175,14 +215,16 @@ public class PostAttachmentsService {
             Long userId,
             Long postId,
             Set<String> oldKeys,
-            Set<String> consumedThisRequest,
+            Map<String, String> resolvedThisRequest,
             String keyFromClient,
             String finalPrefix
     ) {
         if (oldKeys.contains(keyFromClient)) return keyFromClient;
-        if (!consumedThisRequest.add(keyFromClient)) return keyFromClient;
 
-        return presignEngine.consume(
+        String alreadyResolved = resolvedThisRequest.get(keyFromClient);
+        if (alreadyResolved != null) return alreadyResolved;
+
+        String finalKey = presignEngine.consume(
                 userId,
                 UploadPurpose.COMMUNITY_POST_ATTACHMENT,
                 UploadRefType.POST,
@@ -190,26 +232,45 @@ public class PostAttachmentsService {
                 keyFromClient,
                 finalPrefix
         );
+
+        resolvedThisRequest.put(keyFromClient, finalKey);
+        return finalKey;
     }
 
     @Transactional
-    public void purgeAllByPostId(Long postId) {
+    public void purgeAll(Posts post) {
         List<PostAttachments> oldActive =
-                postAttachmentsRepository.findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(postId);
+                postAttachmentsRepository.findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(post.getId());
 
-        postAttachmentsRepository.softDeleteByPostId(postId);
+        String oldThumbnailKey = post.getThumbnailKey();
 
-        registerAfterCommitDelete(oldActive, Set.of());
+        postAttachmentsRepository.softDeleteByPostId(post.getId());
+        post.updateThumbnailKey(null);
+
+        registerAfterCommitDelete(oldActive, Set.of(), oldThumbnailKey, null);
     }
 
-    private void registerAfterCommitDelete(List<PostAttachments> oldActive, Set<String> newKeys) {
+    private void registerAfterCommitDelete(
+            List<PostAttachments> oldActive,
+            Set<String> newKeys,
+            String oldThumbnailKey,
+            String newThumbnailKey
+    ) {
         Set<String> deleteKeys = new HashSet<>();
+
         for (PostAttachments a : oldActive) {
             String fk = a.getFileKey();
             if (StringUtils.hasText(fk) && !newKeys.contains(fk)) {
                 deleteKeys.add(fk);
             }
         }
+
+        if (StringUtils.hasText(oldThumbnailKey)
+                && !Objects.equals(oldThumbnailKey, newThumbnailKey)
+                && !newKeys.contains(oldThumbnailKey)) {
+            deleteKeys.add(oldThumbnailKey);
+        }
+
         globalPresignMethods.deleteAfterCommit(deleteKeys);
     }
 }

@@ -61,15 +61,6 @@ public class PostSummaryAssembler {
         // accepted bulk
         Set<Long> acceptedPostIds = new HashSet<>(acceptedCommentsRepository.findAcceptedPostIds(postIds));
 
-        // thumbnail bulk (sortOrder=0)
-        Map<Long, String> thumbKeyMap = new HashMap<>();
-        postAttachmentsRepository.findThumbCandidates(postIds).forEach(a -> {
-            Long pid = a.getPost().getId();
-            if (!thumbKeyMap.containsKey(pid) && hasText(a.getFileKey())) {
-                thumbKeyMap.put(pid, a.getFileKey());
-            }
-        });
-
         // author bulk
         List<Long> authorIds = posts.stream()
                 .map(p -> p.getUser().getUserId())
@@ -131,8 +122,8 @@ public class PostSummaryAssembler {
                     : null;
 
             String thumbUrl = null;
-            String thumbKey = thumbKeyMap.get(p.getId());
-            if (!paywalled) thumbUrl = publicUrlIssuer.issueImagePublicUrl(thumbKey);
+            String thumbKey = p.getThumbnailKey();
+            if (!paywalled && hasText(thumbKey)) thumbUrl = publicUrlIssuer.issueImagePublicUrl(thumbKey);
 
             AuthorDto author = authorMap.get(p.getUser().getUserId());
 

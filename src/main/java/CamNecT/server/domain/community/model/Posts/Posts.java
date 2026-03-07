@@ -54,6 +54,9 @@ public class Posts {
     @Builder.Default
     private PostAccessType accessType = PostAccessType.FREE;
 
+    @Column(name = "thumbnail_key", length = 500)
+    private String thumbnailKey;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -94,5 +97,9 @@ public class Posts {
 
     public void applyAccess(PostAccessType accessType) {
         this.accessType = (accessType == null) ? PostAccessType.FREE : accessType;
+    }
+
+    public void updateThumbnailKey(String thumbnailKey) {
+        this.thumbnailKey = thumbnailKey;
     }
 }
