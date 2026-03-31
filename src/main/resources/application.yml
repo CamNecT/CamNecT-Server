@@ -150,7 +150,7 @@ server:
 
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiration-ms: 1209600000 #360000        # 6min
+  access-token-expiration-ms: 172800000 #2day #360000        # 6min
   refresh-token-expiration-ms: 1209600000   # 14day
   verification-token-expiration-ms: 259200000 #3day
 
