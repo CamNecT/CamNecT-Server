@@ -1,5 +1,6 @@
 package CamNecT.server.global.notification.service;
 
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.notification.dto.request.AdminAnnouncementRequest;
@@ -7,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashSet;
@@ -30,6 +32,7 @@ public class AdminAnnouncementService {
 
         if (request.targetType() == USERS) {
             List<Long> receiverIds = resolveSelectedUsers(request.targetUserIds());
+            if (receiverIds.isEmpty()) return 0L;
             return adminAnnouncementBatchService.dispatch(adminUserId, request, receiverIds);
         }
 
@@ -38,20 +41,16 @@ public class AdminAnnouncementService {
 
         while (true) {
             // TODO: 추후에는 findAll(Pageable) 대신 "활성 사용자만" 조회하는 쿼리로 교체
-            Page<Users> result = userRepository.findAll(PageRequest.of(page++, BATCH_SIZE));
-            if (result.isEmpty()) {
-                break;
-            }
+            Slice<Long> result = userRepository.findUserIdsByStatus(UserStatus.ACTIVE, PageRequest.of(page++, BATCH_SIZE));
+            if (result.isEmpty()) break;
 
-            List<Long> receiverIds = result.getContent().stream()
-                    .map(Users::getUserId)
-                    .toList();
+            total += adminAnnouncementBatchService.dispatch(
+                    adminUserId,
+                    request,
+                    result.getContent()
+            );
 
-            total += adminAnnouncementBatchService.dispatch(adminUserId, request, receiverIds);
-
-            if (!result.hasNext()) {
-                break;
-            }
+            if (!result.hasNext()) break;
         }
 
         log.info("[admin-announcement] sent by admin={}, total={}", adminUserId, total);
