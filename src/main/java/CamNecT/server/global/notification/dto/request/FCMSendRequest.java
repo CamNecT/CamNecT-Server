@@ -1,4 +1,4 @@
-package CamNecT.server.global.notification.dto;
+package CamNecT.server.global.notification.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 
