@@ -2,7 +2,7 @@ package CamNecT.server.global.notification.debug;
 
 import CamNecT.server.global.common.auth.UserId;
 import CamNecT.server.global.common.response.ApiResponse;
-import CamNecT.server.global.notification.dto.FCMSendRequest;
+import CamNecT.server.global.notification.dto.request.FCMSendRequest;
 import CamNecT.server.global.notification.dto.NotificationPushPayload;
 import CamNecT.server.global.notification.service.NotificationWsPublisher;
 import com.google.firebase.messaging.FirebaseMessaging;
