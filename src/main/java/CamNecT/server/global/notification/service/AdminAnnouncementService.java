@@ -6,7 +6,6 @@ import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.notification.dto.request.AdminAnnouncementRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -40,7 +39,6 @@ public class AdminAnnouncementService {
         int page = 0;
 
         while (true) {
-            // TODO: 추후에는 findAll(Pageable) 대신 "활성 사용자만" 조회하는 쿼리로 교체
             Slice<Long> result = userRepository.findUserIdsByStatus(UserStatus.ACTIVE, PageRequest.of(page++, BATCH_SIZE));
             if (result.isEmpty()) break;
 
