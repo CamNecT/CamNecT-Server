@@ -340,7 +340,7 @@ public class ChatService {
 
         UserProfile opProfile = userProfileRepository.findByUserId(opponent.getUserId()).orElse(null);
         String majorName = "전공 미입력";
-        String profileImgUrl = "/images/default.png";
+        String profileImgUrl = null;
 
         if (opProfile != null) {
             if (opProfile.getMajorId() != null) {
@@ -510,6 +510,7 @@ public class ChatService {
     public void sendMessage(Long senderId, ChatMessageSendRequestDto request) {
         log.info("[CHAT-SEND] === 메세지 전송 시작 === RoomID: {}, SenderID: {}", request.roomId(), senderId);
 
+        //예외처리
         ChatRoom room = chatRoomRepository.findById(request.roomId())
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
@@ -518,6 +519,7 @@ public class ChatService {
             throw new CustomException(CoffeeChatErrorCode.COFFEE_CHAT_CLOSED);
         }
 
+        //보내는 사람과 받는 사람 분류
         Users sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
