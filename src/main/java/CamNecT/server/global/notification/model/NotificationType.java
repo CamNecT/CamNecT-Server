@@ -22,4 +22,7 @@ public enum NotificationType {
 
     //COFFEE_CHAT 채팅 메세지 수신
     CHAT_MESSAGE_RECEIVED,
+
+    // 관리자 이벤트/공지
+    ADMIN_ANNOUNCEMENT
 }

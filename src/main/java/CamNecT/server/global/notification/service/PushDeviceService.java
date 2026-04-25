@@ -1,6 +1,6 @@
 package CamNecT.server.global.notification.service;
 
-import CamNecT.server.global.notification.dto.RegisterPushTokenRequest;
+import CamNecT.server.global.notification.dto.request.RegisterPushTokenRequest;
 import CamNecT.server.global.notification.model.PushDevice;
 import CamNecT.server.global.notification.repository.PushDeviceRepository;
 import lombok.RequiredArgsConstructor;

@@ -22,6 +22,7 @@ public final class NotificationUtil {
             case COFFEE_CHAT_ACCEPTED -> "[커피챗 수락]"; 
             case TEAM_RECRUIT_ACCEPTED -> "[팀 모집 수락]";
             case CHAT_MESSAGE_RECEIVED -> "[새 메시지]";
+            case ADMIN_ANNOUNCEMENT ->  "[이벤트]";
             default -> "[알림]";
         };
     }

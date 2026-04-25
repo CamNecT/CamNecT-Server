@@ -2,8 +2,8 @@ package CamNecT.server.global.notification.controller;
 
 import CamNecT.server.global.common.auth.UserId;
 import CamNecT.server.global.common.response.ApiResponse;
-import CamNecT.server.global.notification.dto.RegisterPushTokenRequest;
-import CamNecT.server.global.notification.dto.RegisterPushTokenResponse;
+import CamNecT.server.global.notification.dto.request.RegisterPushTokenRequest;
+import CamNecT.server.global.notification.dto.response.RegisterPushTokenResponse;
 import CamNecT.server.global.notification.service.PushDeviceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
