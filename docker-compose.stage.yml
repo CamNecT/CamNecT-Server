@@ -2,7 +2,7 @@ services:
   app:
     image: ${DOCKER_USERNAME}/camnect-server:stage
     container_name: camnect-server-stage
-    restart: always
+    restart: "no"
     ports:
       - "127.0.0.1:8081:8080"
     env_file:
@@ -12,5 +12,5 @@ services:
       - /home/ubuntu/app/exports/gifticon-stage:/var/app/exports/gifticon
     environment:
       SPRING_PROFILES_ACTIVE: stage
-      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70.0
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m -XX:+UseG1GC
       GOOGLE_APPLICATION_CREDENTIALS: /var/app/secrets/firebase-admin.json
