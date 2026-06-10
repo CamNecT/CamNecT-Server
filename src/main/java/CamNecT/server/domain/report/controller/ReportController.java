@@ -6,6 +6,7 @@ import CamNecT.server.domain.report.dto.response.ReportResponse;
 import CamNecT.server.domain.report.model.ReportStatus;
 import CamNecT.server.domain.report.model.TargetType;
 import CamNecT.server.domain.report.service.ReportService;
+import CamNecT.server.global.common.auth.UserId;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,11 +37,12 @@ public class ReportController {
      */
     @GetMapping("/admin")
     public ResponseEntity<Page<ReportResponse>> getReports(
+            @UserId Long userId,
             @RequestParam(required = false) TargetType type,
             @RequestParam(required = false) ReportStatus status,
             Pageable pageable) {
 
-        return ResponseEntity.ok(reportService.findAllReports(type, status, pageable));
+        return ResponseEntity.ok(reportService.findAllReports(userId, type, status, pageable));
     }
 
     /**
@@ -48,10 +50,11 @@ public class ReportController {
      */
     @PatchMapping("/admin/{reportId}/status")
     public ResponseEntity<Void> processReport(
+            @UserId Long userId,
             @PathVariable Long reportId,
             @RequestBody ReportProcessRequest request) {
 
-        reportService.processReport(reportId, request.getStatus());
+        reportService.processReport(userId, reportId, request.getStatus());
         return ResponseEntity.noContent().build();
     }
 }
