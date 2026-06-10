@@ -7,6 +7,12 @@ import CamNecT.server.domain.report.model.ReportStatus;
 import CamNecT.server.domain.report.model.TargetType;
 import CamNecT.server.domain.report.repository.ReportRepository;
 
+import CamNecT.server.domain.users.model.UserRole;
+import CamNecT.server.domain.users.model.Users;
+import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.ReportErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,9 +25,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReportService {
 
     private final ReportRepository reportRepository;
-    // 필요에 따라 각 도메인의 Repository를 주입받습니다.
-    // private final CommunityRepository communityRepository;
-    // private final ActivityRepository activityRepository;
+    private final UserRepository userRepository;
+
+    // 관리자 검증 공통 메서드
+    private void validateAdmin(Long userId) {
+        Users adminUser = userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+
+        if (adminUser.getRole() != UserRole.ADMIN) throw new CustomException(UserErrorCode.USER_NOT_ADMIN);
+    }
 
     /**
      * 1. 신고 접수
@@ -43,7 +55,9 @@ public class ReportService {
     /**
      * 2. 관리자용 목록 조회
      */
-    public Page<ReportResponse> findAllReports(TargetType type, ReportStatus status, Pageable pageable) {
+    public Page<ReportResponse> findAllReports(Long userId, TargetType type, ReportStatus status, Pageable pageable) {
+        validateAdmin(userId);
+
         Page<Report> reports;
 
         if (type != null && status != null) {
@@ -61,21 +75,20 @@ public class ReportService {
      * 3. 관리자 신고 처리 (승인/반려)
      */
     @Transactional
-    public void processReport(Long reportId, ReportStatus newStatus) {
-        Report report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 신고가 존재하지 않습니다."));
+    public void processReport(Long userId, Long reportId, ReportStatus newStatus) {
+        validateAdmin(userId);
 
-        // 상태 업데이트
+        Report report = reportRepository.findById(reportId)
+                .orElseThrow(() -> new CustomException(ReportErrorCode.REPORT_NOT_FOUND));
+
         report.updateStatus(newStatus);
 
-        // 만약 '처리 완료(RESOLVED)' 상태로 변경 시 추가 로직 실행
         if (newStatus == ReportStatus.RESOLVED) {
             handleViolation(report);
         }
     }
 
     private void handleViolation(Report report) {
-        // 다형성 구조에 따른 분기 처리
         switch (report.getPostType()) {
             case COMMUNITY -> {
                 // communityRepository.findById(report.getReportedPostId())를 통한 블라인드 처리 로직
