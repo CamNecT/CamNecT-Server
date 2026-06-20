@@ -14,4 +14,3 @@ services:
         SPRING_PROFILES_ACTIVE: prod
         JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70.0
         GOOGLE_APPLICATION_CREDENTIALS: /var/app/secrets/firebase-admin.json
-

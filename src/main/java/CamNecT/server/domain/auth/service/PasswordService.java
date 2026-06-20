@@ -30,7 +30,15 @@ public class PasswordService {
 
         validatePassword(req.newPassword());
         user.changePasswordHash(passwordEncoder.encode(req.newPassword()));
-        // save는 영속 상태면 생략 가능
+    }
+
+    @Transactional
+    public void resetPasswordByEmail(String email, String newPassword) {
+        Users user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+
+        validatePassword(newPassword);
+        user.changePasswordHash(passwordEncoder.encode(newPassword));
     }
 
     private static final Pattern PASSWORD_PATTERN = Pattern.compile(

@@ -6,6 +6,9 @@ import CamNecT.server.domain.auth.dto.login.VerificationCompleteResponse;
 import CamNecT.server.domain.auth.dto.others.TokenRefreshRequest;
 import CamNecT.server.domain.auth.dto.others.TokenRefreshResponse;
 import CamNecT.server.domain.auth.dto.others.WithdrawRequest;
+import CamNecT.server.domain.auth.dto.password.ResetPasswordRequest;
+import CamNecT.server.domain.auth.dto.password.SendPasswordResetEmailRequest;
+import CamNecT.server.domain.auth.dto.password.SendPasswordResetEmailResponse;
 import CamNecT.server.domain.auth.dto.signup.*;
 import CamNecT.server.domain.auth.dto.signup.SendSignupEmailRequest;
 import CamNecT.server.domain.auth.dto.signup.SendSignupEmailResponse;
@@ -123,6 +126,21 @@ public class AuthController {
         return ApiResponse.success(authTokenService.refreshAccessToken(req.refreshToken()));
     }
 
+    @Operation(summary = "Password reset email 코드 전송", description = "Sends a 6-digit verification code to the registered email.")
+    @PostMapping("/password/reset/email/send")
+    @ResponseStatus(HttpStatus.OK)
+    public SendPasswordResetEmailResponse sendPasswordResetEmail(@RequestBody @Valid SendPasswordResetEmailRequest req) {
+        long expiresMinutes = emailVerificationService.sendPasswordResetCode(req.email());
+        return new SendPasswordResetEmailResponse(req.email(), expiresMinutes);
+    }
+
+    @Operation(summary = "Reset password", description = "Verifies the email code and updates the password.")
+    @PatchMapping("/password/reset")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@RequestBody @Valid ResetPasswordRequest req) {
+        emailVerificationService.verifyPasswordResetAndUpdatePassword(req);
+    }
+
     @Operation(summary = "회원 탈퇴", description = "비밀번호 확인 후 계정을 탈퇴 처리(익명화)합니다.")
     @DeleteMapping("/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -132,6 +150,4 @@ public class AuthController {
     ) {
         loginService.withdraw(userId, req);
     }
-
-
 }
