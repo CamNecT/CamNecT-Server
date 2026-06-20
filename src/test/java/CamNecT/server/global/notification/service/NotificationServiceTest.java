@@ -4,7 +4,6 @@ import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
-import CamNecT.server.global.notification.model.Notification;
 import CamNecT.server.global.notification.model.NotificationType;
 import CamNecT.server.global.notification.repository.NotificationRepository;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
