@@ -1,8 +1,11 @@
 package CamNecT.server.domain.verification.email.service;
 
+import CamNecT.server.domain.auth.dto.password.ResetPasswordRequest;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailRequest;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailResponse;
+import CamNecT.server.domain.auth.service.PasswordService;
 import CamNecT.server.domain.auth.service.SignupService;
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.domain.verification.email.event.EmailVerificationCodeIssuedEvent;
@@ -27,6 +30,7 @@ public class EmailVerificationService {
     private final UserRepository userRepository;
 
     private final SignupService signupService;
+    private final PasswordService passwordService;
 
     private final JwtUtil jwtUtil;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -60,9 +64,57 @@ public class EmailVerificationService {
         return expirationMinutes;
     }
 
-    /**
-     * 2차: 코드 검증 성공 시 user 생성 + token.used 처리 + token.user link
-     */
+    @Transactional
+    public long sendPasswordResetCode(String email) {
+        Users user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+        if (!user.isEmailVerified()) {
+            throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
+        }
+
+        tokenRepository.deleteByEmailAndUsedAtIsNull(email);
+
+        String rawCode = EmailTokenUtil.new6DigitCode();
+        EmailVerificationToken token = EmailVerificationToken.issueForEmail(email, rawCode, expirationMinutes);
+        tokenRepository.save(token);
+
+        applicationEventPublisher.publishEvent(
+                new EmailVerificationCodeIssuedEvent(email, rawCode, expirationMinutes)
+        );
+
+        return expirationMinutes;
+    }
+
+    @Transactional
+    public void verifyPasswordResetAndUpdatePassword(ResetPasswordRequest req) {
+        Users user = userRepository.findByEmail(req.email())
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+
+        EmailVerificationToken token = tokenRepository.findTopByEmailAndUsedAtIsNullOrderByIdDesc(req.email())
+                .orElseThrow(() -> new CustomException(VerificationErrorCode.NO_ACTIVE_CODE));
+
+        if (token.isExpired()) throw new CustomException(VerificationErrorCode.CODE_EXPIRED_OR_USED);
+        if (token.isLocked()) throw new CustomException(VerificationErrorCode.TOO_MANY_ATTEMPTS);
+
+        if (!token.matchesCode(req.code())) {
+            token.increaseAttempt();
+            if (token.isLocked()) throw new CustomException(VerificationErrorCode.TOO_MANY_ATTEMPTS);
+            throw new CustomException(VerificationErrorCode.INVALID_CODE);
+        }
+
+        passwordService.resetPasswordByEmail(req.email(), req.newPassword());
+        token.markUsed();
+        token.linkUser(user);
+    }
+
     @Transactional
     public VerifySignupEmailResponse verifySignupAndCreateUser(VerifySignupEmailRequest req) {
 
