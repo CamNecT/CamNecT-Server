@@ -32,7 +32,7 @@ public class NotificationEventListener {
                 e.receiverUserId(), e.actorUserId(), e.type());
 
         if (e.shouldSkipSelfNotification()) return;
-        String link = notificationLinkResolver.resolve(e);
+        String link = notificationLinkResolver.resolveOrFallback(e);
 
         notificationService.create(
                 e.receiverUserId(),
@@ -56,7 +56,7 @@ public class NotificationEventListener {
 
         String title = titleOf(e.type());
         String body = e.message();
-        String link = notificationLinkResolver.resolve(e);
+        String link = notificationLinkResolver.resolveOrFallback(e);
 
         // 1) 웹/로컬 실시간 알림 (WebSocket user queue)
         var wsPayload = new NotificationPushPayload(

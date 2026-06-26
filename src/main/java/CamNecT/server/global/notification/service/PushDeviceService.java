@@ -40,6 +40,7 @@ public class PushDeviceService {
         return pushDeviceRepository.findAllByUserIdAndEnabledTrue(userId)
                 .stream()
                 .map(PushDevice::getFcmToken)
+                .distinct()
                 .toList();
     }
 
