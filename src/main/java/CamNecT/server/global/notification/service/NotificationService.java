@@ -31,6 +31,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class NotificationService {
 
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
@@ -64,7 +67,7 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public Slice<Notification> list(Long receiverUserId, Long cursorId, int size) {
-        Pageable pageable = PageRequest.of(0, size);
+        Pageable pageable = PageRequest.of(0, normalizeSize(size));
 
         NotificationType exclude = NotificationType.CHAT_MESSAGE_RECEIVED;
 
@@ -139,17 +142,20 @@ public class NotificationService {
 
     @Transactional
     public void markRead(Long receiverUserId, Long notificationId) {
-        Notification n = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.NOTIFICATION_NOT_FOUND));
-
-        if (!n.getReceiverUserId().equals(receiverUserId)) {
+        if (!notificationRepository.existsByIdAndReceiverUserId(notificationId, receiverUserId)) {
             throw new CustomException(UserErrorCode.NOTIFICATION_NOT_FOUND);
         }
-        n.markRead();
+
+        notificationRepository.markRead(receiverUserId, notificationId);
     }
 
     @Transactional
     public int markAllRead(Long receiverUserId) {
         return notificationRepository.markAllRead(receiverUserId);
+    }
+
+    private int normalizeSize(int size) {
+        if (size < 1) return DEFAULT_PAGE_SIZE;
+        return Math.min(size, MAX_PAGE_SIZE);
     }
 }
