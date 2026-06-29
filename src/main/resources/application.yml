@@ -120,9 +120,10 @@ spring:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}
     open-in-view: false
+    show-sql: false #로그가 sql문으로 더러워지는 것을 방지하기 위해 추가(26.05.15)
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false #로그가 sql문으로 더러워지는 것을 방지하기 위해 true->false(26.05.15)
 
   mail:
     host: smtp.gmail.com
@@ -150,7 +151,7 @@ server:
 
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiration-ms: 1209600000 #360000        # 6min
+  access-token-expiration-ms: 172800000 #2day #360000        # 6min
   refresh-token-expiration-ms: 1209600000   # 14day
   verification-token-expiration-ms: 259200000 #3day
 
@@ -163,7 +164,9 @@ security:
 
 logging:
   level:
-    root: info
-    org.hibernate.SQL: debug
-    org.hibernate.type.descriptor.sql: trace
-    org.springframework.orm.jpa: debug
+    root: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    org.springframework.orm.jpa: WARN
+    org.springframework.transaction: WARN

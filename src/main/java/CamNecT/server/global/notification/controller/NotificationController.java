@@ -2,8 +2,11 @@ package CamNecT.server.global.notification.controller;
 
 import CamNecT.server.global.common.auth.UserId;
 import CamNecT.server.global.common.response.ApiResponse;
+import CamNecT.server.global.notification.dto.request.AdminAnnouncementRequest;
 import CamNecT.server.global.notification.dto.response.NotificationListResponse;
+import CamNecT.server.global.notification.service.AdminAnnouncementService;
 import CamNecT.server.global.notification.service.NotificationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final AdminAnnouncementService adminAnnouncementService;
 
     @GetMapping
     public ApiResponse<NotificationListResponse> list(
@@ -44,6 +48,18 @@ public class NotificationController {
         int updated = notificationService.markAllRead(userId);
         long unread = notificationService.countUnread(userId);
         return ApiResponse.success(new MarkAllReadResponse(updated, unread));
+    }
+
+    @PostMapping("/event")
+    public ApiResponse<AdminAnnouncementResponse> pushEvent(
+            @UserId Long userId,
+            @Valid @RequestBody AdminAnnouncementRequest request
+    ) {
+        long queuedCount = adminAnnouncementService.send(userId, request);
+        return ApiResponse.success(new AdminAnnouncementResponse(queuedCount));
+    }
+
+    public record AdminAnnouncementResponse(long queuedCount) {
     }
 
 

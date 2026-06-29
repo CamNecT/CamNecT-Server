@@ -1,8 +1,11 @@
 package CamNecT.server.domain.users.repository;
 
 import CamNecT.server.domain.users.model.UserRole;
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -27,4 +30,7 @@ public interface UserRepository extends JpaRepository<Users, Long> {
 
     @Query("select u.name from Users u where u.userId = :userId")
     Optional<String> findNameByUserId(@Param("userId") Long userId);
+
+    @Query("select u.userId from Users u where u.status = :status order by u.userId asc")
+    Slice<Long> findUserIdsByStatus(@Param("status") UserStatus status, Pageable pageable);
 }

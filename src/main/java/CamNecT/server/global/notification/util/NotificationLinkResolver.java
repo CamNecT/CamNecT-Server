@@ -33,7 +33,7 @@ public class NotificationLinkResolver {
                         template(p.getChatRoom(), "roomId", requireRoomId(e));
 
                 // 포인트 등: 별도 화면이 없으면 fallback
-                case POINT_EARNED, POINT_SPENT -> fallback();
+                case POINT_EARNED, POINT_SPENT, ADMIN_ANNOUNCEMENT -> fallback();
             };
         } catch (CustomException ex) {
             throw ex; // 원하시면 fallback()로 내려도 됩니다.
