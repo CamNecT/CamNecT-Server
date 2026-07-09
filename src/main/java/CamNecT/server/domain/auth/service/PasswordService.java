@@ -33,10 +33,14 @@ public class PasswordService {
     }
 
     @Transactional
-    public void resetPasswordByEmail(String email, String newPassword) {
-        Users user = userRepository.findByEmail(email)
+    public void resetPasswordByUserId(Long userId, String newPassword) {
+        Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
+        resetPassword(user, newPassword);
+    }
+
+    private void resetPassword(Users user, String newPassword) {
         validatePassword(newPassword);
         if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
             throw new CustomException(AuthErrorCode.SAME_AS_CURRENT_PASSWORD);
