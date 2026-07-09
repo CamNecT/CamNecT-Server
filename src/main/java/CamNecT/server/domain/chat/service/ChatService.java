@@ -157,7 +157,7 @@ public class ChatService {
      */
     @Transactional
     public void respondToRequest(Long requestId, Long userId, boolean isAccepted) {
-        ChatRequest request = chatRequestRepository.findById(requestId)
+        ChatRequest request = chatRequestRepository.findByIdForUpdate(requestId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUEST_NOT_FOUND));
 
         // 본인 요청인지 검증
@@ -173,10 +173,7 @@ public class ChatService {
 
         if (isAccepted) {
             request.accept();
-            Long requesterId = request.getRequester().getUserId();
             Long roomId = createChatRoom(request);
-            pointService.earnPoint(requesterId, rewardCoffeeChatAccepted,
-                    PointEvent.coffeeChatAccepted(requesterId, request.getId()));
             tryRewardCoffeeChatAcceptedPoint(request);
             publishAcceptedNotification(request, roomId);
         } else {
