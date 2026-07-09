@@ -2,18 +2,42 @@ package CamNecT.server.global.common.util;
 
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.exception.InvalidPropertiesException;
+import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import CamNecT.server.global.common.response.errorcode.BaseErrorCode;
 import CamNecT.server.global.common.response.ErrorResponse;
 import CamNecT.server.global.common.response.InvalidPropertiesErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler({
+            MethodArgumentNotValidException.class,
+            HttpMessageNotReadableException.class
+    })
+    public ResponseEntity<ErrorResponse> handleBadRequest(Exception e, HttpServletRequest req) {
+        log.warn("[BadRequest] {} {} | code={} | exception={} | ua={}",
+                req.getMethod(),
+                req.getRequestURI(),
+                ErrorCode.BAD_REQUEST.getCode(),
+                e.getClass().getSimpleName(),
+                req.getHeader("User-Agent")
+        );
+
+        return ResponseEntity.status(ErrorCode.BAD_REQUEST.getHttpStatus())
+                .body(new ErrorResponse(
+                        ErrorCode.BAD_REQUEST.getHttpStatus().value(),
+                        ErrorCode.BAD_REQUEST.getCode(),
+                        ErrorCode.BAD_REQUEST.getMessage()
+                ));
+    }
 
     @ExceptionHandler(InvalidPropertiesException.class)
     public ResponseEntity<InvalidPropertiesErrorResponse> handleInvalidProperties(
