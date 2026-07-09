@@ -11,6 +11,7 @@ public enum AuthErrorCode implements BaseErrorCode {
 
     // 410xx - 입력/검증
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, 41010, "비밀번호 형식이 올바르지 않습니다."),
+    SAME_AS_CURRENT_PASSWORD(HttpStatus.BAD_REQUEST, 41011, "기존 비밀번호와 동일한 비밀번호는 사용할 수 없습니다."),
     TERMS_REQUIRED(HttpStatus.BAD_REQUEST, 41020, "필수 약관에 동의해야 합니다."),
 
     // 411xx - 인증/토큰

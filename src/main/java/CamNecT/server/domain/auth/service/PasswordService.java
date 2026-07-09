@@ -38,6 +38,10 @@ public class PasswordService {
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         validatePassword(newPassword);
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new CustomException(AuthErrorCode.SAME_AS_CURRENT_PASSWORD);
+        }
+
         user.changePasswordHash(passwordEncoder.encode(newPassword));
     }
 
