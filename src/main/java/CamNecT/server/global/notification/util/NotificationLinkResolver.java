@@ -13,6 +13,14 @@ public class NotificationLinkResolver {
 
     private final FrontLinkProperties p;
 
+    public String resolveOrFallback(NotifiableEvent e) {
+        try {
+            return resolve(e);
+        } catch (Exception ex) {
+            return fallback();
+        }
+    }
+
     public String resolve(NotifiableEvent e) {
         // 이벤트가 직접 링크를 주면 우선
         if (hasText(e.link())) return e.link();
