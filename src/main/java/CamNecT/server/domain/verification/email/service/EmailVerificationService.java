@@ -13,6 +13,7 @@ import CamNecT.server.domain.verification.email.model.EmailTokenUtil;
 import CamNecT.server.domain.verification.email.model.EmailVerificationToken;
 import CamNecT.server.domain.verification.email.repository.EmailVerificationTokenRepository;
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.exception.InvalidPropertiesException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.VerificationErrorCode;
 import CamNecT.server.global.jwt.util.JwtUtil;
@@ -21,6 +22,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -65,25 +69,38 @@ public class EmailVerificationService {
     }
 
     @Transactional
-    public long sendPasswordResetCode(String email) {
-        Users user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+    public long sendPasswordResetCode(String username, String email) {
+        String normalizedUsername = normalize(username);
+        String normalizedEmail = normalize(email);
 
-        if (user.getStatus() == UserStatus.SUSPENDED) {
-            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        List<String> invalidProperties = new ArrayList<>();
+        if (normalizedUsername.isBlank() || !userRepository.existsByUsername(normalizedUsername)) {
+            invalidProperties.add("username");
         }
-        if (!user.isEmailVerified()) {
-            throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
+        if (normalizedEmail.isBlank() || !userRepository.existsByEmail(normalizedEmail)) {
+            invalidProperties.add("email");
+        }
+        if (!invalidProperties.isEmpty()) {
+            throw new InvalidPropertiesException(invalidProperties);
         }
 
-        tokenRepository.deleteByEmailAndUsedAtIsNull(email);
+        Users user = userRepository.findByUsername(normalizedUsername)
+                .orElseThrow(() -> new InvalidPropertiesException(List.of("username")));
+
+        if (!normalizedEmail.equals(user.getEmail())) {
+            throw new InvalidPropertiesException(List.of("email"));
+        }
+
+        validateRecoverableUser(user);
+
+        tokenRepository.deleteByEmailAndUsedAtIsNull(normalizedEmail);
 
         String rawCode = EmailTokenUtil.new6DigitCode();
-        EmailVerificationToken token = EmailVerificationToken.issueForEmail(email, rawCode, expirationMinutes);
+        EmailVerificationToken token = EmailVerificationToken.issueForEmail(normalizedEmail, rawCode, expirationMinutes);
         tokenRepository.save(token);
 
         applicationEventPublisher.publishEvent(
-                new EmailVerificationCodeIssuedEvent(email, rawCode, expirationMinutes)
+                new EmailVerificationCodeIssuedEvent(normalizedEmail, rawCode, expirationMinutes)
         );
 
         return expirationMinutes;
@@ -146,5 +163,18 @@ public class EmailVerificationService {
         long expiresMinutes = jwtUtil.getVerificationTokenExpirationMs() / 60000L;
 
         return new VerifySignupEmailResponse(user.getUserId(), false, verificationToken, expiresMinutes);
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private void validateRecoverableUser(Users user) {
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+        if (!user.isEmailVerified()) {
+            throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
+        }
     }
 }

@@ -1,8 +1,10 @@
 package CamNecT.server.global.common.util;
 
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.exception.InvalidPropertiesException;
 import CamNecT.server.global.common.response.errorcode.BaseErrorCode;
 import CamNecT.server.global.common.response.ErrorResponse;
+import CamNecT.server.global.common.response.InvalidPropertiesErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +14,29 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(InvalidPropertiesException.class)
+    public ResponseEntity<InvalidPropertiesErrorResponse> handleInvalidProperties(
+            InvalidPropertiesException e,
+            HttpServletRequest req
+    ) {
+        log.warn("[InvalidPropertiesException] {} {} | status={} code={} | invalidProperties={} | ua={}",
+                req.getMethod(),
+                req.getRequestURI(),
+                e.getHttpStatus().value(),
+                e.getCode(),
+                e.getInvalidProperties(),
+                req.getHeader("User-Agent")
+        );
+
+        return ResponseEntity.status(e.getHttpStatus())
+                .body(new InvalidPropertiesErrorResponse(
+                        e.getHttpStatus().value(),
+                        e.getCode(),
+                        e.getMessage(),
+                        e.getInvalidProperties()
+                ));
+    }
 
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<ErrorResponse> handleCustom(CustomException e, HttpServletRequest req) {
