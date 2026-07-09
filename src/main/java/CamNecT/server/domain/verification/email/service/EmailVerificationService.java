@@ -1,6 +1,8 @@
 package CamNecT.server.domain.verification.email.service;
 
 import CamNecT.server.domain.auth.dto.password.ResetPasswordRequest;
+import CamNecT.server.domain.auth.dto.password.VerifyPasswordResetEmailRequest;
+import CamNecT.server.domain.auth.dto.password.VerifyPasswordResetEmailResponse;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailRequest;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailResponse;
 import CamNecT.server.domain.auth.service.PasswordService;
@@ -16,6 +18,7 @@ import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.exception.InvalidPropertiesException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.VerificationErrorCode;
+import CamNecT.server.global.jwt.model.TokenType;
 import CamNecT.server.global.jwt.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -107,13 +110,11 @@ public class EmailVerificationService {
     }
 
     @Transactional
-    public void verifyPasswordResetAndUpdatePassword(ResetPasswordRequest req) {
+    public VerifyPasswordResetEmailResponse verifyPasswordResetEmail(VerifyPasswordResetEmailRequest req) {
         Users user = userRepository.findByEmail(req.email())
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
-        if (user.getStatus() == UserStatus.SUSPENDED) {
-            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
-        }
+        validateRecoverableUser(user);
 
         EmailVerificationToken token = tokenRepository.findTopByEmailAndUsedAtIsNullOrderByIdDesc(req.email())
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.NO_ACTIVE_CODE));
@@ -127,9 +128,24 @@ public class EmailVerificationService {
             throw new CustomException(VerificationErrorCode.INVALID_CODE);
         }
 
-        passwordService.resetPasswordByEmail(req.email(), req.newPassword());
         token.markUsed();
         token.linkUser(user);
+
+        String resetToken = jwtUtil.generatePasswordResetToken(user.getUserId(), user.getRole());
+        long expiresMinutes = jwtUtil.getVerificationTokenExpirationMs() / 60000L;
+
+        return new VerifyPasswordResetEmailResponse(resetToken, expiresMinutes);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest req) {
+        jwtUtil.validateOrThrow(req.resetToken());
+        if (jwtUtil.getTokenType(req.resetToken()) != TokenType.PASSWORD_RESET) {
+            throw new CustomException(AuthErrorCode.TOKEN_TYPE_NOT_ALLOWED);
+        }
+
+        Long userId = jwtUtil.getUserId(req.resetToken());
+        passwordService.resetPasswordByUserId(userId, req.newPassword());
     }
 
     @Transactional
