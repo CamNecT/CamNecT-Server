@@ -3,6 +3,8 @@ package CamNecT.server.domain.auth.controller;
 import CamNecT.server.domain.auth.dto.login.LoginRequest;
 import CamNecT.server.domain.auth.dto.login.LoginResponse;
 import CamNecT.server.domain.auth.dto.login.VerificationCompleteResponse;
+import CamNecT.server.domain.auth.dto.account.FindUsernameRequest;
+import CamNecT.server.domain.auth.dto.account.FindUsernameResponse;
 import CamNecT.server.domain.auth.dto.others.TokenRefreshRequest;
 import CamNecT.server.domain.auth.dto.others.TokenRefreshResponse;
 import CamNecT.server.domain.auth.dto.others.WithdrawRequest;
@@ -14,6 +16,7 @@ import CamNecT.server.domain.auth.dto.signup.SendSignupEmailRequest;
 import CamNecT.server.domain.auth.dto.signup.SendSignupEmailResponse;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailRequest;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailResponse;
+import CamNecT.server.domain.auth.service.AccountRecoveryService;
 import CamNecT.server.domain.auth.service.AuthTokenService;
 import CamNecT.server.domain.auth.service.LoginService;
 import CamNecT.server.domain.profile.dto.request.UpdateOnboardingRequest;
@@ -41,6 +44,7 @@ public class AuthController {
     private final EmailVerificationService emailVerificationService;
     private final ProfileService profileService;
     private final AuthTokenService authTokenService;
+    private final AccountRecoveryService accountRecoveryService;
 
     @Operation(
             summary = "로그인",
@@ -126,15 +130,22 @@ public class AuthController {
         return ApiResponse.success(authTokenService.refreshAccessToken(req.refreshToken()));
     }
 
-    @Operation(summary = "Password reset email 코드 전송", description = "Sends a 6-digit verification code to the registered email.")
+    @Operation(summary = "아이디 찾기", description = "이름과 이메일을 확인하여 가입된 아이디를 조회합니다.")
+    @PostMapping("/username/find")
+    @ResponseStatus(HttpStatus.OK)
+    public FindUsernameResponse findUsername(@RequestBody FindUsernameRequest req) {
+        return accountRecoveryService.findUsername(req);
+    }
+
+    @Operation(summary = "비밀번호 재설정 이메일 코드 전송", description = "가입된 이메일로 비밀번호 재설정용 6자리 인증 코드를 전송합니다.")
     @PostMapping("/password/reset/email/send")
     @ResponseStatus(HttpStatus.OK)
-    public SendPasswordResetEmailResponse sendPasswordResetEmail(@RequestBody @Valid SendPasswordResetEmailRequest req) {
-        long expiresMinutes = emailVerificationService.sendPasswordResetCode(req.email());
+    public SendPasswordResetEmailResponse sendPasswordResetEmail(@RequestBody SendPasswordResetEmailRequest req) {
+        long expiresMinutes = emailVerificationService.sendPasswordResetCode(req.username(), req.email());
         return new SendPasswordResetEmailResponse(req.email(), expiresMinutes);
     }
 
-    @Operation(summary = "Reset password", description = "Verifies the email code and updates the password.")
+    @Operation(summary = "비밀번호 재설정", description = "이메일 인증 코드를 검증한 뒤 비밀번호를 변경합니다.")
     @PatchMapping("/password/reset")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void resetPassword(@RequestBody @Valid ResetPasswordRequest req) {
