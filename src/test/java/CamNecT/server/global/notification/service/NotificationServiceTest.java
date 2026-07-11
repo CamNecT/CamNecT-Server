@@ -3,6 +3,7 @@ package CamNecT.server.global.notification.service;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.NotificationErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.notification.model.NotificationType;
 import CamNecT.server.global.notification.repository.NotificationRepository;
@@ -57,7 +58,7 @@ class NotificationServiceTest {
                 () -> notificationService.markRead(1L, 10L)
         );
 
-        assertThat(ex.getErrorCode()).isEqualTo(UserErrorCode.NOTIFICATION_NOT_FOUND);
+        assertThat(ex.getErrorCode()).isEqualTo(NotificationErrorCode.NOTIFICATION_NOT_FOUND);
         verify(notificationRepository, never()).markRead(anyLong(), anyLong());
     }
 

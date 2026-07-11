@@ -1,5 +1,6 @@
 package CamNecT.server.global.notification.service;
 
+import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.notification.model.Platform;
 import CamNecT.server.global.notification.model.PushDevice;
 import CamNecT.server.global.notification.repository.PushDeviceRepository;
@@ -13,8 +14,9 @@ import static org.mockito.Mockito.when;
 
 class PushDeviceServiceTest {
 
+    private final UserRepository userRepository = mock(UserRepository.class);
     private final PushDeviceRepository pushDeviceRepository = mock(PushDeviceRepository.class);
-    private final PushDeviceService pushDeviceService = new PushDeviceService(pushDeviceRepository);
+    private final PushDeviceService pushDeviceService = new PushDeviceService(pushDeviceRepository, userRepository);
 
     @Test
     void findEnabledTokensRemovesDuplicateTokens() {
