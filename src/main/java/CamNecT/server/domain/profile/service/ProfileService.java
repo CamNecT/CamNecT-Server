@@ -81,7 +81,11 @@ public class ProfileService {
     public ProfileResponse getUserProfile(Long loginUserId, Long profileUserId) {
 
         Users user = userRepository.findByUserId(profileUserId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(
+                        Objects.equals(loginUserId, profileUserId)
+                                ? AuthErrorCode.INVALID_TOKEN
+                                : UserErrorCode.USER_NOT_FOUND
+                ));
         UserProfile userProfile = userProfileRepository.findByUserId(profileUserId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
@@ -186,7 +190,7 @@ public class ProfileService {
     public ProfileStatusResponse createOnboarding(Long userId, UpdateOnboardingRequest req) {
 
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
         requireEmailVerifiedAndNotSuspended(user);
 
@@ -245,7 +249,7 @@ public class ProfileService {
 
         userRepository.lockUserRow(userId);
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
         requireEmailVerifiedAndNotSuspended(user);
 
@@ -273,7 +277,7 @@ public class ProfileService {
     public PresignUploadResponse presignProfileImageUpload(Long userId, PresignUploadRequest req) {
         userRepository.lockUserRow(userId);
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
         requireEmailVerifiedAndNotSuspended(user);
 
         String ct = globalPresignMethods.normalize(req.contentType());
@@ -301,7 +305,7 @@ public class ProfileService {
 
         userRepository.lockUserRow(userId);
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
         requireEmailVerifiedAndNotSuspended(user);
 
         UserProfile profile = userProfileRepository.findByUserId(userId)
@@ -332,7 +336,7 @@ public class ProfileService {
 
     private void requireEmailVerifiedAndNotSuspended(Users user) {
         if (user.getStatus() == UserStatus.SUSPENDED) {
-            throw new CustomException(UserErrorCode.USER_SUSPENDED);
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }
         if (user.getStatus() == UserStatus.EMAIL_PENDING) {
             throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
@@ -348,7 +352,7 @@ public class ProfileService {
 
     public ProfileSettingsResponse getMySettings(Long userId) {
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 

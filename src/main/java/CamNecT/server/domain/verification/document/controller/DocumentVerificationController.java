@@ -68,8 +68,8 @@ public class DocumentVerificationController {
             ),
             @ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 42020 문서 키 누락 / 49010 만료·사용된 티켓 / 49011 업로드 파일 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 41103 인증 헤더 누락·형식 오류 / 41104 토큰 타입 누락 / 41106 허용되지 않은 토큰 타입", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "403", description = "42915 티켓 소유자 불일치 / 49310 티켓 목적 또는 사용 권한 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "404", description = "42403 제출 파일 / 49410 업로드 티켓 / 49401 업로드된 저장 파일을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "403", description = "49310 티켓 소유자·목적 또는 사용 권한 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "49410 업로드 티켓 / 49401 업로드된 저장 파일을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "409", description = "42930 이미 처리 대기 중인 제출이 존재함", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type / 42124 문서 Content-Type 누락 또는 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "500", description = "49902 업로드 파일 확인 실패 / 49904 파일 이동 실패 / 50000 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))

@@ -2,7 +2,7 @@ package CamNecT.server.global.notification.service;
 
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.notification.dto.request.RegisterPushTokenRequest;
 import CamNecT.server.global.notification.model.PushDevice;
 import CamNecT.server.global.notification.repository.PushDeviceRepository;
@@ -24,7 +24,7 @@ public class PushDeviceService {
     public RegisterResult register(Long userId, RegisterPushTokenRequest req) {
         userRepository.lockUserRow(userId);
         if (!userRepository.existsById(userId)) {
-            throw new CustomException(UserErrorCode.USER_NOT_FOUND);
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
         }
 
         PushDevice device = pushDeviceRepository.findByUserIdAndDeviceId(userId, req.deviceId())
