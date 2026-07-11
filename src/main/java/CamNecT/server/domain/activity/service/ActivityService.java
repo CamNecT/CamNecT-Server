@@ -459,7 +459,11 @@ public class ActivityService {
         ExternalActivity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
-        if (activity.getUser() == null || !Objects.equals(activity.getUser().getUserId(), userId)) {
+        boolean isAdmin = userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
+        boolean isAuthor =  activity.getUser() != null && Objects.equals(activity.getUser().getUserId(), userId);
+
+
+        if (!isAdmin && !isAuthor) {
             throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
         }
 

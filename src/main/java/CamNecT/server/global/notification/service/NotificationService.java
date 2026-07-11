@@ -31,6 +31,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class NotificationService {
 
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final UserProfileRepository userProfileRepository;
@@ -64,7 +67,7 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public Slice<Notification> list(Long receiverUserId, Long cursorId, int size) {
-        Pageable pageable = PageRequest.of(0, size);
+        Pageable pageable = PageRequest.of(0, normalizeSize(size));
 
         NotificationType exclude = NotificationType.CHAT_MESSAGE_RECEIVED;
 
@@ -145,7 +148,8 @@ public class NotificationService {
         if (!n.getReceiverUserId().equals(receiverUserId)) {
             throw new CustomException(NotificationErrorCode.NOTIFICATION_NOT_FOUND);
         }
-        n.markRead();
+
+        notificationRepository.markRead(receiverUserId, notificationId);
     }
 
     @Transactional

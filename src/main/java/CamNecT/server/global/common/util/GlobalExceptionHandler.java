@@ -27,6 +27,50 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler({
+            MethodArgumentNotValidException.class,
+            HttpMessageNotReadableException.class
+    })
+    public ResponseEntity<ErrorResponse> handleBadRequest(Exception e, HttpServletRequest req) {
+        log.warn("[BadRequest] {} {} | code={} | exception={} | ua={}",
+                req.getMethod(),
+                req.getRequestURI(),
+                ErrorCode.BAD_REQUEST.getCode(),
+                e.getClass().getSimpleName(),
+                req.getHeader("User-Agent")
+        );
+
+        return ResponseEntity.status(ErrorCode.BAD_REQUEST.getHttpStatus())
+                .body(new ErrorResponse(
+                        ErrorCode.BAD_REQUEST.getHttpStatus().value(),
+                        ErrorCode.BAD_REQUEST.getCode(),
+                        ErrorCode.BAD_REQUEST.getMessage()
+                ));
+    }
+
+    @ExceptionHandler(InvalidPropertiesException.class)
+    public ResponseEntity<InvalidPropertiesErrorResponse> handleInvalidProperties(
+            InvalidPropertiesException e,
+            HttpServletRequest req
+    ) {
+        log.warn("[InvalidPropertiesException] {} {} | status={} code={} | invalidProperties={} | ua={}",
+                req.getMethod(),
+                req.getRequestURI(),
+                e.getHttpStatus().value(),
+                e.getCode(),
+                e.getInvalidProperties(),
+                req.getHeader("User-Agent")
+        );
+
+        return ResponseEntity.status(e.getHttpStatus())
+                .body(new InvalidPropertiesErrorResponse(
+                        e.getHttpStatus().value(),
+                        e.getCode(),
+                        e.getMessage(),
+                        e.getInvalidProperties()
+                ));
+    }
+
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<ErrorResponse> handleCustom(CustomException e, HttpServletRequest req) {
         BaseErrorCode errorCode = e.getErrorCode();

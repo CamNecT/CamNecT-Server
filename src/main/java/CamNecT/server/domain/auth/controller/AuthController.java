@@ -5,6 +5,11 @@ import CamNecT.server.domain.auth.dto.login.LoginResponse;
 import CamNecT.server.domain.auth.dto.login.VerificationCompleteResponse;
 import CamNecT.server.domain.auth.dto.others.TokenRefreshResponse;
 import CamNecT.server.domain.auth.dto.others.WithdrawRequest;
+import CamNecT.server.domain.auth.dto.password.ResetPasswordRequest;
+import CamNecT.server.domain.auth.dto.password.SendPasswordResetEmailRequest;
+import CamNecT.server.domain.auth.dto.password.SendPasswordResetEmailResponse;
+import CamNecT.server.domain.auth.dto.password.VerifyPasswordResetEmailRequest;
+import CamNecT.server.domain.auth.dto.password.VerifyPasswordResetEmailResponse;
 import CamNecT.server.domain.auth.dto.signup.*;
 import CamNecT.server.domain.auth.service.LoginService;
 import CamNecT.server.domain.profile.dto.request.UpdateOnboardingRequest;
@@ -163,6 +168,121 @@ public class AuthController {
     @PostMapping("/refresh")
     public ApiResponse<TokenRefreshResponse> refresh() {
         throw new CustomException(ErrorCode.GONE);
+    }
+
+    @Operation(summary = "아이디 찾기", description = "이름과 이메일을 확인하여 가입된 아이디를 조회합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "아이디 찾기 성공",
+                    content = @Content(schema = @Schema(implementation = FindUsernameResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "이름 또는 이메일 불일치",
+                    content = @Content(schema = @Schema(oneOf = {
+                            InvalidPropertiesErrorResponse.class,
+                            ErrorResponse.class
+                    }))
+            )
+    })
+    @PostMapping("/username/find")
+    @ResponseStatus(HttpStatus.OK)
+    public FindUsernameResponse findUsername(@RequestBody FindUsernameRequest req) {
+        return accountRecoveryService.findUsername(req);
+    }
+
+    @Operation(summary = "비밀번호 재설정 이메일 코드 전송", description = "가입된 이메일로 비밀번호 재설정용 6자리 인증 코드를 전송합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "비밀번호 재설정 인증번호 전송 성공",
+                    content = @Content(schema = @Schema(implementation = SendPasswordResetEmailResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "아이디 또는 이메일 불일치",
+                    content = @Content(schema = @Schema(oneOf = {
+                            InvalidPropertiesErrorResponse.class,
+                            ErrorResponse.class
+                    }))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "정지 사용자 또는 이메일 미인증",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @PostMapping("/password/reset/email/send")
+    @ResponseStatus(HttpStatus.OK)
+    public SendPasswordResetEmailResponse sendPasswordResetEmail(@RequestBody SendPasswordResetEmailRequest req) {
+        long expiresMinutes = emailVerificationService.sendPasswordResetCode(req.username(), req.email());
+        return new SendPasswordResetEmailResponse(req.email(), expiresMinutes);
+    }
+
+    @Operation(summary = "비밀번호 재설정 인증번호 확인", description = "인증 코드를 확인받고 resetToken을 발급합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "인증번호 검증 성공 및 resetToken 발급",
+                    content = @Content(schema = @Schema(implementation = VerifyPasswordResetEmailResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "활성 인증번호 없음, 만료/사용됨, 인증번호 불일치",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403",
+                    description = "정지 사용자 또는 이메일 미인증",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "사용자 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "429",
+                    description = "인증번호 시도 횟수 초과",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @PostMapping("/password/reset/email/verify")
+    @ResponseStatus(HttpStatus.OK)
+    public VerifyPasswordResetEmailResponse verifyPasswordResetEmail(
+            @RequestBody @Valid VerifyPasswordResetEmailRequest req
+    ) {
+        return emailVerificationService.verifyPasswordResetEmail(req);
+    }
+
+    @Operation(summary = "비밀번호 재설정", description = "검증된 resetToken으로 비밀번호를 변경합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "204",
+                    description = "비밀번호 재설정 성공",
+                    content = @Content
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400",
+                    description = "비밀번호 형식 오류 또는 기존 비밀번호와 동일",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "resetToken 누락, 만료, 변조 또는 허용되지 않는 토큰 타입",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "사용자 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @PatchMapping("/password/reset")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@RequestBody @Valid ResetPasswordRequest req) {
+        emailVerificationService.resetPassword(req);
     }
 
     @Operation(summary = "회원 탈퇴", description = "비밀번호 확인 후 계정을 탈퇴 처리(익명화)합니다.")

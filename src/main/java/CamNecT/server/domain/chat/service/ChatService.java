@@ -157,7 +157,7 @@ public class ChatService {
      */
     @Transactional
     public void respondToRequest(Long requestId, Long userId, boolean isAccepted) {
-        ChatRequest request = chatRequestRepository.findById(requestId)
+        ChatRequest request = chatRequestRepository.findByIdForUpdate(requestId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUEST_NOT_FOUND));
 
         // 본인 요청인지 검증
@@ -173,10 +173,7 @@ public class ChatService {
 
         if (isAccepted) {
             request.accept();
-            Long requesterId = request.getRequester().getUserId();
             Long roomId = createChatRoom(request);
-            pointService.earnPoint(requesterId, rewardCoffeeChatAccepted,
-                    PointEvent.coffeeChatAccepted(requesterId, request.getId()));
             tryRewardCoffeeChatAcceptedPoint(request);
             publishAcceptedNotification(request, roomId);
         } else {
@@ -340,7 +337,7 @@ public class ChatService {
 
         UserProfile opProfile = userProfileRepository.findByUserId(opponent.getUserId()).orElse(null);
         String majorName = "전공 미입력";
-        String profileImgUrl = "/images/default.png";
+        String profileImgUrl = null;
 
         if (opProfile != null) {
             if (opProfile.getMajorId() != null) {
@@ -510,6 +507,7 @@ public class ChatService {
     public void sendMessage(Long senderId, ChatMessageSendRequestDto request) {
         log.info("[CHAT-SEND] === 메세지 전송 시작 === RoomID: {}, SenderID: {}", request.roomId(), senderId);
 
+        //예외처리
         ChatRoom room = chatRoomRepository.findById(request.roomId())
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
@@ -518,6 +516,7 @@ public class ChatService {
             throw new CustomException(CoffeeChatErrorCode.COFFEE_CHAT_CLOSED);
         }
 
+        //보내는 사람과 받는 사람 분류
         Users sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 

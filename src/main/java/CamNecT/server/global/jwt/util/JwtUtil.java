@@ -54,6 +54,10 @@ public class JwtUtil {
         return generateToken(userId, role, TokenType.VERIFICATION, verificationTokenExpirationMs);
     }
 
+    public String generatePasswordResetToken(Long userId, UserRole role) {
+        return generateToken(userId, role, TokenType.PASSWORD_RESET, verificationTokenExpirationMs);
+    }
+
     private String generateToken(Long userId, UserRole role, TokenType type, long expirationMs) {
         if (userId == null) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR, new IllegalArgumentException("userId is null"));
