@@ -181,7 +181,7 @@ public class CommentServiceImpl implements CommentService {
             throw new CustomException(CommunityErrorCode.POST_NOT_FOUND);
         }
 
-        int limit = Math.min(Math.max(size, 1), 50);
+        int limit = Math.clamp(size, 1, 50);
         var pageable = PageRequest.of(0, limit);
 
         List<Comments> roots = new ArrayList<>();
