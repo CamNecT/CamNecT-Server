@@ -31,18 +31,18 @@ public class GifticonPurchaseService {
     @Transactional
     public GifticonPurchaseConfirmResponse confirm(Long userId, ConfirmGifticonPurchaseRequest req) {
 
-        // 1) 멱등 처리: (userId, clientRequestId)로 먼저 조회
-        if (req.clientRequestId() != null && !req.clientRequestId().isBlank()) {
-            GifticonPurchase exists = purchaseRepository
-                    .findByUser_UserIdAndClientRequestId(userId, req.clientRequestId())
-                    .orElse(null);
-            if (exists != null) {
-                return new GifticonPurchaseConfirmResponse(exists.getId(), exists.getRequestedAt());
-            }
-        }
+        userRepository.lockUserRow(userId);
 
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(GifticonErrorCode.USER_NOT_FOUND));
+
+        // 1) 멱등 처리: (userId, clientRequestId)로 먼저 조회
+        GifticonPurchase exists = purchaseRepository
+                .findByUser_UserIdAndClientRequestId(userId, req.clientRequestId())
+                .orElse(null);
+        if (exists != null) {
+            return new GifticonPurchaseConfirmResponse(exists.getId(), exists.getRequestedAt());
+        }
 
         GifticonProduct product = productRepository.findById(req.productId())
                 .orElseThrow(() -> new CustomException(GifticonErrorCode.PRODUCT_NOT_FOUND));
@@ -83,14 +83,7 @@ public class GifticonPurchaseService {
         try {
             purchaseRepository.saveAndFlush(purchase);
         } catch (DataIntegrityViolationException e) {
-            // 동시 호출로 unique 충돌이면 “기존거 반환”으로 처리
-            if (req.clientRequestId() != null && !req.clientRequestId().isBlank()) {
-                GifticonPurchase exists = purchaseRepository
-                        .findByUser_UserIdAndClientRequestId(userId, req.clientRequestId())
-                        .orElseThrow(() -> new CustomException(GifticonErrorCode.DUPLICATE_REQUEST));
-                return new GifticonPurchaseConfirmResponse(exists.getId(), exists.getRequestedAt());
-            }
-            throw e;
+            throw new CustomException(GifticonErrorCode.DUPLICATE_REQUEST, e);
         }
 
         // 3) 포인트 차감 (PointService 사용)
