@@ -108,7 +108,7 @@ public class AdminDocumentVerificationService {
     @Transactional
     public void review(Long adminId, Long submissionId, AdminReviewDocumentVerificationRequest req) {
 
-        DocumentVerificationSubmission s = submissionRepo.findById(submissionId)
+        DocumentVerificationSubmission s = submissionRepo.findByIdForUpdate(submissionId)
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.SUBMISSION_NOT_FOUND));
 
         if (s.getStatus() != VerificationStatus.PENDING) {
