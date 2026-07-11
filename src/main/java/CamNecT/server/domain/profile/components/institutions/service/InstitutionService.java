@@ -4,8 +4,6 @@ import CamNecT.server.domain.profile.components.institutions.dto.InstitutionList
 import CamNecT.server.domain.profile.components.institutions.dto.InstitutionResponse;
 import CamNecT.server.domain.profile.components.institutions.repository.InstitutionRepository;
 import CamNecT.server.domain.profile.components.institutions.model.Institutions;
-import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
@@ -30,7 +28,7 @@ public class InstitutionService {
 
     public InstitutionResponse getInstitution(Long id) {
         Institutions institution = institutionRepository.findById(id)
-                .orElseThrow(() -> new CustomException(UserErrorCode.INSTITUTION_NOT_FOUND));
+                .orElseThrow(() -> new RuntimeException("기관 없음"));
 
         return InstitutionResponse.from(institution);
     }

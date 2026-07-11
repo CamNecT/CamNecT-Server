@@ -11,6 +11,7 @@ public enum CommunityErrorCode implements BaseErrorCode {
 
     // 430xx - 요청/검증
     INVALID_CURSOR(HttpStatus.BAD_REQUEST, 43040, "잘못된 커서 요청입니다."),
+    INVALID_REQUIRED_POINTS(HttpStatus.BAD_REQUEST, 43050, "요구 포인트 값이 올바르지 않습니다."),
     INVALID_TAG_IDS(HttpStatus.BAD_REQUEST, 43060, "유효하지 않은 태그가 포함되어 있습니다."),
     PARENT_COMMENT_NOT_IN_POST(HttpStatus.BAD_REQUEST, 43030, "부모 댓글이 해당 게시글에 속하지 않습니다."),
 
@@ -19,10 +20,12 @@ public enum CommunityErrorCode implements BaseErrorCode {
     POST_FORBIDDEN(HttpStatus.FORBIDDEN, 43320, "해당 게시글에 대한 권한이 없습니다."),
 
     // 434xx - 리소스 없음
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, 43401, "유저를 찾을 수 없습니다."),
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, 43410, "게시글을 찾을 수 없습니다."),
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 43411, "댓글을 찾을 수 없습니다."),
     PARENT_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 43412, "부모 댓글을 찾을 수 없습니다."),
     BOARD_NOT_FOUND(HttpStatus.NOT_FOUND, 43420, "게시판을 찾을 수 없습니다."),
+    TAG_NOT_FOUND(HttpStatus.NOT_FOUND, 43421, "태그를 찾을 수 없습니다."),
     POST_STATS_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, 43510, "게시글 통계 데이터가 누락되었습니다."),
     ATTACHMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 43430, "첨부파일을 찾을 수 없습니다."),
 

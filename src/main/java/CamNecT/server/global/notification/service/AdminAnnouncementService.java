@@ -1,11 +1,10 @@
 package CamNecT.server.global.notification.service;
 
-import CamNecT.server.domain.users.model.UserRole;
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.ErrorCode;
-import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.notification.dto.request.AdminAnnouncementRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +29,6 @@ public class AdminAnnouncementService {
     private final AdminAnnouncementBatchService adminAnnouncementBatchService;
 
     public long send(Long adminUserId, AdminAnnouncementRequest request) {
-        validateAdmin(adminUserId);
         validate(request);
 
         if (request.targetType() == USERS) {
@@ -63,12 +61,7 @@ public class AdminAnnouncementService {
         if (request.targetType() == USERS &&
                 (request.targetUserIds() == null || request.targetUserIds().isEmpty())) {
             throw new CustomException(ErrorCode.BAD_REQUEST);
-        }
-    }
-
-    private void validateAdmin(Long adminUserId) {
-        if (!userRepository.existsByUserIdAndRole(adminUserId, UserRole.ADMIN)) {
-            throw new CustomException(UserErrorCode.USER_NOT_ADMIN);
+            // 프로젝트 스타일대로 가려면 ErrorCode 하나 추가해서 CustomException으로 바꾸면 됨
         }
     }
 

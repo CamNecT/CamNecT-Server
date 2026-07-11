@@ -17,7 +17,7 @@ public record AdminAnnouncementRequest(
         @NotNull
         TargetType targetType,
 
-        List<@NotNull Long> targetUserIds
+        List<Long> targetUserIds
 ) {
     public enum TargetType {
         ALL,

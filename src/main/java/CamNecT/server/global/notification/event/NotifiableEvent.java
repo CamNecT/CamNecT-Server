@@ -2,8 +2,6 @@ package CamNecT.server.global.notification.event;
 
 import CamNecT.server.global.notification.model.NotificationType;
 
-import java.util.Objects;
-
 public interface NotifiableEvent {
     Long receiverUserId();
     Long actorUserId();
@@ -22,6 +20,6 @@ public interface NotifiableEvent {
 
     // “나->나” 알림 허용 여부(기본 false)
     default boolean allowSelf() { return false; }
-    default boolean isSelf() { return actorUserId() != null && Objects.equals(receiverUserId(), actorUserId()); }
+    default boolean isSelf() { return actorUserId() != null && receiverUserId().equals(actorUserId()); }
     default boolean shouldSkipSelfNotification() { return isSelf() && !allowSelf(); }
 }

@@ -13,12 +13,9 @@ import CamNecT.server.domain.portfolio.model.PortfolioProject;
 import CamNecT.server.domain.portfolio.repository.PortfolioAssetRepository;
 import CamNecT.server.domain.portfolio.repository.PortfolioRepository;
 import CamNecT.server.domain.users.model.UserRole;
-import CamNecT.server.domain.users.model.UserStatus;
-import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.ErrorCode;
-import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.ActivityErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.storage.model.UploadTicket;
 import CamNecT.server.global.storage.repository.UploadTicketRepository;
@@ -52,11 +49,6 @@ public class PortfolioService {
     private final PortfolioAttachmentService portfolioAttachmentService;
 
     public PortfolioResponse<List<PortfolioPreviewResponse>> portfolioPreview(Long userId, Long portfolioUserId) {
-        requireAuthenticatedUser(userId);
-        if (!userRepository.existsById(portfolioUserId)) {
-            throw new CustomException(UserErrorCode.USER_NOT_FOUND);
-        }
-
         boolean isMine = Objects.equals(userId, portfolioUserId);
 
         List<PortfolioPreviewResponse> rows = isMine
@@ -78,7 +70,6 @@ public class PortfolioService {
     }
 
     public PortfolioResponse<PortfolioDetailResponse> portfolioDetail(Long userId, Long portfolioUserId, Long portfolioId) {
-        requireAuthenticatedUser(userId);
         PortfolioProject project = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
 
@@ -132,7 +123,7 @@ public class PortfolioService {
 
         /// 글쓴이 프로필
         Long authorId = Optional.ofNullable(project.getUserId())
-                .orElseThrow(() -> new CustomException(ErrorCode.INTERNAL_ERROR));
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.USER_NOT_FOUND));
 
         AuthorDto author = authorAssembler.buildAuthorMap(List.of(authorId))
                 .get(authorId);
@@ -144,12 +135,8 @@ public class PortfolioService {
     public PortfolioPreviewResponse create(Long userId, Long portfolioUserId, PortfolioRequest request) {
 
         if (!Objects.equals(userId, portfolioUserId)) throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
-        userRepository.lockUserRow(userId);
-        requireAuthenticatedUser(userId);
 
-        if (!StringUtils.hasText(request.thumbnailKey())) {
-            throw new CustomException(UserErrorCode.PORTFOLIO_THUMBNAIL_REQUIRED);
-        }
+        if (request.thumbnailKey() == null) throw new CustomException(UserErrorCode.PORTFOLIO_THUMBNAIL_REQUIRED);
 
         // 1. 엔티티 생성 시 누락된 필드(assignedRole, techStack) 추가
         PortfolioProject project = PortfolioProject.builder()
@@ -197,8 +184,7 @@ public class PortfolioService {
 
     @Transactional
     public PortfolioPreviewResponse update(Long userId, Long portfolioUserId, Long portfolioId, PortfolioRequest request) {
-        requireAuthenticatedUser(userId);
-        PortfolioProject project = portfolioRepository.findByIdForUpdate(portfolioId)
+        PortfolioProject project = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
 
         // 권한 체크
@@ -241,8 +227,7 @@ public class PortfolioService {
 
     @Transactional
     public void delete(Long userId, Long portfolioUserId, Long portfolioId) {
-        requireAuthenticatedUser(userId);
-        PortfolioProject project = portfolioRepository.findByIdForUpdate(portfolioId)
+        PortfolioProject project = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
 
         assertPathUserMatchesOwner(portfolioUserId, project);
@@ -258,8 +243,7 @@ public class PortfolioService {
 
     @Transactional
     public boolean togglePublic(Long userId, Long portfolioUserId, Long portfolioId) {
-        requireAuthenticatedUser(userId);
-        PortfolioProject project = portfolioRepository.findByIdForUpdate(portfolioId)
+        PortfolioProject project = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
 
         assertPathUserMatchesOwner(portfolioUserId, project);
@@ -272,8 +256,7 @@ public class PortfolioService {
 
     @Transactional
     public boolean toggleFavorite(Long userId, Long portfolioUserId, Long portfolioId) {
-        requireAuthenticatedUser(userId);
-        PortfolioProject project = portfolioRepository.findByIdForUpdate(portfolioId)
+        PortfolioProject project = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
 
         assertPathUserMatchesOwner(portfolioUserId, project);
@@ -293,15 +276,6 @@ public class PortfolioService {
 
     private void assertOwner(Long userId, PortfolioProject project) {
         if (!Objects.equals(project.getUserId(), userId)) throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
-    }
-
-    private Users requireAuthenticatedUser(Long userId) {
-        Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
-        if (user.getStatus() == UserStatus.SUSPENDED) {
-            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
-        }
-        return user;
     }
 
     private String cdnOrDefault(String key) {
