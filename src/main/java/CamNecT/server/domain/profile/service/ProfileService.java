@@ -26,7 +26,6 @@ import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.domain.users.repository.UserTagMapRepository;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.StorageErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
@@ -82,9 +81,9 @@ public class ProfileService {
     public ProfileResponse getUserProfile(Long loginUserId, Long profileUserId) {
 
         Users user = userRepository.findByUserId(profileUserId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
         UserProfile userProfile = userProfileRepository.findByUserId(profileUserId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
         String profileImageUrl = publicUrlIssuer.issuePublicUrl(userProfile.getProfileImageKey());
 
@@ -158,6 +157,8 @@ public class ProfileService {
 
     @Transactional
     public void updatePrivacy(Long userId, UpdatePrivacyRequest request) {
+        userRepository.lockUserRow(userId);
+
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
@@ -171,6 +172,8 @@ public class ProfileService {
 
     @Transactional
     public ProfileStatusResponse updateBio(Long userId, String bio) {
+        userRepository.lockUserRow(userId);
+
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
@@ -240,6 +243,7 @@ public class ProfileService {
     @Transactional
     public ProfileStatusResponse updateProfileTags(Long userId, UpdateProfileTagsRequest req) {
 
+        userRepository.lockUserRow(userId);
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
 
@@ -249,8 +253,8 @@ public class ProfileService {
 
         // 존재 검증 (스킵 허용이면 empty OK)
         if (!tagIds.isEmpty()) {
-            var tags = tagRepository.findAllById(tagIds);
-            if (tags.size() != tagIds.size()) {
+            List<Long> existingActiveTagIds = tagRepository.findExistingActiveIds(tagIds);
+            if (existingActiveTagIds.size() != tagIds.size()) {
                 throw new CustomException(UserErrorCode.INVALID_TAG_IDS);
             }
         }
@@ -265,7 +269,9 @@ public class ProfileService {
         return new ProfileStatusResponse(user.getStatus());
     }
 
+    @Transactional
     public PresignUploadResponse presignProfileImageUpload(Long userId, PresignUploadRequest req) {
+        userRepository.lockUserRow(userId);
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
         requireEmailVerifiedAndNotSuspended(user);
@@ -285,7 +291,7 @@ public class ProfileService {
                 UploadPurpose.PROFILE_IMAGE,
                 keyPrefix,
                 ct,
-                maxBytes,
+                req.size(),
                 req.originalFilename()
         );
     }
@@ -293,6 +299,7 @@ public class ProfileService {
     @Transactional
     public void updateMyProfileImage(Long userId, UpdateProfileImageRequest req) {
 
+        userRepository.lockUserRow(userId);
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
         requireEmailVerifiedAndNotSuspended(user);
@@ -341,9 +348,9 @@ public class ProfileService {
 
     public ProfileSettingsResponse getMySettings(Long userId) {
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
         String profileImageUrl = publicUrlIssuer.issuePublicUrl(userProfile.getProfileImageKey());
 
