@@ -86,7 +86,7 @@ public class AdminDocumentVerificationController {
             @ApiResponse(responseCode = "400", description = "40000 요청값 형식·검증 오류 / 42011 반려 사유 누락 / 42033 승인 필수 학생 정보 누락", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 41103 인증 헤더 누락·형식 오류 / 41104 토큰 타입 누락 / 41106 허용되지 않은 토큰 타입", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "403", description = "40300 관리자 권한 없음 / 41301 이메일 인증이 완료되지 않음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "404", description = "42401 제출 / 42402 사용자 / 44402 사용자 프로필을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "42401 제출 / 42402 사용자 / 44402 사용자 프로필 / 44407 학교 / 44408 전공을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "409", description = "42910 심사 가능 상태가 아님 / 40900 포인트 처리 중 동시성 충돌", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @ApiResponse(responseCode = "500", description = "44150 포인트 지갑 생성 실패 / 50000 심사 처리 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))

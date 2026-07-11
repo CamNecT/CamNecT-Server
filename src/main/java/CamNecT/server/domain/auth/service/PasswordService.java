@@ -22,7 +22,7 @@ public class PasswordService {
     @Transactional
     public void updateMyPassword(Long userId, UpdatePasswordRequest req) {
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
         if (!passwordEncoder.matches(req.currentPassword(), user.getPasswordHash())) {
             throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
