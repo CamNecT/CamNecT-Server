@@ -394,9 +394,12 @@ public class PostServiceImpl implements PostService {
             throw new CustomException(CommunityErrorCode.CANNOT_ACCEPT_UNPUBLISHED_COMMENT);
         }
 
+        if (acceptedCommentsRepository.existsByPost_Id(postId)) {
+            throw new CustomException(CommunityErrorCode.ALREADY_ACCEPTED);
+        }
 
         try {
-            acceptedCommentsRepository.save(AcceptedComments.of(post, comment, userId));
+            acceptedCommentsRepository.saveAndFlush(AcceptedComments.of(post, comment, userId));
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(CommunityErrorCode.ALREADY_ACCEPTED, e);
         }
