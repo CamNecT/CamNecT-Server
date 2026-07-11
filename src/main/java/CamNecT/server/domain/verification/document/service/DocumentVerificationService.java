@@ -11,6 +11,8 @@ import CamNecT.server.domain.verification.document.model.DocumentType;
 import CamNecT.server.domain.verification.document.model.DocumentVerificationSubmission;
 import CamNecT.server.domain.verification.document.model.VerificationStatus;
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.StorageErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.VerificationErrorCode;
 import CamNecT.server.global.storage.service.GlobalPresignMethods;
 import CamNecT.server.global.storage.dto.request.PresignUploadRequest;
@@ -47,6 +49,11 @@ public class DocumentVerificationService {
     // ===== presign upload =====
     @Transactional
     public PresignUploadResponse presignUpload(Long userId, PresignUploadRequest req) {
+        userRepository.lockUserRow(userId);
+        if (!userRepository.existsById(userId)) {
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+        }
+
         String ct = normalize(req.contentType());
 
         if (req.size() <= 0) throw new CustomException(VerificationErrorCode.EMPTY_FILE_NOT_ALLOWED);
@@ -63,7 +70,7 @@ public class DocumentVerificationService {
                 UploadPurpose.VERIFICATION_DOCUMENT,
                 keyPrefix,
                 ct,
-                props.maxFileSizeBytes(),     // 티켓에는 "허용 상한"을 저장
+                req.size(),
                 req.originalFilename()
         );
     }
@@ -77,6 +84,9 @@ public class DocumentVerificationService {
         }
 
         userRepository.lockUserRow(userId);
+        if (!userRepository.existsById(userId)) {
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+        }
 
         DocumentVerificationSubmission oldPending = submissionRepo
                 .findTopByUserIdAndStatusOrderBySubmittedAtDesc(userId, VerificationStatus.PENDING)
@@ -85,9 +95,9 @@ public class DocumentVerificationService {
         if(oldPending != null) throw new CustomException(VerificationErrorCode.PENDING_ALREADY_EXISTS);
 
         UploadTicket t = ticketRepo.findByStorageKey(documentKey)
-                .orElseThrow(() -> new CustomException(VerificationErrorCode.FILE_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(StorageErrorCode.UPLOAD_TICKET_NOT_FOUND));
         if (!t.getUserId().equals(userId)) {
-            throw new CustomException(VerificationErrorCode.TICKET_USER_NOT_MATCH);
+            throw new CustomException(StorageErrorCode.UPLOAD_TICKET_FORBIDDEN);
         }
 
         String ct = normalize(t.getContentType());
@@ -130,16 +140,6 @@ public class DocumentVerificationService {
         );
 
         sub.replaceStorageKey(finalKey);
-
-        /// 제출대기 상태에서 재제출은 일단 로직 중단(프론트 거부사항) -> 기존의 대기상태에서의 재제출 금지 유지
-//        if (oldPending != null && !oldPending.getId().equals(sub.getId())) {
-//            String oldKey = oldPending.getStorageKey();
-//            if (!StringUtils.hasText(oldKey)) throw new CustomException(VerificationErrorCode.OLD_PENDING_INVALID);
-//
-//            globalPresignMethods.deleteAfterCommit(Set.of(oldKey));
-//            oldPending.cancel();
-//        }
-
 
         return new SubmitDocumentVerificationResponse(sub.getId(), sub.getStatus(), sub.getSubmittedAt());
     }

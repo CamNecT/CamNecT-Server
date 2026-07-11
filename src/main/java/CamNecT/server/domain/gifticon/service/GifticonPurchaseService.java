@@ -11,6 +11,7 @@ import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.GifticonErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -31,18 +33,21 @@ public class GifticonPurchaseService {
     @Transactional
     public GifticonPurchaseConfirmResponse confirm(Long userId, ConfirmGifticonPurchaseRequest req) {
 
-        // 1) 멱등 처리: (userId, clientRequestId)로 먼저 조회
-        if (req.clientRequestId() != null && !req.clientRequestId().isBlank()) {
-            GifticonPurchase exists = purchaseRepository
-                    .findByUser_UserIdAndClientRequestId(userId, req.clientRequestId())
-                    .orElse(null);
-            if (exists != null) {
-                return new GifticonPurchaseConfirmResponse(exists.getId(), exists.getRequestedAt());
-            }
-        }
+        userRepository.lockUserRow(userId);
 
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(GifticonErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+
+        // 1) 멱등 처리: (userId, clientRequestId)로 먼저 조회
+        GifticonPurchase exists = purchaseRepository
+                .findByUser_UserIdAndClientRequestId(userId, req.clientRequestId())
+                .orElse(null);
+        if (exists != null) {
+            if (!matchesRequest(exists, req)) {
+                throw new CustomException(GifticonErrorCode.DUPLICATE_REQUEST);
+            }
+            return new GifticonPurchaseConfirmResponse(exists.getId(), exists.getRequestedAt());
+        }
 
         GifticonProduct product = productRepository.findById(req.productId())
                 .orElseThrow(() -> new CustomException(GifticonErrorCode.PRODUCT_NOT_FOUND));
@@ -83,14 +88,7 @@ public class GifticonPurchaseService {
         try {
             purchaseRepository.saveAndFlush(purchase);
         } catch (DataIntegrityViolationException e) {
-            // 동시 호출로 unique 충돌이면 “기존거 반환”으로 처리
-            if (req.clientRequestId() != null && !req.clientRequestId().isBlank()) {
-                GifticonPurchase exists = purchaseRepository
-                        .findByUser_UserIdAndClientRequestId(userId, req.clientRequestId())
-                        .orElseThrow(() -> new CustomException(GifticonErrorCode.DUPLICATE_REQUEST));
-                return new GifticonPurchaseConfirmResponse(exists.getId(), exists.getRequestedAt());
-            }
-            throw e;
+            throw new CustomException(GifticonErrorCode.DUPLICATE_REQUEST, e);
         }
 
         // 3) 포인트 차감 (PointService 사용)
@@ -103,5 +101,14 @@ public class GifticonPurchaseService {
 
     private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s;
+    }
+
+    private static boolean matchesRequest(GifticonPurchase purchase, ConfirmGifticonPurchaseRequest req) {
+        return Objects.equals(purchase.getProduct().getId(), req.productId())
+                && Objects.equals(purchase.getQuantity(), req.quantity())
+                && Objects.equals(purchase.getTotalPricePoints(), req.spendPoints())
+                && Objects.equals(purchase.getRecipientName(), blankToNull(req.recipientName()))
+                && Objects.equals(purchase.getRecipientPhone(), blankToNull(req.recipientPhone()))
+                && Objects.equals(purchase.getGiftMessage(), blankToNull(req.giftMessage()));
     }
 }

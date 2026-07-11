@@ -7,6 +7,7 @@ import CamNecT.server.global.point.repository.PointTransactionRepository;
 import CamNecT.server.global.point.repository.PointWalletRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.ErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.notification.event.SimpleNotifiableEvent;
 import CamNecT.server.global.notification.model.NotificationType;
@@ -39,8 +40,8 @@ public class PointService {
 
     @Transactional
     public void changePoint(Long userId, int amount, TransactionType type, PointEvent event) {
-        if (event == null || event.source() == null) {
-            throw new CustomException(UserErrorCode.POINT_EVENT_REQUIRED);
+        if (amount <= 0 || event == null || event.source() == null) {
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
 
@@ -122,7 +123,7 @@ public class PointService {
     @Transactional(readOnly = true)
     public String getPhoneNum(Long userId) {
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
         return user.getPhoneNum();
     }
 }
