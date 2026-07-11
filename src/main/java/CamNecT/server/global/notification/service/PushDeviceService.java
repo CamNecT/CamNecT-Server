@@ -1,10 +1,14 @@
 package CamNecT.server.global.notification.service;
 
+import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.notification.dto.request.RegisterPushTokenRequest;
 import CamNecT.server.global.notification.model.PushDevice;
 import CamNecT.server.global.notification.repository.PushDeviceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -14,9 +18,15 @@ import java.util.List;
 public class PushDeviceService {
 
     private final PushDeviceRepository pushDeviceRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public RegisterResult register(Long userId, RegisterPushTokenRequest req) {
+        userRepository.lockUserRow(userId);
+        if (!userRepository.existsById(userId)) {
+            throw new CustomException(UserErrorCode.USER_NOT_FOUND);
+        }
+
         PushDevice device = pushDeviceRepository.findByUserIdAndDeviceId(userId, req.deviceId())
                 .map(existing -> {
                     existing.updateToken(req.platform(), req.token());
@@ -35,7 +45,7 @@ public class PushDeviceService {
         return new RegisterResult(saved.getId(), created);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public List<String> findEnabledTokens(Long userId) {
         return pushDeviceRepository.findAllByUserIdAndEnabledTrue(userId)
                 .stream()
@@ -43,7 +53,7 @@ public class PushDeviceService {
                 .toList();
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void disableTokens(List<String> invalidTokens) {
         if (invalidTokens == null || invalidTokens.isEmpty()) return;
 

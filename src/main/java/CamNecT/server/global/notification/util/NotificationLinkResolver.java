@@ -1,12 +1,12 @@
 package CamNecT.server.global.notification.util;
 
-import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.NotificationErrorCode;
 import CamNecT.server.global.notification.event.NotifiableEvent;
 import CamNecT.server.global.notification.model.FrontLinkProperties;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class NotificationLinkResolver {
@@ -35,9 +35,8 @@ public class NotificationLinkResolver {
                 // 포인트 등: 별도 화면이 없으면 fallback
                 case POINT_EARNED, POINT_SPENT, ADMIN_ANNOUNCEMENT -> fallback();
             };
-        } catch (CustomException ex) {
-            throw ex; // 원하시면 fallback()로 내려도 됩니다.
         } catch (Exception ex) {
+            log.warn("[notification-link] fallback applied. type={}", e.type(), ex);
             return fallback();
         }
     }
@@ -53,19 +52,19 @@ public class NotificationLinkResolver {
 
     private Long requirePostId(NotifiableEvent e) {
         Long v = e.postId();
-        if (v == null) throw new CustomException(NotificationErrorCode.REQUIRED_ID_MISSING);
+        if (v == null) throw new IllegalStateException("postId is required for " + e.type());
         return v;
     }
 
     private Long requireRequestId(NotifiableEvent e) {
         Long v = e.requestId();
-        if (v == null) throw new CustomException(NotificationErrorCode.REQUIRED_ID_MISSING);
+        if (v == null) throw new IllegalStateException("requestId is required for " + e.type());
         return v;
     }
 
     private Long requireRoomId(NotifiableEvent e) {
         Long v = e.roomId();
-        if (v == null) throw new CustomException(NotificationErrorCode.REQUIRED_ROOM_ID_MISSING);
+        if (v == null) throw new IllegalStateException("roomId is required for " + e.type());
         return v;
     }
 

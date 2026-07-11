@@ -68,30 +68,31 @@ public class NotificationEventListener {
                 e.requestId(),
                 link
         );
-        notificationWsPublisher.sendToUser(e.receiverUserId(), wsPayload);
+        try {
+            notificationWsPublisher.sendToUser(e.receiverUserId(), wsPayload);
+        } catch (Exception ex) {
+            log.warn("[notif] WebSocket send failed. receiver={}, type={}", e.receiverUserId(), e.type(), ex);
+        }
 
         // 2) 모바일 푸시(FCM)
-        var tokens = pushDeviceService.findEnabledTokens(e.receiverUserId());
-        log.info("[notif] fcm tokens receiver={}, size={}, tokens={}",
-                e.receiverUserId(),
-                tokens == null ? 0 : tokens.size(),
-                tokens == null ? "null" : tokens.stream()
-                        .map(t -> t == null ? "null" : t.substring(0, Math.min(18, t.length())))
-                        .toList()
-        );
-        if (tokens == null || tokens.isEmpty()) return;
-
-
-        Map<String, String> data = new java.util.HashMap<>();
-        data.put("type", e.type().name());
-        data.put("title", title);                 // data로 title 전달 (중복제거 위해 추가)
-        data.put("body", body == null ? "" : body); // data로 body 전달 (중복제거 위해 추가)
-        data.put("link", link);
-        if (e.postId() != null) data.put("postId", String.valueOf(e.postId()));
-        if (e.commentId() != null) data.put("commentId", String.valueOf(e.commentId()));
-        if (e.requestId() != null) data.put("requestId", String.valueOf(e.requestId()));
-
         try {
+            var tokens = pushDeviceService.findEnabledTokens(e.receiverUserId());
+            log.info("[notif] fcm tokens receiver={}, size={}",
+                    e.receiverUserId(),
+                    tokens == null ? 0 : tokens.size()
+            );
+            if (tokens == null || tokens.isEmpty()) return;
+
+
+            Map<String, String> data = new java.util.HashMap<>();
+            data.put("type", e.type().name());
+            data.put("title", title);                 // data로 title 전달 (중복제거 위해 추가)
+            data.put("body", body == null ? "" : body); // data로 body 전달 (중복제거 위해 추가)
+            data.put("link", link);
+            if (e.postId() != null) data.put("postId", String.valueOf(e.postId()));
+            if (e.commentId() != null) data.put("commentId", String.valueOf(e.commentId()));
+            if (e.requestId() != null) data.put("requestId", String.valueOf(e.requestId()));
+
             log.info("[notif] fcm send start receiver={}, title={}, bodyLen={}, dataKeys={}",
                     e.receiverUserId(), title, body == null ? 0 : body.length(), data.keySet());
             FCMSender.SendResult result = fcmSender.sendToTokens(tokens, data); //이앞 title,body 지웠다.
@@ -101,8 +102,8 @@ public class NotificationEventListener {
                     result.invalidTokens() == null ? 0 : result.invalidTokens().size()
             );
             pushDeviceService.disableTokens(result.invalidTokens());
-        } catch (com.google.firebase.messaging.FirebaseMessagingException ex) {
-            log.warn("[notif] FCM send failed. receiver={}, type={}", e.receiverUserId(), e.type(), ex);
+        } catch (Exception ex) {
+            log.warn("[notif] FCM delivery failed. receiver={}, type={}", e.receiverUserId(), e.type(), ex);
         }
     }
 }
