@@ -2,7 +2,6 @@ package CamNecT.server.domain.report.dto.request;
 
 import CamNecT.server.domain.report.model.ReportStatus;
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
 
 
 public record ReportProcessRequest(

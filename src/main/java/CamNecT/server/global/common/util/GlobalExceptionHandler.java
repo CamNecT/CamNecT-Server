@@ -11,12 +11,31 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(CustomException.class)
+    public ResponseEntity<ErrorResponse> handleCustom(CustomException e, HttpServletRequest req) {
+        BaseErrorCode errorCode = e.getErrorCode();
+
+        log.warn("[CustomException] {} {} | status={} code={}",
+                req.getMethod(),
+                req.getRequestURI(),
+                errorCode.getHttpStatus().value(),
+                errorCode.getCode());
+
+        return response(errorCode);
+    }
 
     @ExceptionHandler({
             MethodArgumentNotValidException.class,
@@ -62,31 +81,50 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-    @ExceptionHandler(CustomException.class)
-    public ResponseEntity<ErrorResponse> handleCustom(CustomException e, HttpServletRequest req) {
 
-        BaseErrorCode ec = e.getErrorCode();
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(Exception e, HttpServletRequest req) {
+        log.warn("[UnreadableBody] {} {}", req.getMethod(), req.getRequestURI());
+        return response(ErrorCode.BAD_REQUEST);
+    }
 
-        // 토큰 원문은 절대 찍지 마세요. (있/없만)
-        String auth = req.getHeader("Authorization");
-        boolean hasAuth = (auth != null && !auth.isBlank());
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(Exception e) {
+        return response(ErrorCode.METHOD_NOT_ALLOWED);
+    }
 
-        Object userIdAttr = req.getAttribute("userId"); // AuthInterceptor에서 setAttribute 한 값
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ErrorResponse> handleNotAcceptable(Exception e) {
+        return response(ErrorCode.NOT_ACCEPTABLE);
+    }
 
-        log.warn("[CustomException] {} {} | status={} code={} | userIdAttr={} | hasAuth={} | ua={}",
-                req.getMethod(),
-                req.getRequestURI(),
-                ec.getHttpStatus().value(),
-                ec.getCode(),
-                userIdAttr,
-                hasAuth,
-                req.getHeader("User-Agent")
-        );
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(Exception e) {
+        return response(ErrorCode.UNSUPPORTED_MEDIA_TYPE);
+    }
 
-        // 원인 파악 필요하면(개발/스테이징만) cause도 같이:
-        // log.warn("cause=", e);
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handlePayloadTooLarge(Exception e) {
+        return response(ErrorCode.PAYLOAD_TOO_LARGE);
+    }
 
-        return ResponseEntity.status(ec.getHttpStatus())
-                .body(new ErrorResponse(ec.getHttpStatus().value(), ec.getCode(), ec.getMessage()));
+    @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+    public ResponseEntity<ErrorResponse> handleNotFound(Exception e) {
+        return response(ErrorCode.NOT_FOUND);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpected(Exception e, HttpServletRequest req) {
+        log.error("[UnexpectedException] {} {}", req.getMethod(), req.getRequestURI(), e);
+        return response(ErrorCode.INTERNAL_ERROR);
+    }
+
+    private ResponseEntity<ErrorResponse> response(BaseErrorCode errorCode) {
+        return ResponseEntity.status(errorCode.getHttpStatus())
+                .body(new ErrorResponse(
+                        errorCode.getHttpStatus().value(),
+                        errorCode.getCode(),
+                        errorCode.getMessage()
+                ));
     }
 }

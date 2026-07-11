@@ -5,7 +5,7 @@ import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.NotificationErrorCode;
 import CamNecT.server.global.notification.dto.response.NotificationItemResponse;
 import CamNecT.server.global.notification.model.Notification;
 import CamNecT.server.global.notification.model.NotificationType;
@@ -143,7 +143,7 @@ public class NotificationService {
     @Transactional
     public void markRead(Long receiverUserId, Long notificationId) {
         if (!notificationRepository.existsByIdAndReceiverUserId(notificationId, receiverUserId)) {
-            throw new CustomException(UserErrorCode.NOTIFICATION_NOT_FOUND);
+            throw new CustomException(NotificationErrorCode.NOTIFICATION_NOT_FOUND);
         }
 
         notificationRepository.markRead(receiverUserId, notificationId);

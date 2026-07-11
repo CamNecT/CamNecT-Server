@@ -3,6 +3,8 @@ package CamNecT.server.domain.verification.document.service;
 import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserProfile;
+import CamNecT.server.domain.profile.components.institutions.repository.InstitutionRepository;
+import CamNecT.server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
@@ -42,6 +44,8 @@ public class AdminDocumentVerificationService {
     private final DocumentVerificationSubmissionRepository submissionRepo;
     private final UserRepository usersRepository;
     private final UserProfileRepository userProfileRepository;
+    private final InstitutionRepository institutionRepository;
+    private final MajorRepository majorRepository;
     private final PresignEngine presignEngine;
     private final ApplicationEventPublisher eventPublisher;
     private final PointService pointService;
@@ -108,7 +112,7 @@ public class AdminDocumentVerificationService {
     @Transactional
     public void review(Long adminId, Long submissionId, AdminReviewDocumentVerificationRequest req) {
 
-        DocumentVerificationSubmission s = submissionRepo.findById(submissionId)
+        DocumentVerificationSubmission s = submissionRepo.findByIdForUpdate(submissionId)
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.SUBMISSION_NOT_FOUND));
 
         if (s.getStatus() != VerificationStatus.PENDING) {
@@ -194,6 +198,13 @@ public class AdminDocumentVerificationService {
         if (studentNo == null || studentName == null || institutionId == null || majorId == null) {
             // 승인 버튼은 “관리자 입력값 채운 뒤에만 호출”이지만 서버에서도 방어
             throw new CustomException(VerificationErrorCode.APPROVE_FIELDS_REQUIRED); // 임시. 전용 에러코드 추천
+        }
+
+        if (!institutionRepository.existsById(institutionId)) {
+            throw new CustomException(UserErrorCode.INSTITUTION_NOT_FOUND);
+        }
+        if (majorRepository.findByMajorIdAndInstitution_InstitutionId(majorId, institutionId).isEmpty()) {
+            throw new CustomException(UserErrorCode.MAJOR_NOT_FOUND);
         }
 
         UserProfile profile = userProfileRepository.findByUserId(userId)
