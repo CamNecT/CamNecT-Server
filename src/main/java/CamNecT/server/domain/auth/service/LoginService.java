@@ -58,7 +58,7 @@ public class LoginService {
     public LoginResponse login(LoginRequest req) {
 
         Users user = userRepository.findByUsername(req.username())
-                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_CREDENTIALS));
 
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
             throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);

@@ -1,8 +1,10 @@
 package CamNecT.server.global.common.auth;
 
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.ErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
+import CamNecT.server.global.jwt.model.TokenType;
 import CamNecT.server.global.jwt.util.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
@@ -31,20 +33,52 @@ public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
 
         String authHeader = webRequest.getHeader("Authorization");
         if (authHeader == null || authHeader.isBlank()) {
-            throw new CustomException(ErrorCode.UNAUTHORIZED, new IllegalArgumentException("Authorization 헤더가 존재하지 않습니다."));
+            throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
         }
 
         String token = extractBearerToken(authHeader);
-        return jwtUtil.getUserId(token);
+        validateAuthEndpointTokenType(webRequest, token);
+        try {
+            return jwtUtil.getUserId(token);
+        } catch (CustomException e) {
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN, e);
+        }
     }
 
     private String extractBearerToken(String header) {
         String prefix = "Bearer ";
-
         if (!header.startsWith(prefix)) {
-            throw new CustomException(ErrorCode.UNAUTHORIZED, new IllegalArgumentException("Authorization 헤더 형식이 올바르지 않습니다."));
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN_FORMAT);
+        }
+        return header.substring(prefix.length()).trim();
+    }
+
+    private void validateAuthEndpointTokenType(NativeWebRequest webRequest, String token) {
+        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
+        if (request == null || !request.getRequestURI().startsWith("/api/auth/")) {
+            return;
         }
 
-        return header.substring(prefix.length()).trim();
+        TokenType tokenType;
+        try {
+            tokenType = jwtUtil.getTokenType(token);
+        } catch (CustomException e) {
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN, e);
+        }
+
+        if (tokenType == null) {
+            throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
+        }
+
+        String uri = request.getRequestURI();
+        boolean allowed = switch (uri) {
+            case "/api/auth/onboarding" -> tokenType == TokenType.ACCESS || tokenType == TokenType.VERIFICATION;
+            case "/api/auth/logout", "/api/auth/verification-complete", "/api/auth/me" -> tokenType == TokenType.ACCESS;
+            default -> true;
+        };
+
+        if (!allowed) {
+            throw new CustomException(AuthErrorCode.TOKEN_TYPE_NOT_ALLOWED);
+        }
     }
 }
