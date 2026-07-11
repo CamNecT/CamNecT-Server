@@ -31,7 +31,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     @Override
     public PostListResponse getPosts(Long userId, Tab tab, Sort sort, Long tagId, String keyword,
                                      Long cursorId, Long cursorValue, int size) {
-        int limit = Math.min(Math.max(size, 1), 50);
+        int limit = Math.clamp(size, 1, 50);
 
         BoardCode code = toBoardCode(tab);
         String kw = normalizeKeyword(keyword);
@@ -75,7 +75,7 @@ public class PostQueryServiceImpl implements PostQueryService {
 
     @Override
     public PostListResponse getPostsByTag(Long userId, Long tagId, Long cursorValue, Long cursorId, int size) {
-        int limit = Math.min(Math.max(size, 1), 50);
+        int limit = Math.clamp(size, 1, 50);
 
         Slice<Posts> slice = postsRepository.findFeedRecommended(
                 PostStatus.PUBLISHED,

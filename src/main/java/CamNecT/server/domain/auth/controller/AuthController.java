@@ -5,7 +5,6 @@ import CamNecT.server.domain.auth.dto.login.LoginResponse;
 import CamNecT.server.domain.auth.dto.login.VerificationCompleteResponse;
 import CamNecT.server.domain.auth.dto.account.FindUsernameRequest;
 import CamNecT.server.domain.auth.dto.account.FindUsernameResponse;
-import CamNecT.server.domain.auth.dto.others.TokenRefreshRequest;
 import CamNecT.server.domain.auth.dto.others.TokenRefreshResponse;
 import CamNecT.server.domain.auth.dto.others.WithdrawRequest;
 import CamNecT.server.domain.auth.dto.password.ResetPasswordRequest;
@@ -19,7 +18,6 @@ import CamNecT.server.domain.auth.dto.signup.SendSignupEmailResponse;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailRequest;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailResponse;
 import CamNecT.server.domain.auth.service.AccountRecoveryService;
-import CamNecT.server.domain.auth.service.AuthTokenService;
 import CamNecT.server.domain.auth.service.LoginService;
 import CamNecT.server.domain.profile.dto.request.UpdateOnboardingRequest;
 import CamNecT.server.domain.profile.dto.response.ProfileStatusResponse;
@@ -52,7 +50,6 @@ public class AuthController {
     private final UserRepository userRepository;
     private final EmailVerificationService emailVerificationService;
     private final ProfileService profileService;
-    private final AuthTokenService authTokenService;
     private final AccountRecoveryService accountRecoveryService;
 
     @Operation(
