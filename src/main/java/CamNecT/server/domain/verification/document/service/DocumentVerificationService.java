@@ -63,7 +63,7 @@ public class DocumentVerificationService {
                 UploadPurpose.VERIFICATION_DOCUMENT,
                 keyPrefix,
                 ct,
-                props.maxFileSizeBytes(),     // 티켓에는 "허용 상한"을 저장
+                req.size(),
                 req.originalFilename()
         );
     }
