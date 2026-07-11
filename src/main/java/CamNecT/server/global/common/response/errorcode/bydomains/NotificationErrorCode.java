@@ -9,8 +9,12 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum NotificationErrorCode implements BaseErrorCode {
 
-    // xx000은 전역 HTTP 오류 예약, 454xx는 Notification 리소스 오류
-    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, 45401, "해당 알림을 찾을 수 없습니다.");
+    // 450xx - 요청/검증
+    REQUIRED_ID_MISSING(HttpStatus.BAD_REQUEST, 45001, "알림 링크 생성에 필요한 식별자가 누락되었습니다."),
+    REQUIRED_ROOM_ID_MISSING(HttpStatus.BAD_REQUEST, 45002, "알림 링크 생성에 필요한 채팅방 ID가 누락되었습니다."),
+
+    // 55xxx - 서버에러
+    INVALID_LINK_TEMPLATE(HttpStatus.INTERNAL_SERVER_ERROR, 55001, "알림 링크 템플릿 설정이 올바르지 않습니다.");
 
     private final HttpStatus httpStatus;
     private final int code;

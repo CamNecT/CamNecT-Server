@@ -7,13 +7,8 @@ import CamNecT.server.domain.alumni.dto.UserProfileDto;
 import CamNecT.server.domain.alumni.repository.AlumniRepository;
 import CamNecT.server.domain.home.dto.HomeResponse;
 import CamNecT.server.domain.users.model.UserProfile;
-import CamNecT.server.domain.users.model.UserStatus;
-import CamNecT.server.domain.users.model.Users;
-import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserTagMapRepository;
-import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -38,13 +33,11 @@ public class AlumniService {
 
     private final UserTagMapRepository userTagMapRepository;
     private final UserProfileRepository userProfileRepository;
-    private final UserRepository userRepository;
     private final AlumniRepository alumniRepository;
     private final PublicUrlIssuer publicUrlIssuer;
 
     @Transactional(readOnly = true)
     public Slice<AlumniPreviewResponse> searchAlumni(Long userId, String name, List<Long> tagIdList, Pageable pageable) {
-        requireAuthenticatedUser(userId);
         List<Long> normalizedTagIds = normalizeTagIds(tagIdList);
         // 1. ID 페이징 조회
         List<Long> targetIds = alumniRepository.findAlumniIdsByConditions(userId, name, normalizedTagIds, pageable);
@@ -154,14 +147,6 @@ public class AlumniService {
                 .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
                 .distinct()
                 .toList();
-    }
-
-    private void requireAuthenticatedUser(Long userId) {
-        Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
-        if (user.getStatus() == UserStatus.SUSPENDED) {
-            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
-        }
     }
 
 }

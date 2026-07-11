@@ -4,11 +4,7 @@ import CamNecT.server.domain.verification.document.model.DocumentVerificationSub
 import CamNecT.server.domain.verification.document.model.VerificationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,8 +21,4 @@ public interface DocumentVerificationSubmissionRepository extends JpaRepository<
     Optional<DocumentVerificationSubmission> findTopByUserIdOrderBySubmittedAtDesc(Long userId);
 
     Optional<DocumentVerificationSubmission> findTopByUserIdAndStatusOrderBySubmittedAtDesc(Long userId, VerificationStatus status);
-
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select s from DocumentVerificationSubmission s where s.id = :id")
-    Optional<DocumentVerificationSubmission> findByIdForUpdate(@Param("id") Long id);
 }

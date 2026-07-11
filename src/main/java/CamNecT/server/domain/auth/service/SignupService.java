@@ -53,7 +53,7 @@ public class SignupService {
 
         Users savedUser;
         try {
-            savedUser = userRepository.saveAndFlush(user);
+            savedUser = userRepository.save(user);
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(AuthErrorCode.DUPLICATE_RESOURCE);
         }

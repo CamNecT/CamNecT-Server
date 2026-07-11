@@ -15,13 +15,14 @@ import CamNecT.server.domain.community.repository.Comments.CommentLikesRepositor
 import CamNecT.server.domain.community.repository.Comments.CommentsRepository;
 import CamNecT.server.domain.community.repository.Posts.*;
 import CamNecT.server.domain.users.repository.UserFollowRepository;
+import CamNecT.server.global.notification.service.NotificationService;
+import CamNecT.server.global.notification.util.NotificationLinkResolver;
 import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserRole;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.CommunityErrorCode;
 import CamNecT.server.global.notification.event.SimpleNotifiableEvent;
 import CamNecT.server.global.notification.model.NotificationType;
@@ -88,7 +89,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public CreatePostResponse create(Long userId, CreatePostRequest req) {
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+                .orElseThrow(() -> new CustomException(CommunityErrorCode.USER_NOT_FOUND));
 
         Boards board = boardsRepository.findByCode(req.boardCode())
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.BOARD_NOT_FOUND));
@@ -129,7 +130,7 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public void update(Long userId, Long postId, UpdatePostRequest req) {
-        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+        if (userId == null) throw new CustomException(CommunityErrorCode.USER_NOT_FOUND);
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -154,7 +155,7 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public void delete(Long userId, Long postId) {
-        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+        if (userId == null) throw new CustomException(CommunityErrorCode.USER_NOT_FOUND);
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -195,7 +196,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public ToggleLikeResponse toggleLike(Long userId, Long postId) {
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+                .orElseThrow(() -> new CustomException(CommunityErrorCode.USER_NOT_FOUND));
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -232,7 +233,7 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public PostDetailResponse getDetail(Long userId, Long postId) {
-        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+        if (userId == null) throw new CustomException(CommunityErrorCode.USER_NOT_FOUND);
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -371,7 +372,7 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public void acceptComment(Long userId, Long postId, Long commentId) {
-        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+        if (userId == null) throw new CustomException(CommunityErrorCode.USER_NOT_FOUND);
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -393,12 +394,9 @@ public class PostServiceImpl implements PostService {
             throw new CustomException(CommunityErrorCode.CANNOT_ACCEPT_UNPUBLISHED_COMMENT);
         }
 
-        if (acceptedCommentsRepository.existsByPost_Id(postId)) {
-            throw new CustomException(CommunityErrorCode.ALREADY_ACCEPTED);
-        }
 
         try {
-            acceptedCommentsRepository.saveAndFlush(AcceptedComments.of(post, comment, userId));
+            acceptedCommentsRepository.save(AcceptedComments.of(post, comment, userId));
         } catch (DataIntegrityViolationException e) {
             throw new CustomException(CommunityErrorCode.ALREADY_ACCEPTED, e);
         }
@@ -423,7 +421,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public ToggleBookmarkResponse toggleBookmark(Long userId, Long postId) {
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+                .orElseThrow(() -> new CustomException(CommunityErrorCode.USER_NOT_FOUND));
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -453,7 +451,7 @@ public class PostServiceImpl implements PostService {
         userRepository.lockUserRow(userId);
 
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+                .orElseThrow(() -> new CustomException(CommunityErrorCode.USER_NOT_FOUND));
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));

@@ -20,6 +20,7 @@ import CamNecT.server.domain.verification.document.model.DocumentVerificationSub
 import CamNecT.server.domain.verification.document.repository.DocumentVerificationSubmissionRepository;
 import CamNecT.server.domain.verification.email.repository.EmailVerificationTokenRepository;
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.jwt.model.UserRefreshToken;
@@ -57,7 +58,7 @@ public class LoginService {
     public LoginResponse login(LoginRequest req) {
 
         Users user = userRepository.findByUsername(req.username())
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_CREDENTIALS));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
             throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
@@ -128,7 +129,7 @@ public class LoginService {
 
     public VerificationCompleteResponse getVerificationCompleteInfo(Long userId) {
         Users u = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
 
         UserProfile p = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
@@ -182,10 +183,10 @@ public class LoginService {
     @Transactional
     public void withdraw(Long userId, WithdrawRequest req) {
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+                .orElseThrow(() -> new CustomException(ErrorCode.NOT_FOUND));
 
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
-            throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
+            throw new CustomException(AuthErrorCode.INVALID_PASSWORD);
         }
 
         // 개인정보성 데이터 제거: 프로필/학력/경력/증명서/이메일토큰 등
@@ -210,7 +211,6 @@ public class LoginService {
 
         // 저장
         userRepository.save(user);
-        userRefreshTokenRepository.deleteById(userId);
     }
 
     private void upsertRefreshToken(Long userId, String refreshToken) {

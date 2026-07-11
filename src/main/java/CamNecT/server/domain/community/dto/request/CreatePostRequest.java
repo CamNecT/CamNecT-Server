@@ -1,7 +1,6 @@
 package CamNecT.server.domain.community.dto.request;
 
 import CamNecT.server.domain.community.model.enums.BoardCode;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -14,5 +13,5 @@ public record CreatePostRequest(
         @NotBlank @Size(max = 20000) String content,
         Boolean anonymous,
         List<Long> tagIds, // <- global tags.tag_id들
-        List<@Valid AttachmentRequest> attachments
+        List<AttachmentRequest> attachments
 ){}

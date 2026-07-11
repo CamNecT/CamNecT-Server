@@ -25,18 +25,6 @@ public enum ErrorCode implements BaseErrorCode {
     // 405xx
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, 40500, "허용되지 않은 Http 메서드입니다."),
 
-    // 406xx
-    NOT_ACCEPTABLE(HttpStatus.NOT_ACCEPTABLE, 40600, "요청한 응답 형식을 제공할 수 없습니다."),
-
-    // 410xx
-    GONE(HttpStatus.GONE, 41000, "더 이상 제공하지 않는 API입니다."),
-
-    // 413xx
-    PAYLOAD_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, 41300, "요청 본문 크기가 제한을 초과했습니다."),
-
-    // 415xx
-    UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, 41500, "지원하지 않는 Content-Type 입니다."),
-
     // 409xx
     CONFLICT(HttpStatus.CONFLICT, 40900, "충돌이 발생하였습니다. 다시 시도해주세요.");
 

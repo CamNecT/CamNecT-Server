@@ -4,7 +4,7 @@ import CamNecT.server.domain.community.dto.response.CommunityHomeResponse;
 import CamNecT.server.domain.community.dto.response.PostListResponse;
 import CamNecT.server.domain.users.repository.UserTagMapRepository;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.tag.model.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,7 +22,7 @@ public class CommunityHomeServiceImpl implements CommunityHomeService {
 
     @Override
     public CommunityHomeResponse getHome(Long userId) {
-        if (userId == null) { throw new CustomException(AuthErrorCode.INVALID_TOKEN); }
+        if (userId == null) { throw new CustomException(UserErrorCode.USER_NOT_FOUND); }
 
         Tag picked = pickRandomTagOrNull(userId);
 
