@@ -15,8 +15,6 @@ import CamNecT.server.domain.community.repository.Comments.CommentLikesRepositor
 import CamNecT.server.domain.community.repository.Comments.CommentsRepository;
 import CamNecT.server.domain.community.repository.Posts.*;
 import CamNecT.server.domain.users.repository.UserFollowRepository;
-import CamNecT.server.global.notification.service.NotificationService;
-import CamNecT.server.global.notification.util.NotificationLinkResolver;
 import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserRole;
