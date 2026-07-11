@@ -82,11 +82,11 @@ public class GlobalExceptionHandler {
     }
 
 
-    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleUnreadableBody(Exception e, HttpServletRequest req) {
-        log.warn("[UnreadableBody] {} {}", req.getMethod(), req.getRequestURI());
-        return response(ErrorCode.BAD_REQUEST);
-    }
+//    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+//    public ResponseEntity<ErrorResponse> handleUnreadableBody(Exception e, HttpServletRequest req) {
+//        log.warn("[UnreadableBody] {} {}", req.getMethod(), req.getRequestURI());
+//        return response(ErrorCode.BAD_REQUEST);
+//    }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ErrorResponse> handleMethodNotAllowed(Exception e) {

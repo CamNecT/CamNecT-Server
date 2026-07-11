@@ -22,13 +22,23 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class NotificationEventListenerTest {
 
-    @Mock NotificationService notificationService;
-    @Mock FCMSender fcmSender;
-    @Mock PushDeviceService pushDeviceService;
-    @Mock NotificationWsPublisher notificationWsPublisher;
-    @Mock NotificationLinkResolver notificationLinkResolver;
+    @Mock
+    NotificationService notificationService;
 
-    @InjectMocks NotificationEventListener listener;
+    @Mock
+    FCMSender fcmSender;
+
+    @Mock
+    PushDeviceService pushDeviceService;
+
+    @Mock
+    NotificationWsPublisher notificationWsPublisher;
+
+    @Mock
+    NotificationLinkResolver notificationLinkResolver;
+
+    @InjectMocks
+    NotificationEventListener listener;
 
     @Test
     void persistSkipsSelfNotification() {
@@ -36,13 +46,18 @@ class NotificationEventListenerTest {
 
         listener.persist(event);
 
-        verifyNoInteractions(notificationService, notificationLinkResolver);
+        verifyNoInteractions(
+                notificationService,
+                notificationLinkResolver
+        );
     }
 
     @Test
     void persistStoresResolvedLink() {
         NotifiableEvent event = event(2L, 1L);
-        when(notificationLinkResolver.resolve(event)).thenReturn("/community/posts/10");
+
+        when(notificationLinkResolver.resolveOrFallback(event))
+                .thenReturn("/community/posts/10");
 
         listener.persist(event);
 
@@ -61,32 +76,61 @@ class NotificationEventListenerTest {
     @Test
     void pushContinuesToFcmWhenWebSocketFails() throws Exception {
         NotifiableEvent event = event(2L, 1L);
-        when(notificationLinkResolver.resolve(event)).thenReturn("/community/posts/10");
+
+        when(notificationLinkResolver.resolveOrFallback(event))
+                .thenReturn("/community/posts/10");
+
         doThrow(new IllegalStateException("ws down"))
-                .when(notificationWsPublisher).sendToUser(eq(2L), any());
-        when(pushDeviceService.findEnabledTokens(2L)).thenReturn(List.of("token"));
-        when(fcmSender.sendToTokens(eq(List.of("token")), anyMap()))
-                .thenReturn(new FCMSender.SendResult(1, 1, 0, List.of()));
+                .when(notificationWsPublisher)
+                .sendToUser(eq(2L), any());
+
+        when(pushDeviceService.findEnabledTokens(2L))
+                .thenReturn(List.of("token"));
+
+        when(fcmSender.sendToTokens(
+                eq(List.of("token")),
+                anyMap()
+        )).thenReturn(
+                new FCMSender.SendResult(
+                        1,
+                        1,
+                        0,
+                        List.of()
+                )
+        );
 
         assertDoesNotThrow(() -> listener.push(event));
 
-        verify(fcmSender).sendToTokens(eq(List.of("token")), anyMap());
-        verify(pushDeviceService).disableTokens(List.of());
+        verify(fcmSender).sendToTokens(
+                eq(List.of("token")),
+                anyMap()
+        );
+
+        verify(pushDeviceService)
+                .disableTokens(List.of());
     }
 
     @Test
     void pushDoesNotPropagateTokenLookupFailure() {
         NotifiableEvent event = event(2L, 1L);
-        when(notificationLinkResolver.resolve(event)).thenReturn("/community/posts/10");
+
+        when(notificationLinkResolver.resolveOrFallback(event))
+                .thenReturn("/community/posts/10");
+
         when(pushDeviceService.findEnabledTokens(2L))
-                .thenThrow(new IllegalStateException("database down"));
+                .thenThrow(
+                        new IllegalStateException("database down")
+                );
 
         assertDoesNotThrow(() -> listener.push(event));
 
         verifyNoInteractions(fcmSender);
     }
 
-    private static NotifiableEvent event(Long receiverId, Long actorId) {
+    private static NotifiableEvent event(
+            Long receiverId,
+            Long actorId
+    ) {
         return SimpleNotifiableEvent.of(
                 receiverId,
                 actorId,
