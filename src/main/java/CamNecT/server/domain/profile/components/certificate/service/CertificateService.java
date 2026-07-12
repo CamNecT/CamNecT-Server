@@ -1,11 +1,11 @@
 package CamNecT.server.domain.profile.components.certificate.service;
 
+import CamNecT.server.domain.profile.components.ProfileComponentAccessGuard;
 import CamNecT.server.domain.profile.components.certificate.dto.request.CertificateRequest;
 import CamNecT.server.domain.profile.components.certificate.dto.response.CertificateResponse;
 import CamNecT.server.domain.profile.components.certificate.model.Certificate;
 import CamNecT.server.domain.profile.components.certificate.repository.CertificateRepository;
 import CamNecT.server.domain.users.model.Users;
-import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -20,12 +20,11 @@ import java.util.List;
 public class CertificateService {
 
     private final CertificateRepository certificateRepository;
-    private final UserRepository userRepository;
+    private final ProfileComponentAccessGuard accessGuard;
 
     @Transactional
     public void addCertificate(Long userId, CertificateRequest request) {
-        Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+        Users user = accessGuard.requireAuthenticatedUser(userId);
 
         Certificate certificate = Certificate.builder()
                 .user(user)
@@ -41,6 +40,7 @@ public class CertificateService {
     }
 
     public List<CertificateResponse> getMyCertificate(Long userId) {
+        accessGuard.requireAuthenticatedUser(userId);
         return certificateRepository.findAllByUser_UserIdOrderByAcquiredDateDesc(userId)
                 .stream()
                 .map(CertificateResponse::from)
@@ -49,6 +49,7 @@ public class CertificateService {
 
     @Transactional
     public void updateCertificate(Long userId, Long certificateId, CertificateRequest request) {
+        accessGuard.requireAuthenticatedUser(userId);
         Certificate certificate = certificateRepository.findById(certificateId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.CERTIFICATE_NOT_FOUND));
 
@@ -69,6 +70,7 @@ public class CertificateService {
 
     @Transactional
     public void deleteCertificate(Long userId, Long certificateId) {
+        accessGuard.requireAuthenticatedUser(userId);
         Certificate certificate = certificateRepository.findById(certificateId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.CERTIFICATE_NOT_FOUND));
 
