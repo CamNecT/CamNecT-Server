@@ -124,8 +124,10 @@ public class RecruitmentService {
     @Transactional
     public boolean toggleRecruitmentBookmark(Long userId, Long recruitId) {
         //모집글 조회 (북마크 카운트 업데이트를 위해 엔티티 조회)
-        TeamRecruitment recruitment = recruitmentRepository.findById(recruitId)
+        TeamRecruitment recruitment = recruitmentRepository.findByIdForUpdate(recruitId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
+
+        userRepository.lockUserRow(userId);
 
         //북마크 존재 여부 확인
         Optional<RecruitmentBookmark> bookmarkOpt = bookmarkRepository.findByUserIdAndRecruitId(userId, recruitId);
@@ -151,8 +153,10 @@ public class RecruitmentService {
     public Long applyToTeam(Long userId, Long recruitId, RecruitmentApplyRequest request) {
 
         //공고 존재 여부 확인
-        TeamRecruitment recruitment = recruitmentRepository.findById(recruitId)
+        TeamRecruitment recruitment = recruitmentRepository.findByIdForUpdate(recruitId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
+
+        userRepository.lockUserRow(userId);
 
         //본인이 작성한 글인지 확인 (본인 글에는 신청 불가)
         if (recruitment.getUserId().equals(userId)) {
@@ -231,7 +235,7 @@ public class RecruitmentService {
     @Transactional
     public void closeRecruitment(Long userId, Long recruitId) {
         // 1. 모집글 조회
-        TeamRecruitment recruitment = recruitmentRepository.findById(recruitId)
+        TeamRecruitment recruitment = recruitmentRepository.findByIdForUpdate(recruitId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
 
         // 2. 작성자 본인 확인
