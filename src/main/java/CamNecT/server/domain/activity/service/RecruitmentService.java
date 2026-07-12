@@ -17,9 +17,11 @@ import CamNecT.server.domain.chat.model.ChatRequest;
 import CamNecT.server.domain.chat.repository.ChatRequestRepository;
 import CamNecT.server.domain.community.dto.AuthorDto;
 import CamNecT.server.domain.community.service.AuthorAssembler;
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.ActivityErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
@@ -52,6 +54,10 @@ public class RecruitmentService {
 
     @Transactional
     public TeamRecruitment createRecruitment(Long userId, RecruitmentRequest request) {
+        requireAuthenticatedUser(userId);
+        if (request == null || request.activityId() == null) {
+            throw new CustomException(ErrorCode.BAD_REQUEST);
+        }
 
         //대외활동 검증
         ExternalActivity activity = activityRepository.findById(request.activityId()).orElseThrow(
@@ -75,7 +81,7 @@ public class RecruitmentService {
     }
 
     public RecruitmentDetailResponse getRecruitmentDetail(Long currentUserId, Long recruitmentId) {
-        if (currentUserId == null) throw new CustomException(ActivityErrorCode.USER_NOT_FOUND);
+        requireAuthenticatedUser(currentUserId);
 
         //모집글 조회
         TeamRecruitment recruitment = recruitmentRepository.findById(recruitmentId)
@@ -103,6 +109,7 @@ public class RecruitmentService {
 
     @Transactional
     public void updateRecruitment(Long userId, Long recruitmentId, RecruitmentRequest request) {
+        requireAuthenticatedUser(userId);
         // 1. 모집글 조회
         TeamRecruitment recruitment = recruitmentRepository.findById(recruitmentId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
@@ -123,6 +130,7 @@ public class RecruitmentService {
 
     @Transactional
     public boolean toggleRecruitmentBookmark(Long userId, Long recruitId) {
+        requireAuthenticatedUser(userId);
         //모집글 조회 (북마크 카운트 업데이트를 위해 엔티티 조회)
         TeamRecruitment recruitment = recruitmentRepository.findByIdForUpdate(recruitId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
@@ -151,6 +159,7 @@ public class RecruitmentService {
 
     @Transactional
     public Long applyToTeam(Long userId, Long recruitId, RecruitmentApplyRequest request) {
+        Users requester = requireAuthenticatedUser(userId);
 
         //공고 존재 여부 확인
         TeamRecruitment recruitment = recruitmentRepository.findByIdForUpdate(recruitId)
@@ -182,8 +191,6 @@ public class RecruitmentService {
 
 
         // 커피챗 요청 로직
-        Users requester = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
         Users receiver = userRepository.findById(recruitment.getUserId())
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
@@ -234,6 +241,7 @@ public class RecruitmentService {
 
     @Transactional
     public void closeRecruitment(Long userId, Long recruitId) {
+        requireAuthenticatedUser(userId);
         // 1. 모집글 조회
         TeamRecruitment recruitment = recruitmentRepository.findByIdForUpdate(recruitId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
@@ -259,5 +267,17 @@ public class RecruitmentService {
         );
 
         for (ChatRequest r : targets) if (r.getStatus() == ChatRequest.RequestStatus.WAITING) r.reject();
+    }
+
+    private Users requireAuthenticatedUser(Long userId) {
+        if (userId == null) {
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+        }
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+        return user;
     }
 }
