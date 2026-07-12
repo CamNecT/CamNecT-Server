@@ -13,6 +13,7 @@ import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.GifticonErrorCode;
+import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -63,7 +64,7 @@ public class GifticonPurchaseService {
 
         long expected = (long) product.getPricePoints() * qty;
         if (req.spendPoints().longValue() != expected) {
-            throw new CustomException(GifticonErrorCode.INVALID_SPEND_POINTS);
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
         // 2) 구매요청 적재(스냅샷)

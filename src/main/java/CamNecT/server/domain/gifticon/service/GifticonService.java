@@ -7,6 +7,7 @@ import CamNecT.server.domain.gifticon.repository.GifticonProductRepository;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.GifticonErrorCode;
+import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -88,7 +89,7 @@ public class GifticonService {
         try {
             vendorProducts = vendorClient.fetchProducts();
         } catch (Exception e) {
-            throw new CustomException(GifticonErrorCode.VENDOR_SYNC_FAILED);
+            throw new CustomException(ErrorCode.INTERNAL_ERROR, e);
         }
 
         // 업스트림이 일시적으로 비었을 때 "전체 비활성화" 방지
