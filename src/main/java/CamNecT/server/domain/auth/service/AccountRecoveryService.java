@@ -16,6 +16,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AccountRecoveryService {
 
+    private static final int MAX_NAME_LENGTH = 100;
+    private static final int MAX_EMAIL_LENGTH = 255;
+
     private final UserRepository userRepository;
 
     @Transactional(readOnly = true)
@@ -30,10 +33,10 @@ public class AccountRecoveryService {
         String email = normalize(rawEmail);
 
         List<String> invalidProperties = new ArrayList<>();
-        if (name.isBlank() || !userRepository.existsByName(name)) {
+        if (name.isBlank() || name.length() > MAX_NAME_LENGTH || !userRepository.existsByName(name)) {
             invalidProperties.add("name");
         }
-        if (email.isBlank() || !userRepository.existsByEmail(email)) {
+        if (email.isBlank() || email.length() > MAX_EMAIL_LENGTH || !userRepository.existsByEmail(email)) {
             invalidProperties.add("email");
         }
         if (!invalidProperties.isEmpty()) {
