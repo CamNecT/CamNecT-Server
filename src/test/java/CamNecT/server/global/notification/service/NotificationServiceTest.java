@@ -2,12 +2,15 @@ package CamNecT.server.global.notification.service;
 
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.domain.users.model.UserStatus;
+import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.NotificationErrorCode;
 import CamNecT.server.global.notification.model.NotificationType;
 import CamNecT.server.global.notification.repository.NotificationRepository;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -15,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.SliceImpl;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -37,6 +41,13 @@ class NotificationServiceTest {
             userProfileRepository,
             publicUrlIssuer
     );
+
+    @BeforeEach
+    void setUpAuthenticatedUser() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(
+                Users.builder().userId(1L).status(UserStatus.ACTIVE).build()
+        ));
+    }
 
     @Test
     void markReadTreatsAlreadyReadNotificationAsSuccess() {

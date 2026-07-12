@@ -2,10 +2,12 @@ package CamNecT.server.global.notification.service;
 
 import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.model.Users;
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.NotificationErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.notification.dto.response.NotificationItemResponse;
 import CamNecT.server.global.notification.model.Notification;
 import CamNecT.server.global.notification.model.NotificationType;
@@ -33,6 +35,8 @@ public class NotificationService {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 100;
+    private static final int MAX_MESSAGE_LENGTH = 255;
+    private static final int MAX_LINK_LENGTH = 500;
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
@@ -59,7 +63,12 @@ public class NotificationService {
                        Long requestId,
                        String link) {
 
-        Notification n = Notification.of(receiverUserId, actorUserId, type, message, postId, commentId, requestId, link);
+        Notification n = Notification.of(
+                receiverUserId, actorUserId, type,
+                truncate(message, MAX_MESSAGE_LENGTH),
+                postId, commentId, requestId,
+                truncate(link, MAX_LINK_LENGTH)
+        );
         notificationRepository.save(n);
 
         log.info("[notif] saved (queued). receiver={}, requestId={}", receiverUserId, requestId);
@@ -67,6 +76,7 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public Slice<Notification> list(Long receiverUserId, Long cursorId, int size) {
+        requireAuthenticatedUser(receiverUserId);
         Pageable pageable = PageRequest.of(0, normalizeSize(size));
 
         NotificationType exclude = NotificationType.CHAT_MESSAGE_RECEIVED;
@@ -136,12 +146,14 @@ public class NotificationService {
 
     @Transactional(readOnly = true)
     public long countUnread(Long receiverUserId) {
+        requireAuthenticatedUser(receiverUserId);
         return notificationRepository.countByReceiverUserIdAndReadFalseAndTypeNot(
                 receiverUserId, NotificationType.CHAT_MESSAGE_RECEIVED);
     }
 
     @Transactional
     public void markRead(Long receiverUserId, Long notificationId) {
+        requireAuthenticatedUser(receiverUserId);
         if (!notificationRepository.existsByIdAndReceiverUserId(notificationId, receiverUserId)) {
             throw new CustomException(NotificationErrorCode.NOTIFICATION_NOT_FOUND);
         }
@@ -151,7 +163,21 @@ public class NotificationService {
 
     @Transactional
     public int markAllRead(Long receiverUserId) {
+        requireAuthenticatedUser(receiverUserId);
         return notificationRepository.markAllRead(receiverUserId);
+    }
+
+    private void requireAuthenticatedUser(Long userId) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) return value;
+        return value.substring(0, maxLength);
     }
 
     private int normalizeSize(int size) {

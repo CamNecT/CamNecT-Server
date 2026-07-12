@@ -7,6 +7,7 @@ import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.notification.dto.request.AdminAnnouncementRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,7 +70,12 @@ public class AdminAnnouncementService {
     }
 
     private void validateAdmin(Long adminUserId) {
-        if (!userRepository.existsByUserIdAndRole(adminUserId, UserRole.ADMIN)) {
+        Users admin = userRepository.findById(adminUserId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+        if (admin.getStatus() == UserStatus.SUSPENDED) {
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+        if (admin.getRole() != UserRole.ADMIN) {
             throw new CustomException(UserErrorCode.USER_NOT_ADMIN);
         }
     }
@@ -78,6 +84,7 @@ public class AdminAnnouncementService {
         Set<Long> uniqueIds = new LinkedHashSet<>(targetUserIds);
 
         return userRepository.findAllById(uniqueIds).stream()
+                .filter(user -> user.getStatus() == UserStatus.ACTIVE)
                 .map(Users::getUserId)
                 .toList();
     }

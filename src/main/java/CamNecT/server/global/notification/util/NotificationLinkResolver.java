@@ -54,8 +54,12 @@ public class NotificationLinkResolver {
     }
 
     private String template(String tpl, String key, Long value) {
-        if (!hasText(tpl) || value == null) return fallback();
-        return tpl.replace("{" + key + "}", String.valueOf(value));
+        String placeholder = "{" + key + "}";
+        if (!hasText(tpl) || value == null || !tpl.contains(placeholder)) {
+            log.warn("[notification-link] invalid template. key={}, template={}", key, tpl);
+            return fallback();
+        }
+        return tpl.replace(placeholder, String.valueOf(value));
     }
 
     private Long requirePostId(NotifiableEvent e) {

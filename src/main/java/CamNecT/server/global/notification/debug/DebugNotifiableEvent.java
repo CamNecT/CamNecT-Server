@@ -16,5 +16,7 @@ public record DebugNotifiableEvent(
 
     @Override public Long requestId() { return roomId; }
 
-    @Override public String link() { return "/chat/room/" + roomId; }
+    @Override public Long roomId() { return roomId; }
+
+    @Override public String link() { return null; }
 }
