@@ -33,6 +33,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EmailVerificationService {
 
+    private static final int MAX_USERNAME_LENGTH = 50;
+    private static final int MAX_EMAIL_LENGTH = 255;
+
     private final EmailVerificationTokenRepository tokenRepository;
     private final UserRepository userRepository;
 
@@ -77,10 +80,12 @@ public class EmailVerificationService {
         String normalizedEmail = normalize(email);
 
         List<String> invalidProperties = new ArrayList<>();
-        if (normalizedUsername.isBlank() || !userRepository.existsByUsername(normalizedUsername)) {
+        if (normalizedUsername.isBlank() || normalizedUsername.length() > MAX_USERNAME_LENGTH
+                || !userRepository.existsByUsername(normalizedUsername)) {
             invalidProperties.add("username");
         }
-        if (normalizedEmail.isBlank() || !userRepository.existsByEmail(normalizedEmail)) {
+        if (normalizedEmail.isBlank() || normalizedEmail.length() > MAX_EMAIL_LENGTH
+                || !userRepository.existsByEmail(normalizedEmail)) {
             invalidProperties.add("email");
         }
         if (!invalidProperties.isEmpty()) {

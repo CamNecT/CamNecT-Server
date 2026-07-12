@@ -1,5 +1,6 @@
 package CamNecT.server.domain.profile.components.education.service;
 
+import CamNecT.server.domain.profile.components.ProfileComponentAccessGuard;
 import CamNecT.server.domain.profile.components.education.dto.request.EducationRequest;
 import CamNecT.server.domain.profile.components.education.dto.response.EducationResponse;
 import CamNecT.server.domain.profile.components.education.model.Education;
@@ -7,7 +8,6 @@ import CamNecT.server.domain.profile.components.education.repository.EducationRe
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.domain.profile.components.institutions.repository.InstitutionRepository;
 import CamNecT.server.domain.users.model.Users;
-import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.domain.profile.components.institutions.model.Institutions;
 import lombok.RequiredArgsConstructor;
@@ -22,13 +22,12 @@ import java.util.List;
 public class EducationService {
 
     private final EducationRepository educationRepository;
-    private final UserRepository userRepository;
     private final InstitutionRepository institutionRepository;
+    private final ProfileComponentAccessGuard accessGuard;
 
     @Transactional
     public void addEducation(Long userId, EducationRequest request) {
-        Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+        Users user = accessGuard.requireAuthenticatedUser(userId);
 
         Institutions institution = institutionRepository.findById(request.institutionId())
                 .orElseThrow(() -> new CustomException(UserErrorCode.INSTITUTION_NOT_FOUND));
@@ -47,6 +46,7 @@ public class EducationService {
     }
 
     public List<EducationResponse> getMyEducations(Long userId) {
+        accessGuard.requireAuthenticatedUser(userId);
         return educationRepository.findAllByUserIdWithDetails(userId)
                 .stream()
                 .map(EducationResponse::from)
@@ -55,6 +55,7 @@ public class EducationService {
 
     @Transactional
     public void updateEducation(Long userId, Long educationId, EducationRequest request) {
+        accessGuard.requireAuthenticatedUser(userId);
         Education education = educationRepository.findById(educationId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.EDUCATION_NOT_FOUND));
 
@@ -78,6 +79,7 @@ public class EducationService {
 
     @Transactional
     public void deleteEducation(Long userId, Long educationId) {
+        accessGuard.requireAuthenticatedUser(userId);
         Education education = educationRepository.findById(educationId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.EDUCATION_NOT_FOUND));
 

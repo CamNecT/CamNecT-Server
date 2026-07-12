@@ -34,7 +34,7 @@ public class NotificationDebugController {
                 "[WS 테스트]",
                 "웹소켓 알림 테스트 메시지입니다.",
                 null, null, null,
-                "/chat/room/123"
+                "/chat/123"
         );
         wsPublisher.sendToUser(userId, payload);
         return ApiResponse.success(null);

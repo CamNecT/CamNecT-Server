@@ -2,7 +2,7 @@ package CamNecT.server.domain.gifticon.service;
 
 import CamNecT.server.domain.gifticon.model.GifticonProduct;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.GifticonErrorCode;
+import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -58,7 +58,7 @@ public class GifticonVendorClientImpl implements GifticonVendorClient {
         try {
             authorization = authEncoder.encode(mid, ts, secretKey, cipher, iv);
         } catch (Exception e) {
-            throw new CustomException(GifticonErrorCode.VENDOR_SYNC_FAILED);
+            throw new CustomException(ErrorCode.INTERNAL_ERROR, e);
         }
 
         HttpHeaders headers = new HttpHeaders();
@@ -76,10 +76,10 @@ public class GifticonVendorClientImpl implements GifticonVendorClient {
 
         ProductListResponse body = resp.getBody();
         if (body == null || body.result == null) {
-            throw new CustomException(GifticonErrorCode.VENDOR_SYNC_FAILED);
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
         if (!"S0000".equals(body.result.returnCode)) {
-            throw new CustomException(GifticonErrorCode.VENDOR_SYNC_FAILED);
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
         if (body.productList == null) return Collections.emptyList();
 

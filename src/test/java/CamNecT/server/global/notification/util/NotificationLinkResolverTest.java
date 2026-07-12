@@ -67,6 +67,17 @@ class NotificationLinkResolverTest {
                 .isEqualTo("/chat/99");
     }
 
+    @Test
+    void malformedTemplateFallsBackInsteadOfReturningUnresolvedLink() {
+        FrontLinkProperties properties = properties();
+        properties.setChatRoom("/chat/room");
+        NotificationLinkResolver resolver = new NotificationLinkResolver(properties);
+
+        CoffeeChatAcceptedEvent event = new CoffeeChatAcceptedEvent(1L, 2L, 99L, 10L);
+
+        assertThat(resolver.resolve(event)).isEqualTo("/fallback");
+    }
+
     private FrontLinkProperties properties() {
         FrontLinkProperties properties = new FrontLinkProperties();
 

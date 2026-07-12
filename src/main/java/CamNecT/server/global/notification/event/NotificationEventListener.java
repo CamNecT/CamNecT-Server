@@ -1,6 +1,7 @@
 package CamNecT.server.global.notification.event;
 
 import CamNecT.server.global.notification.dto.NotificationPushPayload;
+import CamNecT.server.global.notification.model.NotificationType;
 import CamNecT.server.global.notification.service.*;
 import CamNecT.server.global.notification.util.FCMSender;
 import CamNecT.server.global.notification.util.NotificationLinkResolver;
@@ -31,7 +32,9 @@ public class NotificationEventListener {
         log.info("[notif] persist(beforeCommit) receiver={}, actor={}, type={}",
                 e.receiverUserId(), e.actorUserId(), e.type());
 
-        if (e.shouldSkipSelfNotification()) return;
+        if (!isDeliverable(e) || e.shouldSkipSelfNotification()) return;
+        // 채팅 메시지는 채팅 자체의 unread 상태를 사용하며 알림함에서는 제외되므로 push 전용으로 처리한다.
+        if (e.type() == NotificationType.CHAT_MESSAGE_RECEIVED) return;
         String link = notificationLinkResolver.resolveOrFallback(e);
 
         notificationService.create(
@@ -52,7 +55,7 @@ public class NotificationEventListener {
         log.info("[notif] push(afterCommit) receiver={}, actor={}, type={}",
                 e.receiverUserId(), e.actorUserId(), e.type());
 
-        if (e.shouldSkipSelfNotification()) return;
+        if (!isDeliverable(e) || e.shouldSkipSelfNotification()) return;
 
         String title = titleOf(e.type());
         String body = e.message();
@@ -92,6 +95,7 @@ public class NotificationEventListener {
             if (e.postId() != null) data.put("postId", String.valueOf(e.postId()));
             if (e.commentId() != null) data.put("commentId", String.valueOf(e.commentId()));
             if (e.requestId() != null) data.put("requestId", String.valueOf(e.requestId()));
+            if (e.roomId() != null) data.put("roomId", String.valueOf(e.roomId()));
 
             log.info("[notif] fcm send start receiver={}, title={}, bodyLen={}, dataKeys={}",
                     e.receiverUserId(), title, body == null ? 0 : body.length(), data.keySet());
@@ -105,5 +109,14 @@ public class NotificationEventListener {
         } catch (Exception ex) {
             log.warn("[notif] FCM delivery failed. receiver={}, type={}", e.receiverUserId(), e.type(), ex);
         }
+    }
+
+    private boolean isDeliverable(NotifiableEvent e) {
+        if (e == null || e.receiverUserId() == null || e.receiverUserId() <= 0
+                || e.type() == null || e.message() == null || e.message().isBlank()) {
+            log.warn("[notif] skip invalid event. event={}", e);
+            return false;
+        }
+        return true;
     }
 }

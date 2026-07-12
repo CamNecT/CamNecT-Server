@@ -5,7 +5,7 @@ import CamNecT.server.domain.gifticon.model.GifticonPurchase;
 import CamNecT.server.domain.gifticon.repository.GifticonExportBatchRepository;
 import CamNecT.server.domain.gifticon.repository.GifticonPurchaseRepository;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.GifticonErrorCode;
+import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -59,7 +59,7 @@ public class GifticonExportService {
             return batch;
 
         } catch (Exception e) {
-            throw new CustomException(GifticonErrorCode.EXPORT_FAILED);
+            throw new CustomException(ErrorCode.INTERNAL_ERROR, e);
         }
     }
 
