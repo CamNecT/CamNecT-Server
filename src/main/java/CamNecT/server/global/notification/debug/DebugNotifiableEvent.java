@@ -18,5 +18,7 @@ public record DebugNotifiableEvent(
 
     @Override public Long roomId() { return roomId; }
 
-    @Override public String link() { return null; }
+    @Override public String link() {
+        return NotifiableEvent.super.link();
+    }
 }
