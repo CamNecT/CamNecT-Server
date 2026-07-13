@@ -478,7 +478,7 @@ public class ChatService {
 
         // 읽은 당사자(Reader)의 '채팅 목록/전체 배지' 갱신을 위해 소켓 발송
 
-        long totalUnreadCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(reader.getUserId());
+        long totalUnreadCount = chatRepository.countVisibleUnreadByUserId(reader.getUserId());
 
         long roomUnreadCount = 0L;
 
@@ -568,7 +568,7 @@ public class ChatService {
 
             // 수신자의 채팅목록 갱신
             long unreadCount = chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(room.getId(), receiver.getUserId());
-            long totalUnreadCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(receiver.getUserId());
+            long totalUnreadCount = chatRepository.countVisibleUnreadByUserId(receiver.getUserId());
             String receiverDest = "/sub/user/" + receiver.getUserId() + "/rooms";
 
             ChatRoomListUpdateDto updateDto = ChatRoomListUpdateDto.builder()
@@ -586,7 +586,7 @@ public class ChatService {
             );
 
             // 본인 채팅목록 갱신
-            long senderTotalCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(sender.getUserId());
+            long senderTotalCount = chatRepository.countVisibleUnreadByUserId(sender.getUserId());
             String senderDest = "/sub/user/" + sender.getUserId() + "/rooms";
 
             ChatRoomListUpdateDto senderUpdateDto = ChatRoomListUpdateDto.builder()

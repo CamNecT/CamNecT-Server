@@ -26,12 +26,23 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
                 where c.room.id = :roomId
                   and c.receiver.userId = :userId
                   and c.isRead = false
+                order by c.id asc
             """)
     List<Chat> findUnreadMessages(@Param("roomId") Long roomId, @Param("userId") Long userId);
 
     long countByRoom_IdAndReceiver_UserIdAndIsReadFalse(Long roomId, Long receiverId);
 
     long countByReceiver_UserIdAndIsReadFalse(Long receiverId);
+
+    @Query("""
+            select count(c)
+            from Chat c
+            where c.receiver.userId = :userId
+              and c.isRead = false
+              and ((c.room.requester.userId = :userId and c.room.requesterExited = false)
+                or (c.room.receiver.userId = :userId and c.room.receiverExited = false))
+            """)
+    long countVisibleUnreadByUserId(@Param("userId") Long userId);
 
     @Query("SELECT c.room.id, COUNT(c) " +
             "FROM Chat c " +
