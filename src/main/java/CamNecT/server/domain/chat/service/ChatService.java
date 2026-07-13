@@ -6,11 +6,12 @@ import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepo
 import CamNecT.server.domain.chat.dto.message.ChatMessageResponseDto;
 import CamNecT.server.domain.chat.dto.message.ChatMessageSendRequestDto;
 import CamNecT.server.domain.chat.dto.message.ChatReadEvent;
+import CamNecT.server.domain.chat.event.ChatMessageCommittedEvent;
+import CamNecT.server.domain.chat.event.ChatReadCommittedEvent;
 import CamNecT.server.domain.chat.dto.request.response.ChatRequestDetailDto;
 import CamNecT.server.domain.chat.dto.request.response.ChatRequestListDetailDto;
 import CamNecT.server.domain.chat.dto.request.response.ChatRequestListResponseDto;
 import CamNecT.server.domain.chat.dto.room.ChatRoomListDetailDto;
-import CamNecT.server.domain.chat.dto.room.ChatRoomListUpdateDto;
 import CamNecT.server.domain.chat.dto.room.ChatRoomWithDetailDto;
 import CamNecT.server.domain.chat.model.Chat;
 import CamNecT.server.domain.chat.model.ChatRequest;
@@ -45,7 +46,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -78,7 +78,6 @@ public class ChatService {
 
     private final PublicUrlIssuer publicUrlIssuer;
     private final ApplicationEventPublisher eventPublisher;
-    private final SimpMessagingTemplate messagingTemplate;
     private final ChatPresenceService presenceService;
     private final PointService pointService;
 
@@ -471,35 +470,14 @@ public class ChatService {
                 // typee ->  ReadEvent 내부에서 READ로 자동 설정됨
         );
 
-        messagingTemplate.convertAndSend(
-                "/sub/chat/room/" + roomId,
-                chatReadEvent
-        );
-
-        // 읽은 당사자(Reader)의 '채팅 목록/전체 배지' 갱신을 위해 소켓 발송
-
-        long totalUnreadCount = chatRepository.countVisibleUnreadByUserId(reader.getUserId());
-
-        long roomUnreadCount = 0L;
-
         String lastContent = unreadMessages.getLast().getContent();
         String lastTime = unreadMessages.getLast().getCreatedAt().toString();
-
-        ChatRoomListUpdateDto updateDto = ChatRoomListUpdateDto.builder()
-                .roomId(roomId)
-                .lastMessage(lastContent)
-                .unreadCount(roomUnreadCount)
-                .time(lastTime)
-                .totalUnreadCount(totalUnreadCount)
-                .build();
-
-        messagingTemplate.convertAndSend(
-                "/sub/user/" + reader.getUserId() + "/rooms",
-                updateDto
-        );
-
-        log.info("🚀 [Socket] 읽음 처리 후 목록 갱신 전송: /sub/user/{}/rooms (남은 전체 미독: {})",
-                reader.getUserId(), totalUnreadCount);
+        eventPublisher.publishEvent(new ChatReadCommittedEvent(
+                chatReadEvent,
+                reader.getUserId(),
+                lastContent,
+                lastTime
+        ));
 
     }
 
@@ -551,60 +529,15 @@ public class ChatService {
         }
 
         ChatMessageResponseDto response = ChatMessageResponseDto.toDto(chat);
+        eventPublisher.publishEvent(new ChatMessageCommittedEvent(
+                response,
+                sender.getUserId(),
+                receiver.getUserId(),
+                chat.getContent(),
+                chat.getCreatedAt().toString()
+        ));
 
-        try {
-            String roomDest = "/sub/chat/room/" + room.getId();
-            messagingTemplate.convertAndSend("/sub/chat/room/" + room.getId(), response);
 
-/*            if (receiverPresent) {
-                messagingTemplate.convertAndSendToUser(
-                        sender.getUserId().toString(),
-                        "/queue/read",
-                        ChatReadEvent.of(room.getId(), chat.getId(), chat.getReadAt().toString())
-                );
-            }*/
-            log.info("🚀 [Socket] 채팅방 브로드캐스트 전송: {}", roomDest);
-            String lastTime = chat.getCreatedAt().toString();
-
-            // 수신자의 채팅목록 갱신
-            long unreadCount = chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(room.getId(), receiver.getUserId());
-            long totalUnreadCount = chatRepository.countVisibleUnreadByUserId(receiver.getUserId());
-            String receiverDest = "/sub/user/" + receiver.getUserId() + "/rooms";
-
-            ChatRoomListUpdateDto updateDto = ChatRoomListUpdateDto.builder()
-                    .roomId(room.getId())
-                    .lastMessage(chat.getContent())
-                    .unreadCount(unreadCount)
-                    .time(lastTime)
-                    .totalUnreadCount(totalUnreadCount)
-                    .build();
-            log.info("🚀 [Socket] 수신자 목록 갱신 전송: {} (미읽음: {})", receiverDest, unreadCount);
-
-            messagingTemplate.convertAndSend(
-                    "/sub/user/" + receiver.getUserId() + "/rooms",
-                    updateDto
-            );
-
-            // 본인 채팅목록 갱신
-            long senderTotalCount = chatRepository.countVisibleUnreadByUserId(sender.getUserId());
-            String senderDest = "/sub/user/" + sender.getUserId() + "/rooms";
-
-            ChatRoomListUpdateDto senderUpdateDto = ChatRoomListUpdateDto.builder()
-                    .roomId(room.getId())
-                    .lastMessage(chat.getContent())
-                    .unreadCount(0L)
-                    .time(lastTime)
-                    .totalUnreadCount(senderTotalCount)
-                    .build();
-
-            messagingTemplate.convertAndSend(
-                    "/sub/user/" + sender.getUserId() + "/rooms",
-                    senderUpdateDto
-            );
-            log.info("🚀 [Socket] 발신자 목록 갱신 전송: {}", senderDest);
-        } catch (Exception e) {
-            log.error("❌ [Socket-ERROR] 전송 실패: {}", e.getMessage(), e);
-        }
     }
 
     @Transactional(readOnly = true)

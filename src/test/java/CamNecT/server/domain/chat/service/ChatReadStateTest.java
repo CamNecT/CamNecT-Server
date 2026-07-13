@@ -2,6 +2,7 @@ package CamNecT.server.domain.chat.service;
 
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.server.domain.chat.dto.message.ChatReadEvent;
+import CamNecT.server.domain.chat.event.ChatReadCommittedEvent;
 import CamNecT.server.domain.chat.model.Chat;
 import CamNecT.server.domain.chat.repository.ChatRepository;
 import CamNecT.server.domain.chat.repository.ChatRequestRepository;
@@ -22,7 +23,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,7 +44,6 @@ class ChatReadStateTest {
     @Mock TeamRecruitmentRepository recruitmentRepository;
     @Mock PublicUrlIssuer publicUrlIssuer;
     @Mock ApplicationEventPublisher eventPublisher;
-    @Mock SimpMessagingTemplate messagingTemplate;
     @Mock ChatPresenceService presenceService;
     @Mock PointService pointService;
 
@@ -60,17 +59,15 @@ class ChatReadStateTest {
         when(newer.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 1, 1, 10, 1));
 
         when(chatRepository.findUnreadMessages(99L, 1L)).thenReturn(List.of(older, newer));
-        when(chatRepository.countVisibleUnreadByUserId(1L)).thenReturn(3L);
-
         chatService.markAllAsRead(99L, reader);
 
-        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(messagingTemplate).convertAndSend(eq("/sub/chat/room/99"), payloadCaptor.capture());
-        ChatReadEvent readEvent = (ChatReadEvent) payloadCaptor.getValue();
+        ArgumentCaptor<ChatReadCommittedEvent> eventCaptor =
+                ArgumentCaptor.forClass(ChatReadCommittedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        ChatReadCommittedEvent event = eventCaptor.getValue();
+        ChatReadEvent readEvent = event.readEvent();
         assertThat(readEvent.getLastReadMessageId()).isEqualTo(20L);
-
-        verify(messagingTemplate).convertAndSend(eq("/sub/user/1/rooms"), any(Object.class));
-        verify(chatRepository).countVisibleUnreadByUserId(1L);
-        verify(chatRepository, never()).countByReceiver_UserIdAndIsReadFalse(1L);
+        assertThat(event.readerId()).isEqualTo(1L);
+        assertThat(event.lastMessage()).isEqualTo("newer");
     }
 }
