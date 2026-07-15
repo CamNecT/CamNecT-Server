@@ -4,6 +4,8 @@ import CamNecT.server.domain.chat.service.ChatPresenceService;
 import CamNecT.server.domain.chat.service.ChatService;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -23,6 +25,8 @@ public class WebSocketEventListener {
     private final ChatPresenceService presenceService;
     private final ChatService chatService;
     private final UserRepository userRepository;
+    private final ChatSocketErrorMapper errorMapper;
+    private final ChatSocketErrorPublisher errorPublisher;
 
     @EventListener
     public void handleSessionSubscribeEvent(SessionSubscribeEvent event) {
@@ -43,12 +47,18 @@ public class WebSocketEventListener {
 
             try {
                 if (roomId == null) return;
-                Users user = userRepository.findById(userId).orElseThrow();
+                Users user = userRepository.findById(userId)
+                        .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
                 presenceService.enter(roomId, userId, sessionId, subscriptionId);
                 log.info("👤 SUBSCRIBE (입장): userId={}, roomId={}", userId, roomId);
                 chatService.markAllAsRead(roomId, user);
             } catch (Exception e) {
                 log.warn("채팅방 구독 후 읽음 처리 실패. userId={}, roomId={}", userId, roomId, e);
+                errorPublisher.sendToSession(
+                        userId,
+                        sessionId,
+                        errorMapper.map(e, accessor, null)
+                );
             }
         }
     }

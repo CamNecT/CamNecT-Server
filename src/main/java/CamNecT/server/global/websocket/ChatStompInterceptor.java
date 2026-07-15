@@ -3,6 +3,11 @@ package CamNecT.server.global.websocket;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.jwt.util.JwtUtil;
+import CamNecT.server.global.jwt.model.TokenType;
+import CamNecT.server.domain.users.model.UserStatus;
+import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.domain.chat.repository.ChatRoomRepository;
+import CamNecT.server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
@@ -19,6 +24,8 @@ import org.springframework.stereotype.Component;
 public class ChatStompInterceptor implements ChannelInterceptor {
 
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
+    private final ChatRoomRepository chatRoomRepository;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -31,7 +38,19 @@ public class ChatStompInterceptor implements ChannelInterceptor {
             try {
                 jwtUtil.validateOrThrow(token);
 
+                if (jwtUtil.getTokenType(token) != TokenType.ACCESS) {
+                    throw new CustomException(AuthErrorCode.TOKEN_TYPE_NOT_ALLOWED);
+                }
+
                 Long userId = jwtUtil.getUserId(token);
+                var user = userRepository.findById(userId)
+                        .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+                if (user.getStatus() == UserStatus.SUSPENDED) {
+                    throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+                }
+                if (accessor.getSessionAttributes() == null) {
+                    throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+                }
                 accessor.getSessionAttributes().put("userId", userId);
 
                 accessor.setUser(new StompPrincipal(userId.toString()));
@@ -41,11 +60,70 @@ public class ChatStompInterceptor implements ChannelInterceptor {
             } catch (CustomException e) {
                 // 토큰 검증 실패 시 소켓 연결 거부
                 log.error("소켓 인증 실패: {}", e.getMessage());
-                throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+                throw e;
             }
         }
 
+        if (accessor != null && StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            authorizeSubscription(accessor);
+        }
+
         return message;
+    }
+
+    private void authorizeSubscription(StompHeaderAccessor accessor) {
+        Object userIdValue = accessor.getSessionAttributes() == null
+                ? null : accessor.getSessionAttributes().get("userId");
+        if (userIdValue == null) {
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+        }
+
+        Long userId;
+        try {
+            userId = Long.valueOf(userIdValue.toString());
+        } catch (NumberFormatException e) {
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN, e);
+        }
+
+        String destination = accessor.getDestination();
+        if (destination == null) {
+            throw new CustomException(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED);
+        }
+
+        if (destination.equals("/user/queue/chat-errors")
+                || destination.equals("/user/queue/chat-acks")) {
+            return;
+        }
+
+        if (destination.startsWith("/sub/chat/room/")) {
+            Long roomId = parseTrailingId(destination);
+            if (!chatRoomRepository.existsAccessibleByUserId(roomId, userId)) {
+                throw new CustomException(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED);
+            }
+            return;
+        }
+
+        if (destination.startsWith("/sub/user/") && destination.endsWith("/rooms")) {
+            String rawUserId = destination.substring("/sub/user/".length(), destination.length() - "/rooms".length());
+            try {
+                if (!userId.equals(Long.valueOf(rawUserId))) {
+                    throw new CustomException(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED);
+                }
+            } catch (NumberFormatException e) {
+                throw new CustomException(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED, e);
+            }
+            return;
+        }
+
+        throw new CustomException(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED);
+    }
+
+    private Long parseTrailingId(String destination) {
+        try {
+            return Long.valueOf(destination.substring(destination.lastIndexOf('/') + 1));
+        } catch (NumberFormatException e) {
+            throw new CustomException(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED, e);
+        }
     }
 
     private String extractBearer(StompHeaderAccessor accessor) {

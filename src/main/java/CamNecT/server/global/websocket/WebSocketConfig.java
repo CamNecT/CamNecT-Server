@@ -13,6 +13,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final ChatStompInterceptor chatStompInterceptor;
+    private final ChatStompErrorHandler chatStompErrorHandler;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
@@ -23,6 +24,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        registry.setErrorHandler(chatStompErrorHandler);
+        registry.setPreserveReceiveOrder(true);
+
         registry.addEndpoint("/ws-stomp")
                 .setAllowedOriginPatterns(
                         "https://camnect.site",
