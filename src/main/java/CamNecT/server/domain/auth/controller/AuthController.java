@@ -224,13 +224,13 @@ public class AuthController {
         return new SendPasswordResetEmailResponse(req.email(), expiresMinutes);
     }
 
-    @Operation(summary = "비밀번호 재설정 인증번호 확인", description = "인증 코드를 확인받고 resetToken을 발급합니다.")
+    @Operation(summary = "비밀번호 재설정 인증번호 확인", description = "인증 코드를 확인받고 resetToken을 발급합니다. 오답은 최대 5회까지 시도할 수 있으며, 5회째 오답부터 해당 인증번호가 잠깁니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "인증번호 검증 성공 및 resetToken 발급", content = @Content(schema = @Schema(implementation = VerifyPasswordResetEmailResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 이메일·인증번호 형식 오류 / 42030 활성 인증번호 없음 / 42031 만료·사용된 인증번호 / 42032 인증번호 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "41301 이메일 미인증 / 41302 정지된 사용자", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "41401 사용자를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "42920 인증번호 시도 횟수 초과", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "42920 인증번호 오답 5회 도달로 잠김 (새 인증번호 발급 필요)", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 resetToken 발급 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
