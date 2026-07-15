@@ -7,6 +7,7 @@ import java.util.List;
 public record HomeResponse(
         UserSection user,
         CoffeeChatSection coffeeChat,
+        RecruitmentSection recruitment,
         PointSection point,
         AlumniSection alumni,
         ContestSection contests
@@ -30,6 +31,24 @@ public record HomeResponse(
 
         public static CoffeeChatSection empty() {
             return new CoffeeChatSection(0, List.of());
+        }
+    }
+
+    //팀원모집
+    public record RecruitmentSection(
+            long pendingCount,
+            List<RecruitmentPreview> latest2
+    ) {
+        public record RecruitmentPreview(
+                Long requestId,
+                Long senderUserId,
+                String senderName,
+                String majorName,   // nullable
+                String studentNo    // nullable (학번은 이걸로만)
+        ) {}
+
+        public static RecruitmentSection empty() {
+            return new RecruitmentSection(0, List.of());
         }
     }
 
