@@ -58,6 +58,7 @@ class ChatReadStateTest {
         when(newer.getContent()).thenReturn("newer");
         when(newer.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 1, 1, 10, 1));
 
+        when(chatRoomRepository.existsAccessibleByUserId(99L, 1L)).thenReturn(true);
         when(chatRepository.findUnreadMessages(99L, 1L)).thenReturn(List.of(older, newer));
         chatService.markAllAsRead(99L, reader);
 

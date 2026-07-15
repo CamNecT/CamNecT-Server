@@ -2,6 +2,8 @@ package CamNecT.server.domain.chat.service;
 
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.server.domain.chat.dto.message.ChatMessageSendRequestDto;
+import CamNecT.server.domain.chat.dto.message.ChatMessageAckResponseDto;
+import CamNecT.server.domain.chat.event.ChatMessageCommittedEvent;
 import CamNecT.server.domain.chat.model.Chat;
 import CamNecT.server.domain.chat.model.ChatRequest;
 import CamNecT.server.domain.chat.model.ChatRoom;
@@ -54,6 +56,21 @@ class ChatServiceTest {
     @InjectMocks ChatService chatService;
 
     @Test
+    void oversizedMessageIsRejectedBeforeDatabaseAccess() {
+        ChatMessageSendRequestDto request = new ChatMessageSendRequestDto(
+                99L,
+                "x".repeat(ChatMessageSendRequestDto.MAX_CONTENT_LENGTH + 1),
+                "0e9e31aa-99e7-4c58-90d8-f939b56fd234"
+        );
+
+        CustomException ex = assertThrows(CustomException.class,
+                () -> chatService.sendMessage(1L, request));
+
+        assertThat(ex.getErrorCode()).isEqualTo(CoffeeChatErrorCode.INVALID_CHAT_CONTENT);
+        verifyNoInteractions(chatRoomRepository, chatRepository);
+    }
+
+    @Test
     void nonParticipantCannotSendMessageToKnownRoomId() {
         Users requester = activeUser(1L);
         Users receiver = activeUser(2L);
@@ -67,7 +84,8 @@ class ChatServiceTest {
         when(userRepository.findById(3L)).thenReturn(Optional.of(attacker));
 
         CustomException ex = assertThrows(CustomException.class,
-                () -> chatService.sendMessage(3L, new ChatMessageSendRequestDto(99L, "hello")));
+                () -> chatService.sendMessage(3L, new ChatMessageSendRequestDto(
+                        99L, "hello", "0e9e31aa-99e7-4c58-90d8-f939b56fd234")));
 
         assertThat(ex.getErrorCode()).isEqualTo(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED);
         verify(chatRepository, never()).save(any(Chat.class));
@@ -108,7 +126,104 @@ class ChatServiceTest {
         assertThat(ex.getErrorCode()).isEqualTo(CoffeeChatErrorCode.REQUEST_ALREADY_PROCESSED);
     }
 
+    @Test
+    void duplicateClientMessageIdReturnsExistingAckWithoutSideEffects() {
+        String clientMessageId = "0e9e31aa-99e7-4c58-90d8-f939b56fd234";
+        Users sender = activeUser(1L, "sender");
+        Users receiver = activeUser(2L, "receiver");
+        ChatRoom room = mock(ChatRoom.class);
+        Chat existing = mock(Chat.class);
+
+        when(chatRoomRepository.findByIdForUpdate(99L)).thenReturn(Optional.of(room));
+        when(room.getId()).thenReturn(99L);
+        when(room.getStatus()).thenReturn(ChatRoom.RoomStatus.OPEN);
+        when(room.getRequester()).thenReturn(sender);
+        when(room.getReceiver()).thenReturn(receiver);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sender));
+        when(chatRepository.findByClientMessageId(99L, 1L, clientMessageId))
+                .thenReturn(Optional.of(existing));
+        when(existing.getId()).thenReturn(501L);
+        when(existing.getRoom()).thenReturn(room);
+        when(existing.getSender()).thenReturn(sender);
+        when(existing.getReceiver()).thenReturn(receiver);
+        when(existing.getContent()).thenReturn("hello");
+        when(existing.getClientMessageId()).thenReturn(clientMessageId);
+        when(existing.getCreatedAt()).thenReturn(java.time.LocalDateTime.of(2026, 7, 15, 10, 0));
+
+        ChatMessageAckResponseDto ack = chatService.sendMessage(
+                1L,
+                new ChatMessageSendRequestDto(99L, "hello", clientMessageId)
+        );
+
+        assertThat(ack.messageId()).isEqualTo(501L);
+        assertThat(ack.clientMessageId()).isEqualTo(clientMessageId);
+        assertThat(ack.duplicate()).isTrue();
+        verify(chatRepository, never()).save(any(Chat.class));
+        verifyNoInteractions(presenceService, eventPublisher);
+    }
+
+    @Test
+    void reusingClientMessageIdForDifferentContentIsRejected() {
+        String clientMessageId = "0e9e31aa-99e7-4c58-90d8-f939b56fd234";
+        Users sender = activeUser(1L, "sender");
+        Users receiver = activeUser(2L, "receiver");
+        ChatRoom room = mock(ChatRoom.class);
+        Chat existing = mock(Chat.class);
+
+        when(chatRoomRepository.findByIdForUpdate(99L)).thenReturn(Optional.of(room));
+        when(room.getId()).thenReturn(99L);
+        when(room.getStatus()).thenReturn(ChatRoom.RoomStatus.OPEN);
+        when(room.getRequester()).thenReturn(sender);
+        when(room.getReceiver()).thenReturn(receiver);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sender));
+        when(chatRepository.findByClientMessageId(99L, 1L, clientMessageId))
+                .thenReturn(Optional.of(existing));
+        when(existing.getContent()).thenReturn("first content");
+
+        CustomException ex = assertThrows(CustomException.class, () -> chatService.sendMessage(
+                1L,
+                new ChatMessageSendRequestDto(99L, "different content", clientMessageId)
+        ));
+
+        assertThat(ex.getErrorCode()).isEqualTo(CoffeeChatErrorCode.IDEMPOTENCY_KEY_REUSED);
+        verify(chatRepository, never()).save(any(Chat.class));
+    }
+
+    @Test
+    void newMessagePersistsClientMessageIdAndReturnsAck() {
+        String clientMessageId = "0e9e31aa-99e7-4c58-90d8-f939b56fd234";
+        Users sender = activeUser(1L, "sender");
+        Users receiver = activeUser(2L, "receiver");
+        ChatRoom room = mock(ChatRoom.class);
+
+        when(chatRoomRepository.findByIdForUpdate(99L)).thenReturn(Optional.of(room));
+        when(room.getId()).thenReturn(99L);
+        when(room.getStatus()).thenReturn(ChatRoom.RoomStatus.OPEN);
+        when(room.getRequester()).thenReturn(sender);
+        when(room.getReceiver()).thenReturn(receiver);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sender));
+        when(chatRepository.findByClientMessageId(99L, 1L, clientMessageId))
+                .thenReturn(Optional.empty());
+        when(presenceService.isPresent(99L, 2L)).thenReturn(true);
+
+        ChatMessageAckResponseDto ack = chatService.sendMessage(
+                1L,
+                new ChatMessageSendRequestDto(99L, "hello", clientMessageId)
+        );
+
+        var chatCaptor = org.mockito.ArgumentCaptor.forClass(Chat.class);
+        verify(chatRepository).save(chatCaptor.capture());
+        assertThat(chatCaptor.getValue().getClientMessageId()).isEqualTo(clientMessageId);
+        assertThat(ack.clientMessageId()).isEqualTo(clientMessageId);
+        assertThat(ack.duplicate()).isFalse();
+        verify(eventPublisher).publishEvent(any(ChatMessageCommittedEvent.class));
+    }
+
     private Users activeUser(Long userId) {
         return Users.builder().userId(userId).status(UserStatus.ACTIVE).build();
+    }
+
+    private Users activeUser(Long userId, String name) {
+        return Users.builder().userId(userId).name(name).status(UserStatus.ACTIVE).build();
     }
 }

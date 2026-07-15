@@ -52,6 +52,16 @@ class ChatStompInterceptorTest {
 
         assertDoesNotThrow(() -> interceptor.preSend(subscribe("/sub/chat/room/99", 1L), null));
         assertDoesNotThrow(() -> interceptor.preSend(subscribe("/sub/user/1/rooms", 1L), null));
+        assertDoesNotThrow(() -> interceptor.preSend(subscribe("/user/queue/chat-errors", 1L), null));
+        assertDoesNotThrow(() -> interceptor.preSend(subscribe("/user/queue/chat-acks", 1L), null));
+    }
+
+    @Test
+    void rejectsUnknownSubscriptionDestination() {
+        CustomException ex = assertThrows(CustomException.class,
+                () -> interceptor.preSend(subscribe("/sub/admin/secret", 1L), null));
+
+        assertThat(ex.getErrorCode()).isEqualTo(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED);
     }
 
     private Message<byte[]> subscribe(String destination, Long userId) {

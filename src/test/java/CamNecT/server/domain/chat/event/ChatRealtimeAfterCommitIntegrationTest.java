@@ -24,16 +24,7 @@ class ChatRealtimeAfterCommitIntegrationTest {
 
     @Test
     void realtimeDeliveryStartsOnlyAfterTransactionCommit() {
-        ChatMessageResponseDto message = ChatMessageResponseDto.builder()
-                .messageId(10L)
-                .roomId(99L)
-                .senderId(1L)
-                .receiverId(2L)
-                .message("hello")
-                .sendDate("2026-01-01T10:00:00")
-                .build();
-        ChatMessageCommittedEvent event = new ChatMessageCommittedEvent(
-                message, 1L, 2L, "hello", "2026-01-01T10:00:00");
+        ChatMessageCommittedEvent event = messageEvent();
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
             eventPublisher.publishEvent(event);
@@ -41,5 +32,31 @@ class ChatRealtimeAfterCommitIntegrationTest {
         });
 
         verify(deliveryService).deliverMessage(event);
+    }
+
+    @Test
+    void rollbackSuppressesRealtimeDelivery() {
+        ChatMessageCommittedEvent event = messageEvent();
+
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            eventPublisher.publishEvent(event);
+            status.setRollbackOnly();
+        });
+
+        verifyNoInteractions(deliveryService);
+    }
+
+    private ChatMessageCommittedEvent messageEvent() {
+        ChatMessageResponseDto message = ChatMessageResponseDto.builder()
+                .messageId(10L)
+                .roomId(99L)
+                .clientMessageId("0e9e31aa-99e7-4c58-90d8-f939b56fd234")
+                .senderId(1L)
+                .receiverId(2L)
+                .message("hello")
+                .sendDate("2026-01-01T10:00:00")
+                .build();
+        return new ChatMessageCommittedEvent(
+                message, 1L, 2L, "hello", "2026-01-01T10:00:00");
     }
 }
