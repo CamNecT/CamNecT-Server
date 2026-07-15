@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.List;
 
@@ -45,6 +46,7 @@ class ChatHomeInboxTest {
     @Mock TeamRecruitmentRepository recruitmentRepository;
     @Mock PublicUrlIssuer publicUrlIssuer;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock SimpMessagingTemplate messagingTemplate;
     @Mock ChatPresenceService presenceService;
     @Mock PointService pointService;
 
