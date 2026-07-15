@@ -114,14 +114,15 @@ public class EmailVerificationService {
         return expirationMinutes;
     }
 
-    @Transactional
+    // 인증 실패도 attemptCount는 커밋되어야 하므로 CustomException에는 롤백하지 않는다.
+    @Transactional(noRollbackFor = CustomException.class)
     public VerifyPasswordResetEmailResponse verifyPasswordResetEmail(VerifyPasswordResetEmailRequest req) {
         Users user = userRepository.findByEmail(req.email())
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         validateRecoverableUser(user);
 
-        EmailVerificationToken token = tokenRepository.findTopByEmailAndUsedAtIsNullOrderByIdDesc(req.email())
+        EmailVerificationToken token = tokenRepository.findFirstByEmailAndUsedAtIsNullOrderByIdDesc(req.email())
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.NO_ACTIVE_CODE));
 
         if (token.isExpired()) throw new CustomException(VerificationErrorCode.CODE_EXPIRED_OR_USED);
