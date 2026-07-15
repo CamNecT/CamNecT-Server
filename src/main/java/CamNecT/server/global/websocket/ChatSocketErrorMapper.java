@@ -6,6 +6,7 @@ import CamNecT.server.domain.chat.dto.message.ChatSocketOperation;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.BaseErrorCode;
 import CamNecT.server.global.common.response.errorcode.ErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
@@ -45,7 +46,7 @@ public class ChatSocketErrorMapper {
         ChatSocketOperation operation = resolveOperation(accessor, destination);
 
         Long roomId = request == null ? extractRoomId(destination) : request.roomId();
-        String clientMessageId = nativeClientMessageId(accessor);
+        String clientMessageId = request == null ? nativeClientMessageId(accessor) : request.clientMessageId();
         BaseErrorCode errorCode = resolveErrorCode(throwable);
 
         return ChatSocketErrorResponse.of(
@@ -63,14 +64,26 @@ public class ChatSocketErrorMapper {
             if (current instanceof CustomException customException) {
                 return customException.getErrorCode();
             }
-            if (current instanceof MethodArgumentNotValidException
-                    || current instanceof MessageConversionException
+            if (current instanceof MethodArgumentNotValidException validationException) {
+                return resolveValidationErrorCode(validationException);
+            }
+            if (current instanceof MessageConversionException
                     || current instanceof ConstraintViolationException) {
                 return ErrorCode.BAD_REQUEST;
             }
             current = current.getCause();
         }
         return ErrorCode.INTERNAL_ERROR;
+    }
+
+    private BaseErrorCode resolveValidationErrorCode(MethodArgumentNotValidException exception) {
+        if (exception.getBindingResult().hasFieldErrors("clientMessageId")) {
+            return CoffeeChatErrorCode.INVALID_CLIENT_MESSAGE_ID;
+        }
+        if (exception.getBindingResult().hasFieldErrors("content")) {
+            return CoffeeChatErrorCode.INVALID_CHAT_CONTENT;
+        }
+        return ErrorCode.BAD_REQUEST;
     }
 
     private ChatMessageSendRequestDto extractRequest(Throwable throwable, Object payload) {

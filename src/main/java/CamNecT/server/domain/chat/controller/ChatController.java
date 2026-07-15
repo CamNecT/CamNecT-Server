@@ -1,5 +1,6 @@
 package CamNecT.server.domain.chat.controller;
 
+import CamNecT.server.domain.chat.dto.message.ChatMessageAckResponseDto;
 import CamNecT.server.domain.chat.dto.message.ChatMessageSendRequestDto;
 import CamNecT.server.domain.chat.dto.message.ChatSocketErrorResponse;
 import CamNecT.server.domain.chat.service.ChatPresenceService;
@@ -28,7 +29,8 @@ public class ChatController {
     private final ChatSocketErrorMapper errorMapper;
 
     @MessageMapping("/chat/message")
-    public void send(
+    @SendToUser(value = "/queue/chat-acks", broadcast = false)
+    public ChatMessageAckResponseDto send(
             @Valid ChatMessageSendRequestDto dto,
             SimpMessageHeaderAccessor accessor
     ) {
@@ -40,7 +42,7 @@ public class ChatController {
             log.error("세션에 userId가 없습니다. (헤더 토큰 누락 또는 만료)");
             throw new CustomException(AuthErrorCode.INVALID_TOKEN);
         }
-        chatService.sendMessage(senderId, dto);
+        return chatService.sendMessage(senderId, dto);
     }
 
     @MessageMapping("/chat/room/{roomId}/leave")

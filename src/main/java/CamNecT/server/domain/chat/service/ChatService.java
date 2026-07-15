@@ -3,6 +3,7 @@ package CamNecT.server.domain.chat.service;
 
 import CamNecT.server.domain.activity.model.recruitment.TeamRecruitment;
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
+import CamNecT.server.domain.chat.dto.message.ChatMessageAckResponseDto;
 import CamNecT.server.domain.chat.dto.message.ChatMessageResponseDto;
 import CamNecT.server.domain.chat.dto.message.ChatMessageSendRequestDto;
 import CamNecT.server.domain.chat.dto.message.ChatReadEvent;
@@ -502,8 +503,11 @@ public class ChatService {
     }
 
     @Transactional
-    public void sendMessage(Long senderId, ChatMessageSendRequestDto request) {
-        if (request == null || request.roomId() == null || !StringUtils.hasText(request.content())) {
+    public ChatMessageAckResponseDto sendMessage(Long senderId, ChatMessageSendRequestDto request) {
+        if (request == null
+                || request.roomId() == null
+                || !StringUtils.hasText(request.content())
+                || request.content().length() > ChatMessageSendRequestDto.MAX_CONTENT_LENGTH) {
             throw new CustomException(CoffeeChatErrorCode.INVALID_CHAT_CONTENT);
         }
         log.info("[CHAT-SEND] === 메세지 전송 시작 === RoomID: {}, SenderID: {}", request.roomId(), senderId);
@@ -531,10 +535,24 @@ public class ChatService {
                 : room.getRequester();
         log.info("👤 Sender: {} -> Receiver: {}", sender.getUserId(), receiver.getUserId());
 
+        String clientMessageId = normalizeClientMessageId(request.clientMessageId());
+        Optional<Chat> existingMessage = chatRepository.findByClientMessageId(
+                room.getId(), sender.getUserId(), clientMessageId);
+        if (existingMessage.isPresent()) {
+            Chat existing = existingMessage.get();
+            if (!Objects.equals(existing.getContent(), request.content())) {
+                throw new CustomException(CoffeeChatErrorCode.IDEMPOTENCY_KEY_REUSED);
+            }
+
+            log.info("[CHAT-SEND] 멱등 재요청 감지. roomId={}, senderId={}, clientMessageId={}, messageId={}",
+                    room.getId(), sender.getUserId(), clientMessageId, existing.getId());
+            return ChatMessageAckResponseDto.from(ChatMessageResponseDto.toDto(existing), true);
+        }
+
         boolean receiverPresent = presenceService.isPresent(room.getId(), receiver.getUserId());
         log.info("👀 상대방(receiver) 접속 여부: {}", receiverPresent);
 
-        Chat chat = Chat.createChat(room, sender, receiver, request.content());
+        Chat chat = Chat.createChat(room, sender, receiver, request.content(), clientMessageId);
 
         if (receiverPresent) {
             chat.markAsRead();
@@ -565,7 +583,7 @@ public class ChatService {
                 chat.getCreatedAt().toString()
         ));
 
-
+        return ChatMessageAckResponseDto.from(response, false);
     }
 
     @Transactional(readOnly = true)
@@ -763,5 +781,22 @@ public class ChatService {
         long second = Math.max(firstUserId, secondUserId);
         userRepository.lockUserRow(first);
         if (first != second) userRepository.lockUserRow(second);
+    }
+
+    private String normalizeClientMessageId(String rawClientMessageId) {
+        if (!StringUtils.hasText(rawClientMessageId)) {
+            return UUID.randomUUID().toString();
+        }
+
+        try {
+            String trimmed = rawClientMessageId.trim();
+            String normalized = UUID.fromString(trimmed).toString();
+            if (!normalized.equalsIgnoreCase(trimmed)) {
+                throw new IllegalArgumentException("clientMessageId is not canonical");
+            }
+            return normalized;
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(CoffeeChatErrorCode.INVALID_CLIENT_MESSAGE_ID, e);
+        }
     }
 }
