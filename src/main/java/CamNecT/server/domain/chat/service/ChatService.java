@@ -610,19 +610,55 @@ public class ChatService {
     @Transactional(readOnly = true)
     public HomeResponse.CoffeeChatSection getHomeInbox(Long userId, int limit) {
 
-        long pendingCount = chatRequestRepository.countByReceiver_UserIdAndStatus(
-                userId, ChatRequest.RequestStatus.WAITING
+        HomeRequestInbox inbox = getHomeRequestInbox(
+                userId, ChatRequest.RequestType.COFFEE_CHAT, limit
         );
-        if (pendingCount == 0) return HomeResponse.CoffeeChatSection.empty();
+        if (inbox.pendingCount() == 0) return HomeResponse.CoffeeChatSection.empty();
 
-        List<ChatRequest> latest = chatRequestRepository.findLatestReceivedRequests(
-                userId,
-                ChatRequest.RequestStatus.WAITING,
-                PageRequest.of(0, limit)
+        List<HomeResponse.CoffeeChatSection.CoffeeChatPreview> previews = inbox.previews().stream()
+                .map(preview -> new HomeResponse.CoffeeChatSection.CoffeeChatPreview(
+                        preview.requestId(),
+                        preview.senderUserId(),
+                        preview.senderName(),
+                        preview.majorName(),
+                        preview.studentNo()
+                ))
+                .toList();
+
+        return new HomeResponse.CoffeeChatSection(inbox.pendingCount(), previews);
+    }
+
+    @Transactional(readOnly = true)
+    public HomeResponse.RecruitmentSection getHomeRecruitmentInbox(Long userId, int limit) {
+
+        HomeRequestInbox inbox = getHomeRequestInbox(
+                userId, ChatRequest.RequestType.TEAM_RECRUIT, limit
         );
-        if (latest.isEmpty()) {
-            return new HomeResponse.CoffeeChatSection(pendingCount, List.of());
-        }
+        if (inbox.pendingCount() == 0) return HomeResponse.RecruitmentSection.empty();
+
+        List<HomeResponse.RecruitmentSection.RecruitmentPreview> previews = inbox.previews().stream()
+                .map(preview -> new HomeResponse.RecruitmentSection.RecruitmentPreview(
+                        preview.requestId(),
+                        preview.senderUserId(),
+                        preview.senderName(),
+                        preview.majorName(),
+                        preview.studentNo()
+                ))
+                .toList();
+
+        return new HomeResponse.RecruitmentSection(inbox.pendingCount(), previews);
+    }
+
+    private HomeRequestInbox getHomeRequestInbox(Long userId, ChatRequest.RequestType type, int limit) {
+        long pendingCount = chatRequestRepository.countByReceiver_UserIdAndTypeAndStatus(
+                userId, type, ChatRequest.RequestStatus.WAITING
+        );
+        if (pendingCount == 0) return HomeRequestInbox.empty();
+
+        List<ChatRequest> latest = chatRequestRepository.findLatestReceivedRequestsByType(
+                userId, type, ChatRequest.RequestStatus.WAITING, PageRequest.of(0, limit)
+        );
+        if (latest.isEmpty()) return new HomeRequestInbox(pendingCount, List.of());
 
         List<Long> senderIds = latest.stream()
                 .map(cr -> cr.getRequester().getUserId())
@@ -632,7 +668,7 @@ public class ChatService {
                 userProfileRepository.findGlobalsByUserIdIn(senderIds).stream()
                         .collect(Collectors.toMap(ProfileGlobalDto::userId, it -> it));
 
-        List<HomeResponse.CoffeeChatSection.CoffeeChatPreview> previews = latest.stream()
+        List<HomeRequestPreview> previews = latest.stream()
                 .map(cr -> {
                     Users sender = cr.getRequester();
                     ProfileGlobalDto g = globalMap.get(sender.getUserId());
@@ -640,18 +676,32 @@ public class ChatService {
                     String majorName = (g != null ? g.majorName() : null);
                     String studentNo = (g != null && StringUtils.hasText(g.studentNo()) ? g.studentNo() : null);
 
-                    return new HomeResponse.CoffeeChatSection.CoffeeChatPreview(
+                    return new HomeRequestPreview(
                             cr.getId(),
                             sender.getUserId(),
-                            sender.getName(), // 이름은 sender에서 그대로
+                            sender.getName(),
                             majorName,
                             studentNo
                     );
                 })
                 .toList();
 
-        return new HomeResponse.CoffeeChatSection(pendingCount, previews);
+        return new HomeRequestInbox(pendingCount, previews);
     }
+
+    private record HomeRequestInbox(long pendingCount, List<HomeRequestPreview> previews) {
+        private static HomeRequestInbox empty() {
+            return new HomeRequestInbox(0, List.of());
+        }
+    }
+
+    private record HomeRequestPreview(
+            Long requestId,
+            Long senderUserId,
+            String senderName,
+            String majorName,
+            String studentNo
+    ) {}
 
     @Transactional
     public void rejectAllCoffeeChatRequests(Long userId, ChatRequest.RequestType requestType) {

@@ -26,6 +26,7 @@ public class HomeService {
     private final ActivityService contestService;
 
     private static final int HOME_COFFEECHAT_PREVIEW_SIZE = 2;
+    private static final int HOME_RECRUITMENT_PREVIEW_SIZE = 2;
     private static final int HOME_ALUMNI_PREVIEW_SIZE = 2;
     private static final int HOME_CONTEST_PREVIEW_SIZE = 4;
 
@@ -35,6 +36,9 @@ public class HomeService {
 
         HomeResponse.CoffeeChatSection coffeeChat =
                 chatService.getHomeInbox(userId, HOME_COFFEECHAT_PREVIEW_SIZE);
+
+        HomeResponse.RecruitmentSection recruitment =
+                chatService.getHomeRecruitmentInbox(userId, HOME_RECRUITMENT_PREVIEW_SIZE);
 
         int balance = pointWalletRepository.findByUserId(userId)
                 .map(PointWallet::getBalance)
@@ -49,6 +53,7 @@ public class HomeService {
         return new HomeResponse(
                 new HomeResponse.UserSection(user.getName()),
                 coffeeChat,
+                recruitment,
                 new HomeResponse.PointSection(balance),
                 alumni,
                 contests
