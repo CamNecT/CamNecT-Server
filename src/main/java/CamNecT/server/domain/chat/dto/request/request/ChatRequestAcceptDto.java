@@ -1,7 +1,10 @@
 package CamNecT.server.domain.chat.dto.request.request;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
 public record ChatRequestAcceptDto(
-        Long requestId,
+        @NotNull @Positive Long requestId,
         boolean isAccepted
 ) {
 }

@@ -3,14 +3,16 @@ package CamNecT.server.domain.chat.service;
 
 import CamNecT.server.domain.activity.model.recruitment.TeamRecruitment;
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
+import CamNecT.server.domain.chat.dto.message.ChatMessageAckResponseDto;
 import CamNecT.server.domain.chat.dto.message.ChatMessageResponseDto;
 import CamNecT.server.domain.chat.dto.message.ChatMessageSendRequestDto;
 import CamNecT.server.domain.chat.dto.message.ChatReadEvent;
+import CamNecT.server.domain.chat.event.ChatMessageCommittedEvent;
+import CamNecT.server.domain.chat.event.ChatReadCommittedEvent;
 import CamNecT.server.domain.chat.dto.request.response.ChatRequestDetailDto;
 import CamNecT.server.domain.chat.dto.request.response.ChatRequestListDetailDto;
 import CamNecT.server.domain.chat.dto.request.response.ChatRequestListResponseDto;
 import CamNecT.server.domain.chat.dto.room.ChatRoomListDetailDto;
-import CamNecT.server.domain.chat.dto.room.ChatRoomListUpdateDto;
 import CamNecT.server.domain.chat.dto.room.ChatRoomWithDetailDto;
 import CamNecT.server.domain.chat.model.Chat;
 import CamNecT.server.domain.chat.model.ChatRequest;
@@ -21,6 +23,7 @@ import CamNecT.server.domain.chat.repository.ChatRoomRepository;
 import CamNecT.server.domain.home.dto.HomeResponse;
 import CamNecT.server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.server.domain.users.model.UserProfile;
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
@@ -45,7 +48,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -78,7 +80,6 @@ public class ChatService {
 
     private final PublicUrlIssuer publicUrlIssuer;
     private final ApplicationEventPublisher eventPublisher;
-    private final SimpMessagingTemplate messagingTemplate;
     private final ChatPresenceService presenceService;
     private final PointService pointService;
 
@@ -88,9 +89,23 @@ public class ChatService {
      */
     @Transactional
     public Long sendCoffeeChatRequest(Long requesterId, Long receiverId, List<Long> tagIds, String content) {
-        if (requesterId.equals(receiverId)) {
+        if (requesterId == null) {
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+        }
+        if (receiverId == null) {
+            throw new CustomException(CoffeeChatErrorCode.RECEIVER_NOT_FOUND);
+        }
+        if (!StringUtils.hasText(content)) {
+            throw new CustomException(CoffeeChatErrorCode.INVALID_CHAT_CONTENT);
+        }
+        if (Objects.equals(requesterId, receiverId)) {
             throw new CustomException(CoffeeChatErrorCode.SELF_REQUEST_NOT_ALLOWED);
         }
+
+        lockUsersInOrder(requesterId, receiverId);
+        Users requester = requireAuthenticatedUser(requesterId);
+        Users receiver = userRepository.findById(receiverId)
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.RECEIVER_NOT_FOUND));
 
         if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
                 requesterId, receiverId, ChatRequest.RequestStatus.WAITING, ChatRequest.RequestType.COFFEE_CHAT)
@@ -112,11 +127,6 @@ public class ChatService {
             throw new CustomException(CoffeeChatErrorCode.RECEIVER_COFFEECHAT_DISABLED);
         }
 
-
-        Users requester = userRepository.findById(requesterId)
-                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUESTER_NOT_FOUND));
-        Users receiver = userRepository.findById(receiverId)
-                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.RECEIVER_NOT_FOUND));
 
         List<Long> normalizedTagIds = normalizeTagIds(tagIds);
 
@@ -157,6 +167,7 @@ public class ChatService {
      */
     @Transactional
     public void respondToRequest(Long requestId, Long userId, boolean isAccepted) {
+        requireAuthenticatedUser(userId);
         ChatRequest request = chatRequestRepository.findByIdForUpdate(requestId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUEST_NOT_FOUND));
 
@@ -164,11 +175,14 @@ public class ChatService {
         if (!request.getReceiver().getUserId().equals(userId))
             throw new CustomException(CoffeeChatErrorCode.REQUEST_ACCESS_DENIED);
 
-        if (request.getStatus().equals(ChatRequest.RequestStatus.ACCEPTED)) {
+        if (request.getStatus() == ChatRequest.RequestStatus.ACCEPTED && isAccepted) {
             return;
         }
-        if (request.getStatus().equals(ChatRequest.RequestStatus.REJECTED)) {
+        if (request.getStatus() == ChatRequest.RequestStatus.REJECTED && !isAccepted) {
             return;
+        }
+        if (request.getStatus() != ChatRequest.RequestStatus.WAITING) {
+            throw new CustomException(CoffeeChatErrorCode.REQUEST_ALREADY_PROCESSED);
         }
 
         if (isAccepted) {
@@ -183,6 +197,7 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public ChatRequestDetailDto getChatRequestDetail(Long requestId, Long userId) {
+        requireAuthenticatedUser(userId);
         ChatRequest request = chatRequestRepository.findById(requestId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.REQUEST_NOT_FOUND));
 
@@ -227,6 +242,7 @@ public class ChatService {
 
     @Transactional(readOnly = true)
     public ChatRequestListResponseDto getChatRequestList(Long userId, ChatRequest.RequestType type) {
+        requireAuthenticatedUser(userId);
         List<ChatRequest> requests = chatRequestRepository.findRequestsWithRequester(
                 userId, type, ChatRequest.RequestStatus.WAITING);
 
@@ -309,12 +325,11 @@ public class ChatService {
 
     @Transactional
     public List<ChatMessageResponseDto> getChatHistory(Long roomId, Long userId) {
-        ChatRoom room = chatRoomRepository.findById(roomId)
+        Users reader = requireAuthenticatedUser(userId);
+        ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
-        Users opponent = (room.getRequester().getUserId().equals(userId)) ? room.getReceiver() : room.getRequester();
-
-        markAllAsRead(roomId, opponent);
+        markAllAsRead(roomId, reader);
 
         List<Chat> chatHistory = chatRepository.findTop1000ByRoomId(
                 roomId, PageRequest.of(0, 1000)
@@ -329,6 +344,7 @@ public class ChatService {
 
     @Transactional
     public ChatRoomWithDetailDto getRoomWithDetails(Long roomId, Long userId) {
+        requireAuthenticatedUser(userId);
         ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
@@ -372,8 +388,7 @@ public class ChatService {
 
 
     public List<ChatRoomListDetailDto> getChatRoomList(Long userId, ChatRequest.RequestType type) {
-        Users me = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+        Users me = requireAuthenticatedUser(userId);
 
 //        List<ChatRoom> myRooms = chatRoomRepository.findAllByUserIdWithBasicInfo(userId);
         List<ChatRoom> myRooms;
@@ -450,6 +465,11 @@ public class ChatService {
     @Transactional
     public void markAllAsRead(Long roomId, Users reader) {
 
+        if (reader == null || reader.getUserId() == null
+                || !chatRoomRepository.existsAccessibleByUserId(roomId, reader.getUserId())) {
+            throw new CustomException(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED);
+        }
+
         List<Chat> unreadMessages = chatRepository.findUnreadMessages(roomId, reader.getUserId());
 
         if (unreadMessages.isEmpty()) {
@@ -471,44 +491,29 @@ public class ChatService {
                 // typee ->  ReadEvent 내부에서 READ로 자동 설정됨
         );
 
-        messagingTemplate.convertAndSend(
-                "/sub/chat/room/" + roomId,
-                chatReadEvent
-        );
-
-        // 읽은 당사자(Reader)의 '채팅 목록/전체 배지' 갱신을 위해 소켓 발송
-
-        long totalUnreadCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(reader.getUserId());
-
-        long roomUnreadCount = 0L;
-
         String lastContent = unreadMessages.getLast().getContent();
         String lastTime = unreadMessages.getLast().getCreatedAt().toString();
-
-        ChatRoomListUpdateDto updateDto = ChatRoomListUpdateDto.builder()
-                .roomId(roomId)
-                .lastMessage(lastContent)
-                .unreadCount(roomUnreadCount)
-                .time(lastTime)
-                .totalUnreadCount(totalUnreadCount)
-                .build();
-
-        messagingTemplate.convertAndSend(
-                "/sub/user/" + reader.getUserId() + "/rooms",
-                updateDto
-        );
-
-        log.info("🚀 [Socket] 읽음 처리 후 목록 갱신 전송: /sub/user/{}/rooms (남은 전체 미독: {})",
-                reader.getUserId(), totalUnreadCount);
+        eventPublisher.publishEvent(new ChatReadCommittedEvent(
+                chatReadEvent,
+                reader.getUserId(),
+                lastContent,
+                lastTime
+        ));
 
     }
 
     @Transactional
-    public void sendMessage(Long senderId, ChatMessageSendRequestDto request) {
+    public ChatMessageAckResponseDto sendMessage(Long senderId, ChatMessageSendRequestDto request) {
+        if (request == null
+                || request.roomId() == null
+                || !StringUtils.hasText(request.content())
+                || request.content().length() > ChatMessageSendRequestDto.MAX_CONTENT_LENGTH) {
+            throw new CustomException(CoffeeChatErrorCode.INVALID_CHAT_CONTENT);
+        }
         log.info("[CHAT-SEND] === 메세지 전송 시작 === RoomID: {}, SenderID: {}", request.roomId(), senderId);
 
         //예외처리
-        ChatRoom room = chatRoomRepository.findById(request.roomId())
+        ChatRoom room = chatRoomRepository.findByIdForUpdate(request.roomId())
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
         if (room.getStatus() == ChatRoom.RoomStatus.CLOSE) {
@@ -517,18 +522,37 @@ public class ChatService {
         }
 
         //보내는 사람과 받는 사람 분류
-        Users sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+        Users sender = requireAuthenticatedUser(senderId);
 
-        Users receiver = (room.getRequester().getUserId().equals(sender.getUserId()))
+        boolean isRequester = Objects.equals(room.getRequester().getUserId(), sender.getUserId());
+        boolean isReceiver = Objects.equals(room.getReceiver().getUserId(), sender.getUserId());
+        if (!isRequester && !isReceiver) {
+            throw new CustomException(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED);
+        }
+
+        Users receiver = isRequester
                 ? room.getReceiver()
                 : room.getRequester();
         log.info("👤 Sender: {} -> Receiver: {}", sender.getUserId(), receiver.getUserId());
 
+        String clientMessageId = normalizeClientMessageId(request.clientMessageId());
+        Optional<Chat> existingMessage = chatRepository.findByClientMessageId(
+                room.getId(), sender.getUserId(), clientMessageId);
+        if (existingMessage.isPresent()) {
+            Chat existing = existingMessage.get();
+            if (!Objects.equals(existing.getContent(), request.content())) {
+                throw new CustomException(CoffeeChatErrorCode.IDEMPOTENCY_KEY_REUSED);
+            }
+
+            log.info("[CHAT-SEND] 멱등 재요청 감지. roomId={}, senderId={}, clientMessageId={}, messageId={}",
+                    room.getId(), sender.getUserId(), clientMessageId, existing.getId());
+            return ChatMessageAckResponseDto.from(ChatMessageResponseDto.toDto(existing), true);
+        }
+
         boolean receiverPresent = presenceService.isPresent(room.getId(), receiver.getUserId());
         log.info("👀 상대방(receiver) 접속 여부: {}", receiverPresent);
 
-        Chat chat = Chat.createChat(room, sender, receiver, request.content());
+        Chat chat = Chat.createChat(room, sender, receiver, request.content(), clientMessageId);
 
         if (receiverPresent) {
             chat.markAsRead();
@@ -551,60 +575,15 @@ public class ChatService {
         }
 
         ChatMessageResponseDto response = ChatMessageResponseDto.toDto(chat);
+        eventPublisher.publishEvent(new ChatMessageCommittedEvent(
+                response,
+                sender.getUserId(),
+                receiver.getUserId(),
+                chat.getContent(),
+                chat.getCreatedAt().toString()
+        ));
 
-        try {
-            String roomDest = "/sub/chat/room/" + room.getId();
-            messagingTemplate.convertAndSend("/sub/chat/room/" + room.getId(), response);
-
-/*            if (receiverPresent) {
-                messagingTemplate.convertAndSendToUser(
-                        sender.getUserId().toString(),
-                        "/queue/read",
-                        ChatReadEvent.of(room.getId(), chat.getId(), chat.getReadAt().toString())
-                );
-            }*/
-            log.info("🚀 [Socket] 채팅방 브로드캐스트 전송: {}", roomDest);
-            String lastTime = chat.getCreatedAt().toString();
-
-            // 수신자의 채팅목록 갱신
-            long unreadCount = chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(room.getId(), receiver.getUserId());
-            long totalUnreadCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(receiver.getUserId());
-            String receiverDest = "/sub/user/" + receiver.getUserId() + "/rooms";
-
-            ChatRoomListUpdateDto updateDto = ChatRoomListUpdateDto.builder()
-                    .roomId(room.getId())
-                    .lastMessage(chat.getContent())
-                    .unreadCount(unreadCount)
-                    .time(lastTime)
-                    .totalUnreadCount(totalUnreadCount)
-                    .build();
-            log.info("🚀 [Socket] 수신자 목록 갱신 전송: {} (미읽음: {})", receiverDest, unreadCount);
-
-            messagingTemplate.convertAndSend(
-                    "/sub/user/" + receiver.getUserId() + "/rooms",
-                    updateDto
-            );
-
-            // 본인 채팅목록 갱신
-            long senderTotalCount = chatRepository.countByReceiver_UserIdAndIsReadFalse(sender.getUserId());
-            String senderDest = "/sub/user/" + sender.getUserId() + "/rooms";
-
-            ChatRoomListUpdateDto senderUpdateDto = ChatRoomListUpdateDto.builder()
-                    .roomId(room.getId())
-                    .lastMessage(chat.getContent())
-                    .unreadCount(0L)
-                    .time(lastTime)
-                    .totalUnreadCount(senderTotalCount)
-                    .build();
-
-            messagingTemplate.convertAndSend(
-                    "/sub/user/" + sender.getUserId() + "/rooms",
-                    senderUpdateDto
-            );
-            log.info("🚀 [Socket] 발신자 목록 갱신 전송: {}", senderDest);
-        } catch (Exception e) {
-            log.error("❌ [Socket-ERROR] 전송 실패: {}", e.getMessage(), e);
-        }
+        return ChatMessageAckResponseDto.from(response, false);
     }
 
     @Transactional(readOnly = true)
@@ -705,6 +684,7 @@ public class ChatService {
 
     @Transactional
     public void rejectAllCoffeeChatRequests(Long userId, ChatRequest.RequestType requestType) {
+        requireAuthenticatedUser(userId);
         List<ChatRequest> requests = chatRequestRepository.findAllByReceiver_UserIdAndTypeAndStatus(
                 userId, requestType, ChatRequest.RequestStatus.WAITING);
 
@@ -713,6 +693,7 @@ public class ChatService {
 
     @Transactional
     public void rejectAllTeamRecruitRequestsByRecruitment(Long userId, Long recruitmentId) {
+        requireAuthenticatedUser(userId);
         List<ChatRequest> requests = chatRequestRepository.findAllByReceiver_UserIdAndTypeAndRecruitmentIdAndStatus(
                 userId,
                 ChatRequest.RequestType.TEAM_RECRUIT,
@@ -724,13 +705,15 @@ public class ChatService {
     }
 
     public void closeChatRoom(Long roomId, Long userId) {
-        ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
+        requireAuthenticatedUser(userId);
+        ChatRoom room = chatRoomRepository.findByUserIdWithDetailsForUpdate(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
         room.closeRoom();
     }
 
     public void exitOfChatRoom(Long roomId, Long userId) {
-        ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
+        requireAuthenticatedUser(userId);
+        ChatRoom room = chatRoomRepository.findByUserIdWithDetailsForUpdate(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
         room.leave(userId);
 
@@ -782,5 +765,38 @@ public class ChatService {
                 .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
                 .distinct()
                 .toList();
+    }
+
+    private Users requireAuthenticatedUser(Long userId) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+        return user;
+    }
+
+    private void lockUsersInOrder(Long firstUserId, Long secondUserId) {
+        long first = Math.min(firstUserId, secondUserId);
+        long second = Math.max(firstUserId, secondUserId);
+        userRepository.lockUserRow(first);
+        if (first != second) userRepository.lockUserRow(second);
+    }
+
+    private String normalizeClientMessageId(String rawClientMessageId) {
+        if (!StringUtils.hasText(rawClientMessageId)) {
+            return UUID.randomUUID().toString();
+        }
+
+        try {
+            String trimmed = rawClientMessageId.trim();
+            String normalized = UUID.fromString(trimmed).toString();
+            if (!normalized.equalsIgnoreCase(trimmed)) {
+                throw new IllegalArgumentException("clientMessageId is not canonical");
+            }
+            return normalized;
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(CoffeeChatErrorCode.INVALID_CLIENT_MESSAGE_ID, e);
+        }
     }
 }

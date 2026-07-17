@@ -3,11 +3,13 @@ package CamNecT.server.domain.chat.repository;
 import CamNecT.server.domain.chat.model.ChatRequest;
 import CamNecT.server.domain.chat.model.ChatRoom;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
 
 public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
 
@@ -43,6 +45,30 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
             "AND ((r.requester.userId = :userId AND r.requesterExited = false) " +
             "OR (r.receiver.userId = :userId AND r.receiverExited = false))")
     Optional<ChatRoom> findByUserIdWithDetails(@Param("roomId") Long roomId, @Param("userId") Long userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM ChatRoom r " +
+            "JOIN FETCH r.requester " +
+            "JOIN FETCH r.receiver " +
+            "JOIN FETCH r.request req " +
+            "LEFT JOIN FETCH req.requestInterests " +
+            "WHERE r.id = :roomId " +
+            "AND ((r.requester.userId = :userId AND r.requesterExited = false) " +
+            "OR (r.receiver.userId = :userId AND r.receiverExited = false))")
+    Optional<ChatRoom> findByUserIdWithDetailsForUpdate(@Param("roomId") Long roomId, @Param("userId") Long userId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from ChatRoom r join fetch r.requester join fetch r.receiver where r.id = :roomId")
+    Optional<ChatRoom> findByIdForUpdate(@Param("roomId") Long roomId);
+
+    @Query("""
+        select (count(r) > 0)
+        from ChatRoom r
+        where r.id = :roomId
+          and ((r.requester.userId = :userId and r.requesterExited = false)
+            or (r.receiver.userId = :userId and r.receiverExited = false))
+    """)
+    boolean existsAccessibleByUserId(@Param("roomId") Long roomId, @Param("userId") Long userId);
 
     Optional<ChatRoom> findByRequest_Id(Long requestId);
 }
