@@ -1,8 +1,6 @@
 package CamNecT.server.domain.report.dto.response;
 
-import CamNecT.server.domain.report.model.Report;
-import CamNecT.server.domain.report.model.ReportStatus;
-import CamNecT.server.domain.report.model.TargetType;
+import CamNecT.server.domain.report.model.*;
 import java.time.LocalDateTime;
 
 public record ReportResponse(
@@ -11,11 +9,14 @@ public record ReportResponse(
         Long reportedUserId,
         Long reportedPostId,
         TargetType postType,
-        String reportCategory,
+        ReportCategory reportCategory,
         String title,
         String context,
+        String evidenceImageUrl,
         ReportStatus status,
-        LocalDateTime createdAt
+        PenaltyType appliedPenalty,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {
     // 엔티티 -> Record 변환 메서드
     public static ReportResponse from(Report report) {
@@ -28,8 +29,11 @@ public record ReportResponse(
                 report.getReportCategory(),
                 report.getTitle(),
                 report.getContext(),
+                report.getEvidenceImageUrl(),
                 report.getStatus(),
-                report.getCreatedAt()
+                report.getAppliedPenalty(),
+                report.getCreatedAt(),
+                report.getUpdatedAt()
         );
     }
 }

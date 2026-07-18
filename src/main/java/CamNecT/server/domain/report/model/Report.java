@@ -30,10 +30,11 @@ public class Report {
     private Long reportedPostId; // 신고 글 ID (NULL 허용)
 
     @Enumerated(EnumType.STRING)
-    private TargetType postType; // 신고 글 타입 (COMMUNITY, ACTIVITY 등)
+    private TargetType postType; // 신고 글 타입 (COMMUNITY, ACTIVITY, USER 등)
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String reportCategory; // 신고 유형
+    private ReportCategory reportCategory; // 신고 사유 카테고리
 
     @Column(nullable = false)
     private String title;
@@ -41,9 +42,14 @@ public class Report {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String context;
 
+    private String evidenceImageUrl; // 증거 이미지 URL
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ReportStatus status = ReportStatus.RECEIVED; // 기본값 RECEIVED
+
+    @Enumerated(EnumType.STRING)
+    private PenaltyType appliedPenalty; // 적용된 패널티
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
@@ -55,7 +61,7 @@ public class Report {
 
     // 편의를 위한 빌더 패턴 또는 생성자
     public Report(Long reporterId, Long reportedUserId, Long reportedPostId,
-                  TargetType postType, String reportCategory, String title, String context) {
+                  TargetType postType, ReportCategory reportCategory, String title, String context, String evidenceImageUrl) {
         this.reporterId = reporterId;
         this.reportedUserId = reportedUserId;
         this.reportedPostId = reportedPostId;
@@ -63,10 +69,19 @@ public class Report {
         this.reportCategory = reportCategory;
         this.title = title;
         this.context = context;
+        this.evidenceImageUrl = evidenceImageUrl;
         this.status = ReportStatus.RECEIVED;
     }
 
     public void updateStatus(ReportStatus status) {
         this.status = status;
+    }
+
+    public void applyPenalty(PenaltyType penalty) {
+        this.appliedPenalty = penalty;
+    }
+
+    public void updateEvidenceImageUrl(String evidenceImageUrl) {
+        this.evidenceImageUrl = evidenceImageUrl;
     }
 }

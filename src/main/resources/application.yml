@@ -65,6 +65,9 @@ app:
         - application/pdf
     thumbnail:
       max-file-size-mb: 5
+  report:
+    evidence:
+      max-file-size-mb: 5
   point:
     reward:
       comment-selection: 200

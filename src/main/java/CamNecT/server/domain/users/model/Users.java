@@ -63,6 +63,20 @@ public class Users {
     @Column(name = "verification_complete_pending", nullable = false)
     private boolean verificationCompletePending = false;
 
+    @Builder.Default
+    @Column(name = "report_count", nullable = false)
+    private int reportCount = 0;
+
+    @Column(name = "suspension_end_date")
+    private LocalDateTime suspensionEndDate; // 정지 종료 날짜
+
+    @Builder.Default
+    @Column(name = "is_permanently_banned", nullable = false)
+    private boolean isPermanentlyBanned = false;
+
+    @Column(name = "ban_reason")
+    private String banReason; // 차단 사유
+
 
     @CreationTimestamp // 생성 시 자동으로 시간 입력
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -86,6 +100,27 @@ public class Users {
 
     public void changePasswordHash(String encoded) { this.passwordHash = encoded; }
 
+    public void incrementReportCount() {
+        this.reportCount++;
+    }
+
+    public void applySuspension(LocalDateTime endDate) {
+        this.suspensionEndDate = endDate;
+    }
+
+    public void applyPermanentBan(String reason) {
+        this.isPermanentlyBanned = true;
+        this.banReason = reason;
+    }
+
+    public boolean isSuspended() {
+        if (suspensionEndDate == null) return false;
+        return LocalDateTime.now().isBefore(suspensionEndDate);
+    }
+
+    public void clearSuspension() {
+        this.suspensionEndDate = null;
+    }
 
     //로그인시 User상태위한 메서드들
     public void markVerificationCompletePending() { this.verificationCompletePending = true; }
