@@ -7,6 +7,7 @@ public record AlumniPreviewResponse(
         Long userId,
         String userName,
         UserProfileDto userProfile,
-        List<String> tagList
+        List<String> tagList,
+        Boolean hasChat
 ) {
 }
