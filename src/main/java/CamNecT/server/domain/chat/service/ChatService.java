@@ -709,6 +709,12 @@ public class ChatService {
         ChatRoom room = chatRoomRepository.findByUserIdWithDetailsForUpdate(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
         room.closeRoom();
+        
+        ChatRequest request = room.getRequest();
+        if (request == null) {
+            throw new CustomException(CoffeeChatErrorCode.REQUESTER_NOT_FOUND);
+        }
+        request.closeRequest();
     }
 
     public void exitOfChatRoom(Long roomId, Long userId) {
@@ -723,6 +729,26 @@ public class ChatService {
         }
         request.closeRequest();
 
+    }
+
+    public void completeExitChatRoom(Long roomId, Long userId) {
+        ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
+                .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
+
+        // 사용자 퇴장 표시
+        room.leave(userId);
+
+        // 요청 종료
+        ChatRequest request = room.getRequest();
+        if (request == null) {
+            throw new CustomException(CoffeeChatErrorCode.REQUESTER_NOT_FOUND);
+        }
+        request.closeRequest();
+
+        // 채팅방 완전 종료
+        room.closeRoom();
+
+        log.info("채팅방 완전 종료 (roomId={}, userId={})", roomId, userId);
     }
 
     private void publishAcceptedNotification(ChatRequest request, Long roomId) {
