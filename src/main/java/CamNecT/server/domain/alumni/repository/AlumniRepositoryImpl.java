@@ -59,8 +59,7 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
                         myId == null ? null : user.userId.ne(myId),
                         user.status.eq(UserStatus.ACTIVE),
                         nameContains(name),
-                        hasAllTags(tagIdList, user.userId),
-                        excludeAlreadyCoffeeChatAccepted(myId, user.userId)
+                        hasAllTags(tagIdList, user.userId)
                 )
                 .groupBy(user.userId, user.createdAt)
                 .orderBy(

@@ -5,6 +5,8 @@ import CamNecT.server.domain.alumni.dto.ProfileCardDto;
 import CamNecT.server.domain.alumni.dto.response.AlumniPreviewResponse;
 import CamNecT.server.domain.alumni.dto.UserProfileDto;
 import CamNecT.server.domain.alumni.repository.AlumniRepository;
+import CamNecT.server.domain.chat.model.ChatRequest;
+import CamNecT.server.domain.chat.repository.ChatRequestRepository;
 import CamNecT.server.domain.home.dto.HomeResponse;
 import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.model.UserStatus;
@@ -40,6 +42,7 @@ public class AlumniService {
     private final UserProfileRepository userProfileRepository;
     private final UserRepository userRepository;
     private final AlumniRepository alumniRepository;
+    private final ChatRequestRepository chatRequestRepository;
     private final PublicUrlIssuer publicUrlIssuer;
 
     @Transactional(readOnly = true)
@@ -70,7 +73,14 @@ public class AlumniService {
                         Collectors.mapping(row -> (String) row[1], Collectors.toList())
                 ));
 
-        // 4. DTO 변환 (정렬 유지)
+        // 4. Chat 여부 조회
+        Map<Long, Boolean> chatMap = targetIds.stream()
+                .collect(Collectors.toMap(
+                        targetId -> targetId,
+                        targetId -> hasActiveChat(userId, targetId)
+                ));
+
+        // 5. DTO 변환 (정렬 유지)
         List<AlumniPreviewResponse> content = targetIds.stream()
                 .map(id -> {
                     UserProfile profile = profileMap.get(id);
@@ -86,7 +96,8 @@ public class AlumniService {
                             id,
                             profile.getUser().getName(),
                             profileDto,
-                            tagMap.getOrDefault(id, List.of())
+                            tagMap.getOrDefault(id, List.of()),
+                            chatMap.getOrDefault(id, false)
                     );
                 })
                 .filter(Objects::nonNull)
@@ -156,6 +167,18 @@ public class AlumniService {
                 .toList();
     }
 
+    private boolean hasActiveChat(Long userId, Long targetId) {
+        return chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
+                userId, targetId,
+                ChatRequest.RequestStatus.ACCEPTED,
+                ChatRequest.RequestType.COFFEE_CHAT
+        ) || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
+                targetId, userId,
+                ChatRequest.RequestStatus.ACCEPTED,
+                ChatRequest.RequestType.COFFEE_CHAT
+        );
+    }
+
     private void requireAuthenticatedUser(Long userId) {
         Users user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
@@ -163,5 +186,4 @@ public class AlumniService {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }
     }
-
 }
