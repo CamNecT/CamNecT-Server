@@ -1,10 +1,15 @@
 package CamNecT.server.global.notification.service;
 
+import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.domain.users.model.UserStatus;
+import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.notification.dto.request.RegisterPushTokenRequest;
 import CamNecT.server.global.notification.model.PushDevice;
 import CamNecT.server.global.notification.repository.PushDeviceRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -14,9 +19,20 @@ import java.util.List;
 public class PushDeviceService {
 
     private final PushDeviceRepository pushDeviceRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public RegisterResult register(Long userId, RegisterPushTokenRequest req) {
+        userRepository.lockUserRow(userId);
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+
+        // 동일 FCM 토큰이 이전 로그인 사용자의 활성 디바이스로 남아 잘못 전송되는 것을 방지한다.
+        pushDeviceRepository.disableTokenForOtherUsers(req.token(), userId);
+
         PushDevice device = pushDeviceRepository.findByUserIdAndDeviceId(userId, req.deviceId())
                 .map(existing -> {
                     existing.updateToken(req.platform(), req.token());
@@ -35,15 +51,16 @@ public class PushDeviceService {
         return new RegisterResult(saved.getId(), created);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public List<String> findEnabledTokens(Long userId) {
         return pushDeviceRepository.findAllByUserIdAndEnabledTrue(userId)
                 .stream()
                 .map(PushDevice::getFcmToken)
+                .distinct()
                 .toList();
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void disableTokens(List<String> invalidTokens) {
         if (invalidTokens == null || invalidTokens.isEmpty()) return;
 

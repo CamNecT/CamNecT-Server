@@ -22,7 +22,7 @@ public class PasswordService {
     @Transactional
     public void updateMyPassword(Long userId, UpdatePasswordRequest req) {
         Users user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
         if (!passwordEncoder.matches(req.currentPassword(), user.getPasswordHash())) {
             throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
@@ -30,7 +30,23 @@ public class PasswordService {
 
         validatePassword(req.newPassword());
         user.changePasswordHash(passwordEncoder.encode(req.newPassword()));
-        // save는 영속 상태면 생략 가능
+    }
+
+    @Transactional
+    public void resetPasswordByUserId(Long userId, String newPassword) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+
+        resetPassword(user, newPassword);
+    }
+
+    private void resetPassword(Users user, String newPassword) {
+        validatePassword(newPassword);
+        if (passwordEncoder.matches(newPassword, user.getPasswordHash())) {
+            throw new CustomException(AuthErrorCode.SAME_AS_CURRENT_PASSWORD);
+        }
+
+        user.changePasswordHash(passwordEncoder.encode(newPassword));
     }
 
     private static final Pattern PASSWORD_PATTERN = Pattern.compile(

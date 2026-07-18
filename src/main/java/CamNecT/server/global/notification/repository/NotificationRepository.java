@@ -26,6 +26,21 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     long countByReceiverUserIdAndReadFalseAndTypeNot(Long receiverUserId, NotificationType type);
 
+    boolean existsByIdAndReceiverUserId(Long id, Long receiverUserId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update Notification n
+           set n.read = true
+         where n.id = :notificationId
+           and n.receiverUserId = :receiverUserId
+           and n.read = false
+    """)
+    int markRead(
+            @Param("receiverUserId") Long receiverUserId,
+            @Param("notificationId") Long notificationId
+    );
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update Notification n

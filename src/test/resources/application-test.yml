@@ -1,3 +1,16 @@
+app:
+  push:
+    enabled: false
+
+  storage:
+    type: local
+
+  local:
+    base-dir: ./build/test-uploads
+
+  s3:
+    bucket: test-bucket
+
 spring:
   datasource:
     url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
@@ -8,3 +21,14 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+
+  sql:
+    init:
+      mode: never
+
+  mail:
+    username: test@example.com
+    password: test-password
+
+jwt:
+  secret: test-jwt-secret-key-for-context-loads-at-least-32-characters

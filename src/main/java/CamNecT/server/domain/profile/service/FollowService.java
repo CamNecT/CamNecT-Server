@@ -7,6 +7,7 @@ import CamNecT.server.domain.users.repository.UserFollowRepository;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,10 @@ public class FollowService {
 
     @Transactional
     public void follow(Long followerId, Long followingId) {
+        if (!userRepository.existsById(followerId)) {
+            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+        }
+
         if (followerId.equals(followingId)) {
             throw new CustomException(UserErrorCode.SELF_FOLLOW_NOT_ALLOWED);
         }

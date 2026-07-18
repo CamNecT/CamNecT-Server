@@ -4,6 +4,8 @@ import CamNecT.server.domain.chat.service.ChatPresenceService;
 import CamNecT.server.domain.chat.service.ChatService;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -11,6 +13,7 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
+import org.springframework.web.socket.messaging.SessionUnsubscribeEvent;
 
 import java.util.Map;
 
@@ -22,6 +25,8 @@ public class WebSocketEventListener {
     private final ChatPresenceService presenceService;
     private final ChatService chatService;
     private final UserRepository userRepository;
+    private final ChatSocketErrorMapper errorMapper;
+    private final ChatSocketErrorPublisher errorPublisher;
 
     @EventListener
     public void handleSessionSubscribeEvent(SessionSubscribeEvent event) {
@@ -37,30 +42,39 @@ public class WebSocketEventListener {
 
             Long userId = Long.valueOf(userIdObj.toString());
             Long roomId = extractRoomId(destination);
-
-            presenceService.enter(roomId, userId);
-            log.info("👤 SUBSCRIBE (입장): userId={}, roomId={}", userId, roomId);
+            String sessionId = accessor.getSessionId();
+            String subscriptionId = accessor.getSubscriptionId();
 
             try {
-                Users user = userRepository.getReferenceById(userId);
+                if (roomId == null) return;
+                Users user = userRepository.findById(userId)
+                        .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+                presenceService.enter(roomId, userId, sessionId, subscriptionId);
+                log.info("👤 SUBSCRIBE (입장): userId={}, roomId={}", userId, roomId);
                 chatService.markAllAsRead(roomId, user);
             } catch (Exception e) {
-                log.error("읽음 처리 중 오류 발생: {}", e.getMessage());
+                log.warn("채팅방 구독 후 읽음 처리 실패. userId={}, roomId={}", userId, roomId, e);
+                errorPublisher.sendToSession(
+                        userId,
+                        sessionId,
+                        errorMapper.map(e, accessor, null)
+                );
             }
         }
+    }
+
+    @EventListener
+    public void handleSessionUnsubscribeEvent(SessionUnsubscribeEvent event) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
+        presenceService.leaveSubscription(accessor.getSessionId(), accessor.getSubscriptionId());
     }
 
     @EventListener
     public void handleSessionDisconnectEvent(SessionDisconnectEvent event) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
 
-        Map<String, Object> attrs = accessor.getSessionAttributes();
-        Long userId = attrs == null ? null : (Long) attrs.get("userId");
-
-        if (userId != null) {
-            presenceService.leaveAll(userId);
-            log.info("❌ DISCONNECT (퇴장): userId={}", userId);
-        }
+        presenceService.leaveSession(accessor.getSessionId());
+        log.info("❌ DISCONNECT (퇴장): sessionId={}", accessor.getSessionId());
     }
 
     private Long extractRoomId(String destination) {

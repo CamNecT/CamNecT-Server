@@ -10,7 +10,6 @@ import CamNecT.server.domain.community.repository.Posts.PostAttachmentsRepositor
 import CamNecT.server.domain.community.repository.Posts.PostsRepository;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.CommunityErrorCode;
 import CamNecT.server.global.storage.dto.response.PresignDownloadResponse;
 import CamNecT.server.global.storage.model.UploadTicket;
@@ -52,9 +51,6 @@ public class PostAttachmentDownloadService {
         ContentAccessStatus access = computeAccessStatus(userId, postId, post);
 
         if (access != ContentAccessStatus.GRANTED) {
-            if (access == ContentAccessStatus.LOGIN_REQUIRED) {
-                throw new CustomException(AuthErrorCode.LOGIN_REQUIRED);
-            }
             throw new CustomException(CommunityErrorCode.POST_FORBIDDEN);
         }
 
@@ -78,7 +74,6 @@ public class PostAttachmentDownloadService {
             return ContentAccessStatus.GRANTED;
         }
 
-        if (userId == null) return ContentAccessStatus.LOGIN_REQUIRED;
         if (Objects.equals(userId, post.getUser().getUserId())) return ContentAccessStatus.GRANTED;
         if (postAccessRepository.existsByPost_IdAndUser_UserId(postId, userId)) return ContentAccessStatus.GRANTED;
 

@@ -5,7 +5,10 @@ import CamNecT.server.domain.portfolio.model.PortfolioProject;
 import CamNecT.server.domain.portfolio.model.props.PortfolioAssetProps;
 import CamNecT.server.domain.portfolio.model.props.PortfolioThumbnailProps;
 import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.domain.users.model.UserStatus;
+import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.StorageErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.storage.service.GlobalPresignMethods;
@@ -51,7 +54,7 @@ public class PortfolioAttachmentService {
     @Transactional
     public PresignUploadResponse presignThumbnail(Long userId, Long portfolioUserId, PresignUploadRequest req) {
         validateOwner(userId, portfolioUserId);
-        userRepository.lockUserRow(userId);
+        lockAuthenticatedUser(userId);
 
         String ct = globalPresignMethods.normalize(req.contentType());
         if (req.size() == null || req.size() <= 0) throw new CustomException(StorageErrorCode.EMPTY_FILE_NOT_ALLOWED);
@@ -85,7 +88,7 @@ public class PortfolioAttachmentService {
         if (items.isEmpty()) throw new CustomException(StorageErrorCode.EMPTY_FILE_NOT_ALLOWED);
         if (items.size() > assetProps.maxFiles()) throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
 
-        userRepository.lockUserRow(userId);
+        lockAuthenticatedUser(userId);
 
         String prefix = "portfolio/user-" + userId + "/assets";
 
@@ -134,6 +137,9 @@ public class PortfolioAttachmentService {
 
         // assets (thumbKey는 제거됨 - 중복 consume 방지)
         LinkedHashSet<String> reqKeys = distinctKeys(attachmentKeys, thumbnailKey);
+        if (reqKeys.size() > assetProps.maxFiles()) {
+            throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
+        }
         int order = 1;
 
         for (String k : reqKeys) {
@@ -141,7 +147,7 @@ public class PortfolioAttachmentService {
                     finalAssetPrefix, UploadPurpose.PORTFOLIO_ATTACHMENT);
 
             UploadTicket t = ticketRepo.findByStorageKey(finalKey)
-                    .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
+                    .orElseThrow(() -> new CustomException(StorageErrorCode.UPLOAD_TICKET_NOT_FOUND));
 
             project.getAssets().add(PortfolioAsset.builder()
                     .portfolioProject(project)
@@ -192,6 +198,9 @@ public class PortfolioAttachmentService {
             for (String k : newAttachmentKeys) {
                 if (hasText(k)) reqKeys.add(k);
             }
+            if (reqKeys.size() > assetProps.maxFiles()) {
+                throw new CustomException(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
+            }
 
             Set<String> keepKeys = new HashSet<>();
             int order = 1;
@@ -207,7 +216,7 @@ public class PortfolioAttachmentService {
                 String finalKey = consume(userId, project.getPortfolioId(), k, finalAssetPrefix, UploadPurpose.PORTFOLIO_ATTACHMENT);
 
                 UploadTicket t = ticketRepo.findByStorageKey(finalKey)
-                        .orElseThrow(() -> new CustomException(UserErrorCode.PORTFOLIO_NOT_FOUND));
+                        .orElseThrow(() -> new CustomException(StorageErrorCode.UPLOAD_TICKET_NOT_FOUND));
 
                 project.getAssets().add(PortfolioAsset.builder()
                         .portfolioProject(project)
@@ -266,6 +275,16 @@ public class PortfolioAttachmentService {
         if (userId == null || !Objects.equals(userId, portfolioUserId)) {
             throw new CustomException(UserErrorCode.PORTFOLIO_FORBIDDEN);
         }
+    }
+
+    private Users lockAuthenticatedUser(Long userId) {
+        userRepository.lockUserRow(userId);
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+        return user;
     }
 
     private LinkedHashSet<String> distinctKeys(List<String> keys, String thumbnailKey) {

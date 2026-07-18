@@ -14,6 +14,7 @@ public class ChatMessageResponseDto {
 
     private Long messageId;
     private Long roomId;
+    private String clientMessageId;
 
     private Long senderId;
     private String sender;
@@ -32,6 +33,7 @@ public class ChatMessageResponseDto {
         return ChatMessageResponseDto.builder()
                 .messageId(chat.getId())
                 .roomId(chat.getRoom().getId())
+                .clientMessageId(chat.getClientMessageId())
 
                 .senderId(chat.getSender().getUserId())
                 .sender(chat.getSender().getName())

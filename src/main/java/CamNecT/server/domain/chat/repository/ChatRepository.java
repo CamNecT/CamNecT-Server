@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ChatRepository extends JpaRepository<Chat, Long> {
 
@@ -26,12 +27,45 @@ public interface ChatRepository extends JpaRepository<Chat, Long> {
                 where c.room.id = :roomId
                   and c.receiver.userId = :userId
                   and c.isRead = false
+                order by c.id asc
             """)
     List<Chat> findUnreadMessages(@Param("roomId") Long roomId, @Param("userId") Long userId);
 
     long countByRoom_IdAndReceiver_UserIdAndIsReadFalse(Long roomId, Long receiverId);
 
     long countByReceiver_UserIdAndIsReadFalse(Long receiverId);
+
+    @Query("""
+            select c
+            from Chat c
+            join fetch c.room
+            join fetch c.sender
+            join fetch c.receiver
+            where c.room.id = :roomId
+              and c.sender.userId = :senderId
+              and c.clientMessageId = :clientMessageId
+            """)
+    Optional<Chat> findByClientMessageId(
+            @Param("roomId") Long roomId,
+            @Param("senderId") Long senderId,
+            @Param("clientMessageId") String clientMessageId
+    );
+
+    long countByRoom_IdAndSender_UserIdAndClientMessageId(
+            Long roomId,
+            Long senderId,
+            String clientMessageId
+    );
+
+    @Query("""
+            select count(c)
+            from Chat c
+            where c.receiver.userId = :userId
+              and c.isRead = false
+              and ((c.room.requester.userId = :userId and c.room.requesterExited = false)
+                or (c.room.receiver.userId = :userId and c.room.receiverExited = false))
+            """)
+    long countVisibleUnreadByUserId(@Param("userId") Long userId);
 
     @Query("SELECT c.room.id, COUNT(c) " +
             "FROM Chat c " +

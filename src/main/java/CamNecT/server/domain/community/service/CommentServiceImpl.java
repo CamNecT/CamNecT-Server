@@ -42,7 +42,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     @Override
     public CreateCommentResponse create(Long userId, Long postId, CreateCommentRequest req) {
-        if (userId == null) throw new CustomException(AuthErrorCode.USER_NOT_FOUND);
+        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -109,7 +109,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     @Override
     public void update(Long userId, Long commentId, UpdateCommentRequest req) {
-        if (userId == null) throw new CustomException(AuthErrorCode.USER_NOT_FOUND);
+        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
         Comments comment = commentsRepository.findById(commentId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
@@ -125,7 +125,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     @Override
     public void delete(Long userId, Long commentId) {
-        if (userId == null) throw new CustomException(AuthErrorCode.USER_NOT_FOUND);
+        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
         Comments comment = commentsRepository.findById(commentId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
@@ -152,7 +152,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional
     @Override
     public ToggleCommentLikeResponse toggleLike(Long userId, Long commentId) {
-        if (userId == null) throw new CustomException(AuthErrorCode.USER_NOT_FOUND);
+        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
         Comments comment = commentsRepository.findById(commentId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
@@ -181,7 +181,7 @@ public class CommentServiceImpl implements CommentService {
             throw new CustomException(CommunityErrorCode.POST_NOT_FOUND);
         }
 
-        int limit = Math.min(Math.max(size, 1), 50);
+        int limit = Math.clamp(size, 1, 50);
         var pageable = PageRequest.of(0, limit);
 
         List<Comments> roots = new ArrayList<>();

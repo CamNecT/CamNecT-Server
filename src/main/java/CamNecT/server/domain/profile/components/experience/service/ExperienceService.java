@@ -1,11 +1,11 @@
 package CamNecT.server.domain.profile.components.experience.service;
 
+import CamNecT.server.domain.profile.components.ProfileComponentAccessGuard;
 import CamNecT.server.domain.profile.components.experience.dto.request.ExperienceRequest;
 import CamNecT.server.domain.profile.components.experience.dto.response.ExperienceResponse;
 import CamNecT.server.domain.profile.components.experience.model.Experience;
 import CamNecT.server.domain.profile.components.experience.repository.ExperienceRepository;
 import CamNecT.server.domain.users.model.Users;
-import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -20,12 +20,11 @@ import java.util.List;
 public class ExperienceService {
 
     private final ExperienceRepository experienceRepository;
-    private final UserRepository userRepository;
+    private final ProfileComponentAccessGuard accessGuard;
 
     @Transactional
     public void addExperience(Long userId, ExperienceRequest request) {
-        Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+        Users user = accessGuard.requireAuthenticatedUser(userId);
 
         Experience experience = Experience.builder()
                 .user(user)
@@ -40,6 +39,7 @@ public class ExperienceService {
     }
 
     public List<ExperienceResponse> getMyExperience(Long userId) {
+        accessGuard.requireAuthenticatedUser(userId);
         return experienceRepository.findAllByUserIdWithDetails(userId)
                 .stream()
                 .map(ExperienceResponse::from)
@@ -48,6 +48,7 @@ public class ExperienceService {
 
     @Transactional
     public void updateExperience(Long userId, Long experienceId, ExperienceRequest request) {
+        accessGuard.requireAuthenticatedUser(userId);
         Experience experience = experienceRepository.findById(experienceId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.EXPERIENCE_NOT_FOUND));
         // 본인 확인
@@ -66,6 +67,7 @@ public class ExperienceService {
 
     @Transactional
     public void deleteExperience(Long userId, Long experienceId) {
+        accessGuard.requireAuthenticatedUser(userId);
         Experience experience = experienceRepository.findById(experienceId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.EXPERIENCE_NOT_FOUND));
 

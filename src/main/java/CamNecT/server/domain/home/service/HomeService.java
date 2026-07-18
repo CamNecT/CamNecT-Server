@@ -9,7 +9,7 @@ import CamNecT.server.global.point.repository.PointWalletRepository;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,15 +26,19 @@ public class HomeService {
     private final ActivityService contestService;
 
     private static final int HOME_COFFEECHAT_PREVIEW_SIZE = 2;
+    private static final int HOME_RECRUITMENT_PREVIEW_SIZE = 2;
     private static final int HOME_ALUMNI_PREVIEW_SIZE = 2;
     private static final int HOME_CONTEST_PREVIEW_SIZE = 4;
 
     public HomeResponse getHome(Long userId) {
         Users user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
         HomeResponse.CoffeeChatSection coffeeChat =
                 chatService.getHomeInbox(userId, HOME_COFFEECHAT_PREVIEW_SIZE);
+
+        HomeResponse.RecruitmentSection recruitment =
+                chatService.getHomeRecruitmentInbox(userId, HOME_RECRUITMENT_PREVIEW_SIZE);
 
         int balance = pointWalletRepository.findByUserId(userId)
                 .map(PointWallet::getBalance)
@@ -49,6 +53,7 @@ public class HomeService {
         return new HomeResponse(
                 new HomeResponse.UserSection(user.getName()),
                 coffeeChat,
+                recruitment,
                 new HomeResponse.PointSection(balance),
                 alumni,
                 contests

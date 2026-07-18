@@ -1,8 +1,13 @@
 package CamNecT.server.domain.verification.email.service;
 
+import CamNecT.server.domain.auth.dto.password.ResetPasswordRequest;
+import CamNecT.server.domain.auth.dto.password.VerifyPasswordResetEmailRequest;
+import CamNecT.server.domain.auth.dto.password.VerifyPasswordResetEmailResponse;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailRequest;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailResponse;
+import CamNecT.server.domain.auth.service.PasswordService;
 import CamNecT.server.domain.auth.service.SignupService;
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.domain.verification.email.event.EmailVerificationCodeIssuedEvent;
@@ -10,8 +15,10 @@ import CamNecT.server.domain.verification.email.model.EmailTokenUtil;
 import CamNecT.server.domain.verification.email.model.EmailVerificationToken;
 import CamNecT.server.domain.verification.email.repository.EmailVerificationTokenRepository;
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.exception.InvalidPropertiesException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.VerificationErrorCode;
+import CamNecT.server.global.jwt.model.TokenType;
 import CamNecT.server.global.jwt.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,14 +26,21 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class EmailVerificationService {
+
+    private static final int MAX_USERNAME_LENGTH = 50;
+    private static final int MAX_EMAIL_LENGTH = 255;
 
     private final EmailVerificationTokenRepository tokenRepository;
     private final UserRepository userRepository;
 
     private final SignupService signupService;
+    private final PasswordService passwordService;
 
     private final JwtUtil jwtUtil;
     private final ApplicationEventPublisher applicationEventPublisher;
@@ -60,9 +74,85 @@ public class EmailVerificationService {
         return expirationMinutes;
     }
 
-    /**
-     * 2차: 코드 검증 성공 시 user 생성 + token.used 처리 + token.user link
-     */
+    @Transactional
+    public long sendPasswordResetCode(String username, String email) {
+        String normalizedUsername = normalize(username);
+        String normalizedEmail = normalize(email);
+
+        List<String> invalidProperties = new ArrayList<>();
+        if (normalizedUsername.isBlank() || normalizedUsername.length() > MAX_USERNAME_LENGTH
+                || !userRepository.existsByUsername(normalizedUsername)) {
+            invalidProperties.add("username");
+        }
+        if (normalizedEmail.isBlank() || normalizedEmail.length() > MAX_EMAIL_LENGTH
+                || !userRepository.existsByEmail(normalizedEmail)) {
+            invalidProperties.add("email");
+        }
+        if (!invalidProperties.isEmpty()) {
+            throw new InvalidPropertiesException(invalidProperties);
+        }
+
+        Users user = userRepository.findByUsername(normalizedUsername)
+                .orElseThrow(() -> new InvalidPropertiesException(List.of("username")));
+
+        if (!normalizedEmail.equals(user.getEmail())) {
+            throw new InvalidPropertiesException(List.of("email"));
+        }
+
+        validateRecoverableUser(user);
+
+        tokenRepository.deleteByEmailAndUsedAtIsNull(normalizedEmail);
+
+        String rawCode = EmailTokenUtil.new6DigitCode();
+        EmailVerificationToken token = EmailVerificationToken.issueForEmail(normalizedEmail, rawCode, expirationMinutes);
+        tokenRepository.save(token);
+
+        applicationEventPublisher.publishEvent(
+                new EmailVerificationCodeIssuedEvent(normalizedEmail, rawCode, expirationMinutes)
+        );
+
+        return expirationMinutes;
+    }
+
+    @Transactional
+    public VerifyPasswordResetEmailResponse verifyPasswordResetEmail(VerifyPasswordResetEmailRequest req) {
+        Users user = userRepository.findByEmail(req.email())
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+
+        validateRecoverableUser(user);
+
+        EmailVerificationToken token = tokenRepository.findTopByEmailAndUsedAtIsNullOrderByIdDesc(req.email())
+                .orElseThrow(() -> new CustomException(VerificationErrorCode.NO_ACTIVE_CODE));
+
+        if (token.isExpired()) throw new CustomException(VerificationErrorCode.CODE_EXPIRED_OR_USED);
+        if (token.isLocked()) throw new CustomException(VerificationErrorCode.TOO_MANY_ATTEMPTS);
+
+        if (!token.matchesCode(req.code())) {
+            token.increaseAttempt();
+            if (token.isLocked()) throw new CustomException(VerificationErrorCode.TOO_MANY_ATTEMPTS);
+            throw new CustomException(VerificationErrorCode.INVALID_CODE);
+        }
+
+        token.markUsed();
+        token.linkUser(user);
+
+        String resetToken = jwtUtil.generatePasswordResetToken(user.getUserId(), user.getRole());
+        long expiresMinutes = jwtUtil.getVerificationTokenExpirationMs() / 60000L;
+
+        return new VerifyPasswordResetEmailResponse(resetToken, expiresMinutes);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest req) {
+        jwtUtil.validateOrThrow(req.resetToken());
+        if (jwtUtil.getTokenType(req.resetToken()) != TokenType.PASSWORD_RESET) {
+            throw new CustomException(AuthErrorCode.TOKEN_TYPE_NOT_ALLOWED);
+        }
+
+        Long userId = jwtUtil.getUserId(req.resetToken());
+        passwordService.resetPasswordByUserId(userId, req.newPassword());
+    }
+
     @Transactional
     public VerifySignupEmailResponse verifySignupAndCreateUser(VerifySignupEmailRequest req) {
 
@@ -94,5 +184,18 @@ public class EmailVerificationService {
         long expiresMinutes = jwtUtil.getVerificationTokenExpirationMs() / 60000L;
 
         return new VerifySignupEmailResponse(user.getUserId(), false, verificationToken, expiresMinutes);
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    private void validateRecoverableUser(Users user) {
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+        if (!user.isEmailVerified()) {
+            throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
+        }
     }
 }

@@ -6,6 +6,7 @@ import CamNecT.server.domain.community.model.Posts.Posts;
 import CamNecT.server.domain.community.model.enums.PostStatus;
 import CamNecT.server.domain.community.repository.Posts.PostsRepository;
 import CamNecT.server.domain.profile.components.archive.dto.response.MyArchiveResponse;
+import CamNecT.server.domain.profile.components.ProfileComponentAccessGuard;
 import CamNecT.server.domain.profile.components.archive.service.util.CommunityArchiveAssembler;
 import CamNecT.server.domain.profile.components.archive.service.util.ExternalArchiveAssembler;
 import CamNecT.server.domain.profile.components.archive.service.util.RecruitmentArchiveAssembler;
@@ -29,18 +30,22 @@ public class ArchiveQueryService {
 
     private final RecruitmentBookmarkRepository recruitmentBookmarkRepository;
     private final RecruitmentArchiveAssembler recruitmentArchiveAssembler;
+    private final ProfileComponentAccessGuard accessGuard;
 
     public MyArchiveResponse getCommunityArchive(Long userId, MyArchiveResponse.ArchiveKind kind, MyArchiveResponse.Sort sort,
                                                  Long cursorId, Long cursorValue, int size) {
+        accessGuard.requireAuthenticatedUser(userId);
         return communityArchive(kind, userId, sort, cursorId, cursorValue, size);
     }
     public MyArchiveResponse getExternalArchive(Long userId, MyArchiveResponse.ArchiveKind kind, MyArchiveResponse.Sort sort,
                                                 Long cursorId, Long cursorValue, int size) {
+        accessGuard.requireAuthenticatedUser(userId);
         return externalArchive(kind, userId, sort, cursorId, cursorValue, size);
     }
 
     public MyArchiveResponse getRecruitmentArchive(Long userId, MyArchiveResponse.ArchiveKind kind, MyArchiveResponse.Sort sort,
                                                    Long cursorId, Long cursorValue, int size) {
+        accessGuard.requireAuthenticatedUser(userId);
         return recruitmentArchive(kind, userId, sort, cursorId, cursorValue, size);
     }
 

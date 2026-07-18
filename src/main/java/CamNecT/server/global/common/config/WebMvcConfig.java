@@ -6,6 +6,7 @@ import CamNecT.server.global.common.auth.UserIdArgumentResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.NonNull;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -27,12 +28,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private boolean adminEnabled;
 
     @Override
-    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+    public void addArgumentResolvers(@NonNull List<HandlerMethodArgumentResolver> resolvers) {
         resolvers.add(userIdArgumentResolver);
     }
 
     @Override
-    public void addInterceptors(InterceptorRegistry registry) {
+    public void addInterceptors(@NonNull InterceptorRegistry registry) {
         if (authEnabled) {
             registry.addInterceptor(authInterceptor)
                     .addPathPatterns("/api/**")
@@ -46,7 +47,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         if (adminEnabled) {
             registry.addInterceptor(adminRoleInterceptor)
                     .addPathPatterns("/api/admin/**")
-                    .addPathPatterns("/api/activity/admin/**");
+                    .addPathPatterns("/api/activity/admin/**")
+                    .addPathPatterns("/api/notifications/event");
         }
     }
 }
