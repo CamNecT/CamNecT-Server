@@ -19,6 +19,7 @@ import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("unused") // /api/auth/refresh 재활성화 시 사용할 refresh token 회전 구현
 public class AuthTokenService {
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
@@ -38,6 +39,9 @@ public class AuthTokenService {
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+        if (user.getStatus() == UserStatus.WITHDRAWN) {
+            throw new CustomException(AuthErrorCode.USER_WITHDRAWN);
         }
 
         UserRefreshToken saved = refreshTokenRepository.findByIdForUpdate(userId)

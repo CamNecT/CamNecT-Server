@@ -189,13 +189,16 @@ public class ProfileService {
     @Transactional
     public ProfileStatusResponse createOnboarding(Long userId, UpdateOnboardingRequest req) {
 
+        userRepository.lockUserRow(userId);
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
-        requireEmailVerifiedAndNotSuspended(user);
-
+        requireAccessible(user);
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+        if (user.getStatus() != UserStatus.ACTIVE || userProfile.isInitialSetupCompleted()) {
+            throw new CustomException(AuthErrorCode.INITIAL_SETUP_NOT_ALLOWED);
+        }
 
         // 1) bio 정리
         String bio = trimToNull(req.bio());
@@ -236,6 +239,7 @@ public class ProfileService {
         }
 
         userProfile.updateOnboardingProfile(bio, finalProfileImageKey);
+        userProfile.completeInitialSetup();
 
         return new ProfileStatusResponse(user.getStatus());
     }
@@ -251,7 +255,7 @@ public class ProfileService {
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
-        requireEmailVerifiedAndNotSuspended(user);
+        requireAccessible(user);
 
         List<Long> tagIds = (req.tagIds() == null) ? List.of() : req.tagIds().stream().distinct().toList();
 
@@ -278,7 +282,7 @@ public class ProfileService {
         userRepository.lockUserRow(userId);
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
-        requireEmailVerifiedAndNotSuspended(user);
+        requireAccessible(user);
 
         String ct = globalPresignMethods.normalize(req.contentType());
 
@@ -306,7 +310,7 @@ public class ProfileService {
         userRepository.lockUserRow(userId);
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
-        requireEmailVerifiedAndNotSuspended(user);
+        requireAccessible(user);
 
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
@@ -334,12 +338,12 @@ public class ProfileService {
         }
     }
 
-    private void requireEmailVerifiedAndNotSuspended(Users user) {
+    private void requireAccessible(Users user) {
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }
-        if (user.getStatus() == UserStatus.EMAIL_PENDING) {
-            throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
+        if (user.getStatus() == UserStatus.WITHDRAWN) {
+            throw new CustomException(AuthErrorCode.USER_WITHDRAWN);
         }
     }
 

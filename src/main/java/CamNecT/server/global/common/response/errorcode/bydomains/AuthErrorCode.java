@@ -25,8 +25,9 @@ public enum AuthErrorCode implements BaseErrorCode {
     TOKEN_SHAPE_NOT_ALLOWED(HttpStatus.UNAUTHORIZED,41109,"토큰 양식이 올바르지 않습니다.(Bearer 누락등)"),
 
     // 413xx - 권한/상태
-    EMAIL_NOT_VERIFIED(HttpStatus.FORBIDDEN, 41301, "이메일 인증이 필요합니다."),
     USER_SUSPENDED(HttpStatus.FORBIDDEN, 41302, "정지된 사용자입니다."),
+    USER_WITHDRAWN(HttpStatus.FORBIDDEN, 41303, "탈퇴한 사용자입니다."),
+    ACTIVE_ACCOUNT_REQUIRED(HttpStatus.FORBIDDEN, 41304, "관리자 승인 후 이용할 수 있습니다."),
 
     // 414xx - 리소스
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, 41401, "유저를 찾을 수 없습니다."),
@@ -35,7 +36,8 @@ public enum AuthErrorCode implements BaseErrorCode {
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, 41901, "이미 가입된 이메일입니다."),
     USERNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, 41902, "이미 사용 중인 아이디입니다."),
     PHONENUM_ALREADY_EXISTS(HttpStatus.CONFLICT, 41903, "이미 사용 중인 전화번호입니다."),
-    DUPLICATE_RESOURCE(HttpStatus.CONFLICT, 41904, "서버가 생성하려는 자원이 이미 존재해서 충돌");
+    DUPLICATE_RESOURCE(HttpStatus.CONFLICT, 41904, "서버가 생성하려는 자원이 이미 존재해서 충돌"),
+    INITIAL_SETUP_NOT_ALLOWED(HttpStatus.CONFLICT, 41905, "초기 설정이 필요한 상태가 아닙니다.");
     private final HttpStatus httpStatus;
     private final int code;
     private final String message;

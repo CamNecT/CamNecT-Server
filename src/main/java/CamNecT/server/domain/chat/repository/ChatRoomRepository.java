@@ -70,5 +70,26 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     """)
     boolean existsAccessibleByUserId(@Param("roomId") Long roomId, @Param("userId") Long userId);
 
+    @Query("""
+        select distinct case
+            when r.requester.userId = :userId then r.receiver.userId
+            else r.requester.userId
+        end
+        from ChatRoom r
+        join r.request cr
+        where r.status = :roomStatus
+          and cr.status = :requestStatus
+          and cr.type = :requestType
+          and ((r.requester.userId = :userId and r.receiver.userId in :targetIds)
+            or (r.receiver.userId = :userId and r.requester.userId in :targetIds))
+    """)
+    List<Long> findActiveChatPartnerIds(
+            @Param("userId") Long userId,
+            @Param("targetIds") List<Long> targetIds,
+            @Param("roomStatus") ChatRoom.RoomStatus roomStatus,
+            @Param("requestStatus") ChatRequest.RequestStatus requestStatus,
+            @Param("requestType") ChatRequest.RequestType requestType
+    );
+
     Optional<ChatRoom> findByRequest_Id(Long requestId);
 }

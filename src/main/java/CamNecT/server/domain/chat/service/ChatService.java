@@ -732,7 +732,8 @@ public class ChatService {
     }
 
     public void completeExitChatRoom(Long roomId, Long userId) {
-        ChatRoom room = chatRoomRepository.findByUserIdWithDetails(roomId, userId)
+        requireAuthenticatedUser(userId);
+        ChatRoom room = chatRoomRepository.findByUserIdWithDetailsForUpdate(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
         // 사용자 퇴장 표시

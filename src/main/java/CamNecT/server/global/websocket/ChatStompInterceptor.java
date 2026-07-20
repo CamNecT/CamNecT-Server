@@ -1,11 +1,10 @@
 package CamNecT.server.global.websocket;
 
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.auth.AccountAccessGuard;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.jwt.util.JwtUtil;
 import CamNecT.server.global.jwt.model.TokenType;
-import CamNecT.server.domain.users.model.UserStatus;
-import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.domain.chat.repository.ChatRoomRepository;
 import CamNecT.server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +15,7 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -24,11 +24,11 @@ import org.springframework.stereotype.Component;
 public class ChatStompInterceptor implements ChannelInterceptor {
 
     private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
+    private final AccountAccessGuard accountAccessGuard;
     private final ChatRoomRepository chatRoomRepository;
 
     @Override
-    public Message<?> preSend(Message<?> message, MessageChannel channel) {
+    public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
         StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
@@ -43,11 +43,7 @@ public class ChatStompInterceptor implements ChannelInterceptor {
                 }
 
                 Long userId = jwtUtil.getUserId(token);
-                var user = userRepository.findById(userId)
-                        .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
-                if (user.getStatus() == UserStatus.SUSPENDED) {
-                    throw new CustomException(AuthErrorCode.USER_SUSPENDED);
-                }
+                accountAccessGuard.requireActive(userId);
                 if (accessor.getSessionAttributes() == null) {
                     throw new CustomException(AuthErrorCode.INVALID_TOKEN);
                 }
