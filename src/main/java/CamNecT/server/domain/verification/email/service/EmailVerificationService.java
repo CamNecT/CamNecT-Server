@@ -151,10 +151,13 @@ public class EmailVerificationService {
         }
 
         Long userId = jwtUtil.getUserId(req.resetToken());
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+        validateRecoverableUser(user);
         passwordService.resetPasswordByUserId(userId, req.newPassword());
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = CustomException.class)
     public VerifySignupEmailResponse verifySignupAndCreateUser(VerifySignupEmailRequest req) {
 
         // 인증 성공 후에만 사용자를 생성하므로, 같은 이메일의 사용자가 있으면 이미 가입 완료된 상태다.
@@ -163,7 +166,7 @@ public class EmailVerificationService {
             return new VerifySignupEmailResponse(existing.getUserId(), true, null, 0L);
         }
 
-        EmailVerificationToken token = tokenRepository.findTopByEmailAndUsedAtIsNullOrderByIdDesc(req.email())
+        EmailVerificationToken token = tokenRepository.findFirstByEmailAndUsedAtIsNullOrderByIdDesc(req.email())
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.NO_ACTIVE_CODE));
 
         if (token.isExpired()) throw new CustomException(VerificationErrorCode.CODE_EXPIRED_OR_USED);

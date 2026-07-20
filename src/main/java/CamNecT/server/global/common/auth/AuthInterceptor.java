@@ -2,8 +2,6 @@ package CamNecT.server.global.common.auth;
 
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
-import CamNecT.server.domain.users.model.UserStatus;
-import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.global.jwt.util.JwtUtil;
 import CamNecT.server.global.jwt.model.TokenType;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,10 +53,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
 
         Long userId = jwtUtil.getUserId(token);
-        Users user = accountAccessGuard.requireAccessible(userId);
-        if (user.getStatus() == UserStatus.PROFILE_PENDING && !isAllowedForProfilePending(uri)) {
-            throw new CustomException(AuthErrorCode.PROFILE_COMPLETION_REQUIRED);
-        }
+        accountAccessGuard.requireAccessible(userId);
         request.setAttribute("userId", userId);
 
         request.setAttribute("role", jwtUtil.getRole(token).name());
@@ -77,23 +72,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     }
 
     private boolean isAllowedForVerificationToken(String uri) {
-        return
-                // 문서 인증
-                uri.equals("/api/verification/documents")
-                        || uri.startsWith("/api/verification/documents/")
-
-                        // 온보딩 (Auth로 이동했으므로)
-                        || uri.equals("/api/auth/onboarding")
-
-                        // 프로필 관련 제한 API (선택)
-                        || uri.startsWith("/api/profile/")
-
-                        // Auth과정에서 tag조회해야하므로
-                        || uri.equals("/api/tags");
-    }
-
-    private boolean isAllowedForProfilePending(String uri) {
-        return uri.equals("/api/profile/uploads/presign")
-                || uri.equals("/api/tags");
+        return uri.equals("/api/verification/documents")
+                || uri.startsWith("/api/verification/documents/");
     }
 }

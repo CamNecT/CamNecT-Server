@@ -30,7 +30,7 @@ public class AccountAccessGuard {
     public void requireActive(Long userId) {
         Users user = requireAccessible(userId);
         if (user.getStatus() != UserStatus.ACTIVE) {
-            throw new CustomException(AuthErrorCode.PROFILE_COMPLETION_REQUIRED);
+            throw new CustomException(AuthErrorCode.ACTIVE_ACCOUNT_REQUIRED);
         }
     }
 }

@@ -68,7 +68,7 @@ class ProfileOnboardingStateTest {
 
     @Test
     void completesProfileEvenWhenAllOptionalValuesAreAbsent() {
-        Users user = Users.builder().userId(1L).status(UserStatus.PROFILE_PENDING).build();
+        Users user = Users.builder().userId(1L).status(UserStatus.ACTIVE).build();
         UserProfile profile = UserProfile.builder().user(user).build();
         when(userRepository.findByUserId(1L)).thenReturn(Optional.of(user));
         when(userProfileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
@@ -80,12 +80,15 @@ class ProfileOnboardingStateTest {
 
         assertThat(response.status()).isEqualTo(UserStatus.ACTIVE);
         assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
+        assertThat(profile.isInitialSetupCompleted()).isTrue();
     }
 
     @Test
-    void rejectsOnboardingOutsideProfilePendingState() {
+    void rejectsOnboardingBeforeAdminApproval() {
         Users user = Users.builder().userId(1L).status(UserStatus.ADMIN_PENDING).build();
+        UserProfile profile = UserProfile.builder().user(user).build();
         when(userRepository.findByUserId(1L)).thenReturn(Optional.of(user));
+        when(userProfileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
 
         CustomException exception = assertThrows(CustomException.class,
                 () -> profileService.createOnboarding(
@@ -93,6 +96,23 @@ class ProfileOnboardingStateTest {
                         new UpdateOnboardingRequest(null, null, null)
                 ));
 
-        assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.PROFILE_COMPLETION_NOT_ALLOWED);
+        assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INITIAL_SETUP_NOT_ALLOWED);
+    }
+
+    @Test
+    void rejectsOnboardingAfterInitialSetupWasAlreadyCompleted() {
+        Users user = Users.builder().userId(1L).status(UserStatus.ACTIVE).build();
+        UserProfile profile = UserProfile.builder().user(user).build();
+        profile.completeInitialSetup();
+        when(userRepository.findByUserId(1L)).thenReturn(Optional.of(user));
+        when(userProfileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
+
+        CustomException exception = assertThrows(CustomException.class,
+                () -> profileService.createOnboarding(
+                        1L,
+                        new UpdateOnboardingRequest(null, null, null)
+                ));
+
+        assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INITIAL_SETUP_NOT_ALLOWED);
     }
 }

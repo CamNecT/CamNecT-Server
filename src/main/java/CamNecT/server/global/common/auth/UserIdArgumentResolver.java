@@ -83,8 +83,8 @@ public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
 
         String uri = request.getRequestURI();
         boolean allowed = switch (uri) {
-            case "/api/auth/onboarding" -> tokenType == TokenType.ACCESS || tokenType == TokenType.VERIFICATION;
-            case "/api/auth/logout", "/api/auth/verification-complete", "/api/auth/me" -> tokenType == TokenType.ACCESS;
+            case "/api/auth/onboarding", "/api/auth/logout", "/api/auth/verification-complete", "/api/auth/me" ->
+                    tokenType == TokenType.ACCESS;
             default -> true;
         };
 

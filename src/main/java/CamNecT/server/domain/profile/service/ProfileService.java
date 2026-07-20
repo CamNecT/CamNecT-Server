@@ -194,12 +194,11 @@ public class ProfileService {
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
         requireAccessible(user);
-        if (user.getStatus() != UserStatus.PROFILE_PENDING) {
-            throw new CustomException(AuthErrorCode.PROFILE_COMPLETION_NOT_ALLOWED);
-        }
-
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+        if (user.getStatus() != UserStatus.ACTIVE || userProfile.isInitialSetupCompleted()) {
+            throw new CustomException(AuthErrorCode.INITIAL_SETUP_NOT_ALLOWED);
+        }
 
         // 1) bio 정리
         String bio = trimToNull(req.bio());
@@ -240,7 +239,7 @@ public class ProfileService {
         }
 
         userProfile.updateOnboardingProfile(bio, finalProfileImageKey);
-        user.changeStatus(UserStatus.ACTIVE);
+        userProfile.completeInitialSetup();
 
         return new ProfileStatusResponse(user.getStatus());
     }

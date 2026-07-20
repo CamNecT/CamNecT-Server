@@ -48,6 +48,10 @@ public class UserProfile {
     @Column(name = "profile_image_key", length = 500)
     private String profileImageKey;
 
+    @Builder.Default
+    @Column(name = "initial_setup_completed", nullable = false)
+    private boolean initialSetupCompleted = false;
+
     @Column(name = "student_no", length = 20) //학번
     private String studentNo;
 
@@ -68,6 +72,14 @@ public class UserProfile {
     public void updateOnboardingProfile(String bio, String profileImageKey) {
         updateBio(bio);
         updateProfileImageKey(profileImageKey);
+    }
+
+    public void completeInitialSetup() {
+        this.initialSetupCompleted = true;
+    }
+
+    public void requireInitialSetup() {
+        this.initialSetupCompleted = false;
     }
 
     public void updateBio(String bio) {

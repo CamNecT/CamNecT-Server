@@ -129,9 +129,11 @@ public class LoginService {
     public VerificationCompleteResponse getVerificationCompleteInfo(Long userId) {
         Users u = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
-
         UserProfile p = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+        if (u.getStatus() != UserStatus.ACTIVE || p.isInitialSetupCompleted()) {
+            throw new CustomException(AuthErrorCode.INITIAL_SETUP_NOT_ALLOWED);
+        }
 
         String instName = (p.getInstitutionId() == null) ? null
                 : institutionRepository.findNameKorById(p.getInstitutionId()).orElse(null);
@@ -149,11 +151,11 @@ public class LoginService {
 
     private LoginNextStep resolveNext(Users user, DocumentVerificationSubmission latest) {
         if (user.getStatus() == UserStatus.ACTIVE) {
-            return LoginNextStep.HOME;
-        }
-
-        if (user.getStatus() == UserStatus.PROFILE_PENDING) {
-            return LoginNextStep.VERIFICATION_COMPLETE;
+            UserProfile profile = userProfileRepository.findByUserId(user.getUserId())
+                    .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+            return profile.isInitialSetupCompleted()
+                    ? LoginNextStep.HOME
+                    : LoginNextStep.VERIFICATION_COMPLETE;
         }
 
         // ADMIN_PENDING 흐름

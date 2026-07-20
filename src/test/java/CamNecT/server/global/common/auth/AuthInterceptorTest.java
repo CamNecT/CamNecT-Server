@@ -24,27 +24,26 @@ class AuthInterceptorTest {
     private final AuthInterceptor interceptor = new AuthInterceptor(jwtUtil, accountAccessGuard);
 
     @Test
-    void blocksProfilePendingAccountFromRegularApi() {
+    void allowsActiveAccountWithPendingInitialSetupToUseRegularApi() throws Exception {
         HttpServletRequest request = request("/api/community/posts");
         HttpServletResponse response = mock(HttpServletResponse.class);
-        Users user = Users.builder().userId(1L).status(UserStatus.PROFILE_PENDING).build();
-        when(accountAccessGuard.requireAccessible(1L)).thenReturn(user);
-
-        CustomException exception = assertThrows(CustomException.class,
-                () -> interceptor.preHandle(request, response, new Object()));
-
-        assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.PROFILE_COMPLETION_REQUIRED);
-    }
-
-    @Test
-    void allowsProfilePendingAccountToIssueProfileImageUpload() throws Exception {
-        HttpServletRequest request = request("/api/profile/uploads/presign");
-        HttpServletResponse response = mock(HttpServletResponse.class);
-        Users user = Users.builder().userId(1L).status(UserStatus.PROFILE_PENDING).build();
+        Users user = Users.builder().userId(1L).status(UserStatus.ACTIVE).build();
         when(accountAccessGuard.requireAccessible(1L)).thenReturn(user);
         when(jwtUtil.getRole("token")).thenReturn(UserRole.USER);
 
         assertThat(interceptor.preHandle(request, response, new Object())).isTrue();
+    }
+
+    @Test
+    void rejectsVerificationTokenFromProfileApi() {
+        HttpServletRequest request = request("/api/profile/uploads/presign");
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        when(jwtUtil.getTokenType("token")).thenReturn(TokenType.VERIFICATION);
+
+        CustomException exception = assertThrows(CustomException.class,
+                () -> interceptor.preHandle(request, response, new Object()));
+
+        assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.TOKEN_TYPE_NOT_ALLOWED);
     }
 
     private HttpServletRequest request(String uri) {

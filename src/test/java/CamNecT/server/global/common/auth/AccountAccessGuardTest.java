@@ -50,13 +50,13 @@ class AccountAccessGuardTest {
     }
 
     @Test
-    void rejectsProfilePendingAccountFromActiveOnlyFeatures() {
-        Users user = Users.builder().userId(1L).status(UserStatus.PROFILE_PENDING).build();
+    void rejectsAdminPendingAccountFromActiveOnlyFeatures() {
+        Users user = Users.builder().userId(1L).status(UserStatus.ADMIN_PENDING).build();
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
         CustomException exception = assertThrows(CustomException.class,
                 () -> guard.requireActive(1L));
 
-        assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.PROFILE_COMPLETION_REQUIRED);
+        assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.ACTIVE_ACCOUNT_REQUIRED);
     }
 }

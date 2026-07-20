@@ -144,6 +144,27 @@ class PasswordResetIntegrationTest {
                 .andExpect(jsonPath("$.code").value(41401));
     }
 
+    @Test
+    void resetPasswordRechecksAccountStatusAfterTokenWasIssued() throws Exception {
+        Users suspended = createRecoverableUser();
+        String suspendedToken = jwtUtil.generatePasswordResetToken(suspended.getUserId(), suspended.getRole());
+        suspended.changeStatus(UserStatus.SUSPENDED);
+        userRepository.saveAndFlush(suspended);
+
+        reset(suspendedToken, NEW_PASSWORD)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(41302));
+
+        Users withdrawn = createRecoverableUser();
+        String withdrawnToken = jwtUtil.generatePasswordResetToken(withdrawn.getUserId(), withdrawn.getRole());
+        withdrawn.changeStatus(UserStatus.WITHDRAWN);
+        userRepository.saveAndFlush(withdrawn);
+
+        reset(withdrawnToken, NEW_PASSWORD)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(41303));
+    }
+
     private org.springframework.test.web.servlet.ResultActions verifyWrongCode(String email) throws Exception {
         return mockMvc.perform(post("/api/auth/password/reset/email/verify")
                 .contentType(MediaType.APPLICATION_JSON)

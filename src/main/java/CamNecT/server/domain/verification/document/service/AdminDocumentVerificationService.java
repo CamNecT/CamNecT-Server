@@ -133,7 +133,7 @@ public class AdminDocumentVerificationService {
             applyProfileInfoForApprove(user.getUserId(), req);
 
             s.approve(adminId);
-            user.changeStatus(UserStatus.PROFILE_PENDING);
+            user.changeStatus(UserStatus.ACTIVE);
 
             eventPublisher.publishEvent(new DocumentVerificationReviewedEvent(
                     user.getEmail(),
@@ -205,6 +205,7 @@ public class AdminDocumentVerificationService {
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
         profile.applyVerifiedInfo(studentName, studentNo, institutionId, majorId);
+        profile.requireInitialSetup();
     }
 
     private String safeName(String name) {
