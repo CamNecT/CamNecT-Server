@@ -17,7 +17,6 @@ import CamNecT.server.domain.verification.document.repository.DocumentVerificati
 import CamNecT.server.domain.verification.document.model.DocumentVerificationSubmission;
 import CamNecT.server.domain.verification.document.model.VerificationStatus;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.VerificationErrorCode;
 import CamNecT.server.global.storage.dto.response.PresignDownloadResponse;
@@ -125,10 +124,6 @@ public class AdminDocumentVerificationService {
         //APPROVE
         if (req.decision() == AdminReviewDocumentVerificationRequest.Decision.APPROVE) {
 
-            if (user.getStatus() == UserStatus.EMAIL_PENDING) {
-                throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
-            }
-
             // 정책: ADMIN_PENDING만 승인 가능
             if (user.getStatus() != UserStatus.ADMIN_PENDING) {
                 throw new CustomException(VerificationErrorCode.ONLY_PENDING_CAN_REVIEW);
@@ -138,8 +133,7 @@ public class AdminDocumentVerificationService {
             applyProfileInfoForApprove(user.getUserId(), req);
 
             s.approve(adminId);
-            user.changeStatus(UserStatus.ACTIVE);
-            user.markVerificationCompletePending();
+            user.changeStatus(UserStatus.PROFILE_PENDING);
 
             eventPublisher.publishEvent(new DocumentVerificationReviewedEvent(
                     user.getEmail(),

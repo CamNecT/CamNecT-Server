@@ -2,6 +2,8 @@ package CamNecT.server.global.common.auth;
 
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
+import CamNecT.server.domain.users.model.UserStatus;
+import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.global.jwt.util.JwtUtil;
 import CamNecT.server.global.jwt.model.TokenType;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +19,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AuthInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;
+    private final AccountAccessGuard accountAccessGuard;
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
@@ -47,6 +50,10 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
 
         Long userId = jwtUtil.getUserId(token);
+        Users user = accountAccessGuard.requireAccessible(userId);
+        if (user.getStatus() == UserStatus.PROFILE_PENDING && !isAllowedForProfilePending(uri)) {
+            throw new CustomException(AuthErrorCode.PROFILE_COMPLETION_REQUIRED);
+        }
         request.setAttribute("userId", userId);
 
         request.setAttribute("role", jwtUtil.getRole(token).name());
@@ -78,5 +85,10 @@ public class AuthInterceptor implements HandlerInterceptor {
 
                         // Auth과정에서 tag조회해야하므로
                         || uri.equals("/api/tags");
+    }
+
+    private boolean isAllowedForProfilePending(String uri) {
+        return uri.equals("/api/profile/uploads/presign")
+                || uri.equals("/api/tags");
     }
 }

@@ -167,7 +167,6 @@ class PasswordResetIntegrationTest {
                 .passwordHash(passwordEncoder.encode(CURRENT_PASSWORD))
                 .name("reset user")
                 .email("reset-" + suffix + "@example.com")
-                .emailVerified(true)
                 .status(UserStatus.ACTIVE)
                 .build());
     }

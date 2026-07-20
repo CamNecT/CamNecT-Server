@@ -1,11 +1,10 @@
 package CamNecT.server.global.websocket;
 
 import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.auth.AccountAccessGuard;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.jwt.util.JwtUtil;
 import CamNecT.server.global.jwt.model.TokenType;
-import CamNecT.server.domain.users.model.UserStatus;
-import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.domain.chat.repository.ChatRoomRepository;
 import CamNecT.server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +23,7 @@ import org.springframework.stereotype.Component;
 public class ChatStompInterceptor implements ChannelInterceptor {
 
     private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
+    private final AccountAccessGuard accountAccessGuard;
     private final ChatRoomRepository chatRoomRepository;
 
     @Override
@@ -43,11 +42,7 @@ public class ChatStompInterceptor implements ChannelInterceptor {
                 }
 
                 Long userId = jwtUtil.getUserId(token);
-                var user = userRepository.findById(userId)
-                        .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
-                if (user.getStatus() == UserStatus.SUSPENDED) {
-                    throw new CustomException(AuthErrorCode.USER_SUSPENDED);
-                }
+                accountAccessGuard.requireActive(userId);
                 if (accessor.getSessionAttributes() == null) {
                     throw new CustomException(AuthErrorCode.INVALID_TOKEN);
                 }

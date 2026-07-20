@@ -11,6 +11,6 @@ public record LoginResponse(
         Long userId,
         String status,         // ADMIN_PENDING / ACTIVE ...
         String role,
-        LoginNextStep nextStep// HOME / EMAIL_REVERIFY / DOCUMENT_REQUIRED / ONBOARDING_REQUIRED / DOCUMENT_REVIEW_WAITING / VERIFICATION_COMPLETE / ADMIN_DASHBOAR
+        LoginNextStep nextStep // HOME / DOCUMENT_REQUIRED / DOCUMENT_REVIEW_WAITING / VERIFICATION_COMPLETE / ADMIN_DASHBOARD
 ) {
 }

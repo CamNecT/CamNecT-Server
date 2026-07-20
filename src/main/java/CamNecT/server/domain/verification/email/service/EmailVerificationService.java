@@ -157,9 +157,9 @@ public class EmailVerificationService {
     @Transactional
     public VerifySignupEmailResponse verifySignupAndCreateUser(VerifySignupEmailRequest req) {
 
-        // (idempotent) 이미 가입 + 이메일 인증 완료인 경우
+        // 인증 성공 후에만 사용자를 생성하므로, 같은 이메일의 사용자가 있으면 이미 가입 완료된 상태다.
         Users existing = userRepository.findByEmail(req.email()).orElse(null);
-        if (existing != null && existing.isEmailVerified()) {
+        if (existing != null) {
             return new VerifySignupEmailResponse(existing.getUserId(), true, null, 0L);
         }
 
@@ -195,8 +195,8 @@ public class EmailVerificationService {
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }
-        if (!user.isEmailVerified()) {
-            throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
+        if (user.getStatus() == UserStatus.WITHDRAWN) {
+            throw new CustomException(AuthErrorCode.USER_WITHDRAWN);
         }
     }
 }

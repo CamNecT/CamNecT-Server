@@ -18,6 +18,7 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
 
     private final JwtUtil jwtUtil;
+    private final AccountAccessGuard accountAccessGuard;
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
@@ -31,6 +32,11 @@ public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
                                   NativeWebRequest webRequest,
                                   WebDataBinderFactory binderFactory) {
 
+        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
+        if (request != null && request.getAttribute("userId") instanceof Long userId) {
+            return userId;
+        }
+
         String authHeader = webRequest.getHeader("Authorization");
         if (authHeader == null || authHeader.isBlank()) {
             throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
@@ -38,11 +44,14 @@ public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
 
         String token = extractBearerToken(authHeader);
         validateAuthEndpointTokenType(webRequest, token);
+        Long userId;
         try {
-            return jwtUtil.getUserId(token);
+            userId = jwtUtil.getUserId(token);
         } catch (CustomException e) {
             throw new CustomException(AuthErrorCode.INVALID_TOKEN, e);
         }
+        accountAccessGuard.requireAccessible(userId);
+        return userId;
     }
 
     private String extractBearerToken(String header) {

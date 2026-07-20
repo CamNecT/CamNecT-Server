@@ -1,7 +1,7 @@
 package CamNecT.server.global.websocket;
 
 import CamNecT.server.domain.chat.repository.ChatRoomRepository;
-import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.global.common.auth.AccountAccessGuard;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import CamNecT.server.global.jwt.util.JwtUtil;
@@ -23,10 +23,10 @@ import static org.mockito.Mockito.when;
 class ChatStompInterceptorTest {
 
     private final JwtUtil jwtUtil = mock(JwtUtil.class);
-    private final UserRepository userRepository = mock(UserRepository.class);
+    private final AccountAccessGuard accountAccessGuard = mock(AccountAccessGuard.class);
     private final ChatRoomRepository chatRoomRepository = mock(ChatRoomRepository.class);
     private final ChatStompInterceptor interceptor =
-            new ChatStompInterceptor(jwtUtil, userRepository, chatRoomRepository);
+            new ChatStompInterceptor(jwtUtil, accountAccessGuard, chatRoomRepository);
 
     @Test
     void rejectsSubscriptionToRoomWhereUserIsNotParticipant() {
