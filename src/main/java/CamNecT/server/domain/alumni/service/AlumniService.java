@@ -6,7 +6,8 @@ import CamNecT.server.domain.alumni.dto.response.AlumniPreviewResponse;
 import CamNecT.server.domain.alumni.dto.UserProfileDto;
 import CamNecT.server.domain.alumni.repository.AlumniRepository;
 import CamNecT.server.domain.chat.model.ChatRequest;
-import CamNecT.server.domain.chat.repository.ChatRequestRepository;
+import CamNecT.server.domain.chat.model.ChatRoom;
+import CamNecT.server.domain.chat.repository.ChatRoomRepository;
 import CamNecT.server.domain.home.dto.HomeResponse;
 import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.model.UserStatus;
@@ -29,6 +30,7 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,7 +44,7 @@ public class AlumniService {
     private final UserProfileRepository userProfileRepository;
     private final UserRepository userRepository;
     private final AlumniRepository alumniRepository;
-    private final ChatRequestRepository chatRequestRepository;
+    private final ChatRoomRepository chatRoomRepository;
     private final PublicUrlIssuer publicUrlIssuer;
 
     @Transactional(readOnly = true)
@@ -73,12 +75,14 @@ public class AlumniService {
                         Collectors.mapping(row -> (String) row[1], Collectors.toList())
                 ));
 
-        // 4. Chat 여부 조회
-        Map<Long, Boolean> chatMap = targetIds.stream()
-                .collect(Collectors.toMap(
-                        targetId -> targetId,
-                        targetId -> hasActiveChat(userId, targetId)
-                ));
+        // 4. 현재 페이지 대상의 활성 커피챗 상대를 한 번에 조회
+        Set<Long> activeChatTargetIds = Set.copyOf(chatRoomRepository.findActiveChatPartnerIds(
+                userId,
+                targetIds,
+                ChatRoom.RoomStatus.OPEN,
+                ChatRequest.RequestStatus.ACCEPTED,
+                ChatRequest.RequestType.COFFEE_CHAT
+        ));
 
         // 5. DTO 변환 (정렬 유지)
         List<AlumniPreviewResponse> content = targetIds.stream()
@@ -97,7 +101,7 @@ public class AlumniService {
                             profile.getUser().getName(),
                             profileDto,
                             tagMap.getOrDefault(id, List.of()),
-                            chatMap.getOrDefault(id, false)
+                            activeChatTargetIds.contains(id)
                     );
                 })
                 .filter(Objects::nonNull)
@@ -165,18 +169,6 @@ public class AlumniService {
                 .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
                 .distinct()
                 .toList();
-    }
-
-    private boolean hasActiveChat(Long userId, Long targetId) {
-        return chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
-                userId, targetId,
-                ChatRequest.RequestStatus.ACCEPTED,
-                ChatRequest.RequestType.COFFEE_CHAT
-        ) || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
-                targetId, userId,
-                ChatRequest.RequestStatus.ACCEPTED,
-                ChatRequest.RequestType.COFFEE_CHAT
-        );
     }
 
     private void requireAuthenticatedUser(Long userId) {
