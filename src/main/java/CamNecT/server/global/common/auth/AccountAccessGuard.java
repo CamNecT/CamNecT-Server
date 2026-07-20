@@ -27,11 +27,10 @@ public class AccountAccessGuard {
         return user;
     }
 
-    public Users requireActive(Long userId) {
+    public void requireActive(Long userId) {
         Users user = requireAccessible(userId);
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new CustomException(AuthErrorCode.PROFILE_COMPLETION_REQUIRED);
         }
-        return user;
     }
 }

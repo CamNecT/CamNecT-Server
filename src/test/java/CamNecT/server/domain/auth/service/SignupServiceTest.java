@@ -40,12 +40,13 @@ class SignupServiceTest {
 
     @Test
     void rejectsSignupUnlessBothRequiredAgreementsAreTrue() {
-        VerifySignupEmailRequest request = request(true, false);
+        CustomException missingPrivacyTerms = assertThrows(CustomException.class,
+                () -> signupService.signupVerifiedUser(request(true, false)));
+        CustomException missingServiceTerms = assertThrows(CustomException.class,
+                () -> signupService.signupVerifiedUser(request(false, true)));
 
-        CustomException exception = assertThrows(CustomException.class,
-                () -> signupService.signupVerifiedUser(request));
-
-        assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.TERMS_REQUIRED);
+        assertThat(missingPrivacyTerms.getErrorCode()).isEqualTo(AuthErrorCode.TERMS_REQUIRED);
+        assertThat(missingServiceTerms.getErrorCode()).isEqualTo(AuthErrorCode.TERMS_REQUIRED);
         verify(userRepository, never()).saveAndFlush(any());
     }
 

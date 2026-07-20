@@ -19,6 +19,7 @@ import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("unused") // /api/auth/refresh 재활성화 시 사용할 refresh token 회전 구현
 public class AuthTokenService {
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
