@@ -1,6 +1,7 @@
 package CamNecT.server.domain.community.service;
 
 import CamNecT.server.domain.community.dto.request.CreatePostRequest;
+import CamNecT.server.domain.community.dto.request.UpdatePostRequest;
 import CamNecT.server.domain.community.dto.response.PostDetailResponse;
 import CamNecT.server.domain.community.model.Boards;
 import CamNecT.server.domain.community.model.Comments.Comments;
@@ -65,6 +66,15 @@ class PostServiceImplTest {
     @Mock AuthorAssembler authorAssembler;
 
     @InjectMocks PostServiceImpl service;
+
+    @Test
+    void emptyPostUpdateIsRejectedBeforeDatabaseAccess() {
+        CustomException exception = assertThrows(CustomException.class,
+                () -> service.update(1L, 10L, new UpdatePostRequest(null, null, null, null, null)));
+
+        assertThat(exception.getErrorCode()).isEqualTo(CommunityErrorCode.EMPTY_POST_UPDATE);
+        verifyNoInteractions(postsRepository);
+    }
 
     @Test
     void anonymousPostDoesNotPublishFollowerNotification() {

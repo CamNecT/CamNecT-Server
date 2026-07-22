@@ -31,8 +31,8 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
         where p.status = :status
           and (:code is null or p.board.code = :code)
           and (:cursorId is null or p.id < :cursorId)
-          and (:keyword is null or p.title like concat('%', :keyword, '%')
-                           or p.content like concat('%', :keyword, '%'))
+          and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
+                           or p.content like concat('%', :keyword, '%') escape '!')
           and (:tagId is null or exists (
                 select 1 from PostTags pt
                 where pt.post = p and pt.tag.id = :tagId
@@ -78,8 +78,8 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
     join PostStats ps on ps.post = p
     where p.status = :status
       and (:code is null or p.board.code = :code)
-      and (:keyword is null or p.title like concat('%', :keyword, '%')
-                       or p.content like concat('%', :keyword, '%'))
+      and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
+                       or p.content like concat('%', :keyword, '%') escape '!')
       and (:tagId is null or exists (
             select 1 from PostTags pt
             where pt.post = p and pt.tag.id = :tagId
@@ -108,8 +108,8 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
     join PostStats ps on ps.post = p
     where p.status = :status
       and (:code is null or p.board.code = :code)
-      and (:keyword is null or p.title like concat('%', :keyword, '%')
-                       or p.content like concat('%', :keyword, '%'))
+      and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
+                       or p.content like concat('%', :keyword, '%') escape '!')
       and (:tagId is null or exists (
             select 1 from PostTags pt
             where pt.post = p and pt.tag.id = :tagId
@@ -137,8 +137,8 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
     join PostStats ps on ps.post = p
     where p.status = :status
       and (:code is null or p.board.code = :code)
-      and (:keyword is null or p.title like concat('%', :keyword, '%')
-                       or p.content like concat('%', :keyword, '%'))
+      and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
+                       or p.content like concat('%', :keyword, '%') escape '!')
       and (:tagId is null or exists (
             select 1 from PostTags pt
             where pt.post = p and pt.tag.id = :tagId

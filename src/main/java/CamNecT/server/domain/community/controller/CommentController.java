@@ -14,13 +14,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @Tag(name = "Community Comment", description = "커뮤니티 게시글 및 댓글 관리 관련 API")
 @RestController
+@Validated
 @RequiredArgsConstructor
 @RequestMapping("/api/community")
 public class CommentController {
@@ -39,7 +44,7 @@ public class CommentController {
     @PostMapping("/posts/{postId}/comments")
     public ApiResponse<CreateCommentResponse> create(
             @UserId Long userId,
-            @PathVariable Long postId,
+            @PathVariable @Positive Long postId,
             @RequestBody @Valid CreateCommentRequest req
     ) {
         return ApiResponse.success(commentService.create(userId, postId, req));
@@ -58,8 +63,8 @@ public class CommentController {
     })
     @GetMapping("/posts/{postId}/comments")
     public ApiResponse<List<CommentService.CommentRow>> list(
-            @PathVariable Long postId,
-            @RequestParam(defaultValue = "20") int size
+            @PathVariable @Positive Long postId,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
     ) {
         return ApiResponse.success(commentService.list(postId, size));
     }
@@ -77,7 +82,7 @@ public class CommentController {
     @PatchMapping("/comments/{commentId}")
     public ApiResponse<Void> update(
             @UserId Long userId,
-            @PathVariable Long commentId,
+            @PathVariable @Positive Long commentId,
             @RequestBody @Valid UpdateCommentRequest req
     ) {
         commentService.update(userId, commentId, req);
@@ -96,7 +101,7 @@ public class CommentController {
     @DeleteMapping("/comments/{commentId}")
     public ApiResponse<Void> delete(
             @UserId Long userId,
-            @PathVariable Long commentId
+            @PathVariable @Positive Long commentId
     ) {
         commentService.delete(userId, commentId);
         return ApiResponse.success(null);
@@ -113,7 +118,7 @@ public class CommentController {
     @PostMapping("/comments/{commentId}/likes")
     public ApiResponse<ToggleCommentLikeResponse> toggleCommentLike(
             @UserId Long userId,
-            @PathVariable Long commentId
+            @PathVariable @Positive Long commentId
     ) {
         return ApiResponse.success(commentService.toggleLike(userId, commentId));
     }

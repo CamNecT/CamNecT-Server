@@ -95,7 +95,7 @@ public class PostServiceImpl implements PostService {
 
         PostAccessType accessType = (req.boardCode() == BoardCode.QUESTION) ? PostAccessType.POINT_REQUIRED : PostAccessType.FREE;
 
-        Posts post = Posts.create(board, user, req.title(), req.content(), Boolean.TRUE.equals(req.anonymous()));
+        Posts post = Posts.create(board, user, req.title().trim(), req.content(), Boolean.TRUE.equals(req.anonymous()));
         post.applyAccess(accessType);
 
         Posts saved = postsRepository.save(post);
@@ -133,6 +133,9 @@ public class PostServiceImpl implements PostService {
     @Override
     public void update(Long userId, Long postId, UpdatePostRequest req) {
         if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
+        if (req == null || !req.isAnyFieldPresent()) {
+            throw new CustomException(CommunityErrorCode.EMPTY_POST_UPDATE);
+        }
 
         Posts post = postsRepository.findByIdForUpdate(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
@@ -143,7 +146,7 @@ public class PostServiceImpl implements PostService {
             throw new CustomException(CommunityErrorCode.POST_FORBIDDEN);
         }
 
-        post.update(req.title(), req.content(), req.anonymous());
+        post.update(req.title() == null ? null : req.title().trim(), req.content(), req.anonymous());
 
         if (req.tagIds() != null) {
             postTagsRepository.deleteByPost_Id(postId);
@@ -529,11 +532,20 @@ public class PostServiceImpl implements PostService {
     private List<Long> normalizeTagIds(List<Long> tagIds) {
         if (tagIds == null || tagIds.isEmpty()) return List.of();
 
-        return tagIds.stream()
-                .filter(Objects::nonNull)
+        if (tagIds.size() > CamNecT.server.domain.community.dto.request.CommunityRequestLimits.MAX_TAGS_PER_POST
+                || tagIds.stream().anyMatch(id -> id == null || id <= 0)) {
+            throw new CustomException(CommunityErrorCode.INVALID_TAG_IDS);
+        }
+
+        List<Long> normalized = tagIds.stream()
                 .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
-                .distinct()
                 .toList();
+
+        if (new HashSet<>(normalized).size() != normalized.size()) {
+            throw new CustomException(CommunityErrorCode.INVALID_TAG_IDS);
+        }
+
+        return normalized;
     }
 
     private void touchStats(Long postId) {
