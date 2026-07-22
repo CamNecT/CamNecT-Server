@@ -2,7 +2,6 @@ package CamNecT.server.domain.community.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
@@ -25,7 +24,6 @@ public record UpdatePostRequest(
         @Size(max = CommunityRequestLimits.MAX_ATTACHMENTS_PER_POST)
         List<@NotNull @Valid AttachmentRequest> attachments
 ) {
-    @AssertTrue(message = "수정할 필드를 하나 이상 전달해야 합니다.")
     @JsonIgnore
     public boolean isAnyFieldPresent() {
         return title != null

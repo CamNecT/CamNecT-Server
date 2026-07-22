@@ -28,11 +28,11 @@ class CommunityRequestValidationTest {
     }
 
     @Test
-    void updatePostRejectsEmptyPatchAndBlankValues() {
+    void updatePostRejectsBlankValues() {
         UpdatePostRequest empty = new UpdatePostRequest(null, null, null, null, null);
         UpdatePostRequest blank = new UpdatePostRequest("   ", "\n\t", null, null, null);
 
-        assertThat(validator.validate(empty)).anyMatch(v -> v.getPropertyPath().toString().equals("anyFieldPresent"));
+        assertThat(validator.validate(empty)).isEmpty();
         assertThat(validator.validate(blank)).extracting(v -> v.getPropertyPath().toString())
                 .contains("title", "content");
     }
