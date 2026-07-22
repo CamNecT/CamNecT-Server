@@ -6,13 +6,23 @@ import CamNecT.server.domain.community.model.enums.PostStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 public interface PostsRepository extends JpaRepository<Posts, Long> {
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_READ)
+    @Query("select p from Posts p where p.id = :postId")
+    Optional<Posts> findByIdForRead(@Param("postId") Long postId);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Posts p where p.id = :postId")
+    Optional<Posts> findByIdForUpdate(@Param("postId") Long postId);
 
     // LATEST(최신순): 기존 파생쿼리 + keyword/tagId까지 하려면 JPQL 하나 더 두는 게 편함
     @Query("""

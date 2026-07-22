@@ -106,20 +106,23 @@ public class PostServiceImpl implements PostService {
 
         postAttachmentsService.replace(saved, userId, req.attachments());
 
-        List<Long> followerIds = followRepository.findFollowerIdsByFollowingId(userId);
+        // 익명 게시글은 팔로워 알림만으로도 작성자가 역추적될 수 있으므로 발행하지 않는다.
+        if (!saved.isAnonymous()) {
+            List<Long> followerIds = followRepository.findFollowerIdsByFollowingId(userId);
 
-        if (!followerIds.isEmpty()) {
-            String message = user.getName() + "님이 새 글을 게시했습니다.";
+            if (!followerIds.isEmpty()) {
+                String message = user.getName() + "님이 새 글을 게시했습니다.";
 
-            for (Long followerId : followerIds) {
-                eventPublisher.publishEvent(SimpleNotifiableEvent.of(
-                        followerId,
-                        userId,
-                        NotificationType.FOLLOWING_POSTED,
-                        message,
-                        saved.getId(),
-                        null
-                ));
+                for (Long followerId : followerIds) {
+                    eventPublisher.publishEvent(SimpleNotifiableEvent.of(
+                            followerId,
+                            userId,
+                            NotificationType.FOLLOWING_POSTED,
+                            message,
+                            saved.getId(),
+                            null
+                    ));
+                }
             }
         }
 
@@ -131,8 +134,10 @@ public class PostServiceImpl implements PostService {
     public void update(Long userId, Long postId, UpdatePostRequest req) {
         if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
-        Posts post = postsRepository.findById(postId)
+        Posts post = postsRepository.findByIdForUpdate(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
+
+        requirePublished(post);
 
         if (!Objects.equals(post.getUser().getUserId(), userId)) {
             throw new CustomException(CommunityErrorCode.POST_FORBIDDEN);
@@ -156,7 +161,7 @@ public class PostServiceImpl implements PostService {
     public void delete(Long userId, Long postId) {
         if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
-        Posts post = postsRepository.findById(postId)
+        Posts post = postsRepository.findByIdForUpdate(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
 
         boolean isAdmin = userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
@@ -197,8 +202,10 @@ public class PostServiceImpl implements PostService {
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
-        Posts post = postsRepository.findById(postId)
+        Posts post = postsRepository.findByIdForRead(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
+
+        requirePublished(post);
 
         PostStats stats = postStatsRepository.findByPostIdForUpdate(postId)
                 .orElseGet(() -> postStatsRepository.save(PostStats.init(post)));
@@ -234,16 +241,16 @@ public class PostServiceImpl implements PostService {
     public PostDetailResponse getDetail(Long userId, Long postId) {
         if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
-        Posts post = postsRepository.findById(postId)
+        Posts post = postsRepository.findByIdForRead(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
 
-        if (post.getStatus() != PostStatus.PUBLISHED) {
-            throw new CustomException(CommunityErrorCode.POST_NOT_PUBLISHED);
-        }
+        requirePublished(post);
 
-        PostStats stats = postStatsRepository.findByPost_Id(post.getId())
-                .orElseGet(() -> postStatsRepository.save(PostStats.init(post)));
-        stats.incView();
+        if (postStatsRepository.incrementView(postId, LocalDateTime.now()) == 0) {
+            throw new CustomException(CommunityErrorCode.POST_STATS_NOT_FOUND);
+        }
+        PostStats stats = postStatsRepository.findByPost_Id(postId)
+                .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_STATS_NOT_FOUND));
 
         boolean likedByMe = postLikesRepository.existsByPost_IdAndUser_UserId(postId, userId);
 
@@ -284,9 +291,11 @@ public class PostServiceImpl implements PostService {
         String content = (accessStatus == ContentAccessStatus.GRANTED) ? post.getContent() : null;
 
         /// 글쓴이 프로필
-        AuthorDto author = authorAssembler
-                .buildAuthorMap(List.of(post.getUser().getUserId()))
-                .get(post.getUser().getUserId());
+        AuthorDto author = post.isAnonymous()
+                ? null
+                : authorAssembler
+                    .buildAuthorMap(List.of(post.getUser().getUserId()))
+                    .get(post.getUser().getUserId());
 
         /// 첨부파일 내려주는 파트
         List<PostAttachmentItemResponse> attachments = null;
@@ -373,8 +382,10 @@ public class PostServiceImpl implements PostService {
     public void acceptComment(Long userId, Long postId, Long commentId) {
         if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
-        Posts post = postsRepository.findById(postId)
+        Posts post = postsRepository.findByIdForUpdate(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
+
+        requirePublished(post);
 
         if (post.getBoard().getCode() != BoardCode.QUESTION) {
             throw new CustomException(CommunityErrorCode.ONLY_QUESTION_CAN_ACCEPT);
@@ -383,7 +394,7 @@ public class PostServiceImpl implements PostService {
             throw new CustomException(CommunityErrorCode.POST_FORBIDDEN);
         }
 
-        Comments comment = commentsRepository.findById(commentId)
+        Comments comment = commentsRepository.findByIdForUpdate(commentId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
 
         if (!Objects.equals(comment.getPost().getId(), postId)) {
@@ -391,6 +402,9 @@ public class PostServiceImpl implements PostService {
         }
         if (comment.getStatus() != CommentStatus.PUBLISHED) {
             throw new CustomException(CommunityErrorCode.CANNOT_ACCEPT_UNPUBLISHED_COMMENT);
+        }
+        if (Objects.equals(comment.getUserId(), userId)) {
+            throw new CustomException(CommunityErrorCode.CANNOT_ACCEPT_OWN_COMMENT);
         }
 
         if (acceptedCommentsRepository.existsByPost_Id(postId)) {
@@ -410,7 +424,7 @@ public class PostServiceImpl implements PostService {
             pointService.earnPoint(receiverId, rewardAcceptedComment, PointEvent.commentSelection(postId, commentId));
             eventPublisher.publishEvent(SimpleNotifiableEvent.of(
                     receiverId,
-                    userId,
+                    post.isAnonymous() ? null : userId,
                     NotificationType.COMMENT_ACCEPTED,
                     "작성하신 댓글이 채택되었습니다.",
                     postId,
@@ -425,10 +439,12 @@ public class PostServiceImpl implements PostService {
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
-        Posts post = postsRepository.findById(postId)
+        Posts post = postsRepository.findByIdForRead(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
 
-        PostStats stats = postStatsRepository.findByPost_Id(postId)
+        requirePublished(post);
+
+        PostStats stats = postStatsRepository.findByPostIdForUpdate(postId)
                 .orElseGet(() -> postStatsRepository.save(PostStats.init(post)));
 
         boolean exists = postBookmarksRepository.existsByPost_IdAndUser_UserId(postId, userId);
@@ -521,6 +537,12 @@ public class PostServiceImpl implements PostService {
     }
 
     private void touchStats(Long postId) {
-        postStatsRepository.findByPost_Id(postId).ifPresent(PostStats::touch);
+        postStatsRepository.touchByPostId(postId, LocalDateTime.now());
+    }
+
+    private void requirePublished(Posts post) {
+        if (post.getStatus() != PostStatus.PUBLISHED) {
+            throw new CustomException(CommunityErrorCode.POST_NOT_PUBLISHED);
+        }
     }
 }

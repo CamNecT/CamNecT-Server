@@ -72,6 +72,7 @@ public class PostSummaryAssembler {
 
         // author bulk
         List<Long> authorIds = posts.stream()
+                .filter(p -> !p.isAnonymous())
                 .map(p -> p.getUser().getUserId())
                 .filter(Objects::nonNull)
                 .distinct()
@@ -134,7 +135,7 @@ public class PostSummaryAssembler {
             String thumbKey = thumbKeyMap.get(p.getId());
             if (!paywalled) thumbUrl = publicUrlIssuer.issueImagePublicUrl(thumbKey);
 
-            AuthorDto author = authorMap.get(p.getUser().getUserId());
+            AuthorDto author = p.isAnonymous() ? null : authorMap.get(p.getUser().getUserId());
 
             items.add(new PostSummaryResponse(
                     p.getId(),
