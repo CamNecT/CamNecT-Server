@@ -37,7 +37,7 @@ public record HomeResponse(
     //팀원모집
     public record RecruitmentSection(
             long pendingCount,
-            List<RecruitmentPreview> latest2
+            List<RecruitmentPreview> latest5
     ) {
         public record RecruitmentPreview(
                 Long requestId,
