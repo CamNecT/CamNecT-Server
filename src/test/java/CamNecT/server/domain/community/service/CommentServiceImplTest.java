@@ -7,6 +7,8 @@ import CamNecT.server.domain.community.model.Comments.Comments;
 import CamNecT.server.domain.community.model.Posts.PostStats;
 import CamNecT.server.domain.community.model.Posts.Posts;
 import CamNecT.server.domain.community.model.enums.BoardCode;
+import CamNecT.server.domain.community.model.enums.CommentStatus;
+import CamNecT.server.domain.community.model.enums.PostStatus;
 import CamNecT.server.domain.community.repository.Comments.AcceptedCommentsRepository;
 import CamNecT.server.domain.community.repository.Comments.CommentLikesRepository;
 import CamNecT.server.domain.community.repository.Comments.CommentsRepository;
@@ -105,25 +107,45 @@ class CommentServiceImplTest {
         assertThat(commentError.getErrorCode()).isEqualTo(CommunityErrorCode.COMMENT_NOT_PUBLISHED);
     }
 
+    @Test
+    void hiddenPostRejectsCommentListRead() {
+        Posts hiddenPost = post(PostStatus.HIDDEN);
+        when(postsRepository.findByIdForRead(10L)).thenReturn(Optional.of(hiddenPost));
+
+        CustomException exception = assertThrows(CustomException.class,
+                () -> service.list(10L, 20));
+
+        assertThat(exception.getErrorCode()).isEqualTo(CommunityErrorCode.POST_NOT_PUBLISHED);
+        verifyNoInteractions(commentsRepository);
+    }
+
     private static Posts publishedPost() {
+        return post(PostStatus.PUBLISHED);
+    }
+
+    private static Posts post(PostStatus status) {
         return Posts.builder()
                 .id(10L)
                 .board(Boards.of(BoardCode.QUESTION, "질문"))
                 .user(Users.builder().userId(1L).build())
                 .title("질문")
                 .content("본문")
-                .status(CamNecT.server.domain.community.model.enums.PostStatus.PUBLISHED)
+                .status(status)
                 .build();
     }
 
     private static Comments publishedComment(Long userId, Comments parent) {
+        return comment(publishedPost(), 20L, userId, parent, CommentStatus.PUBLISHED);
+    }
+
+    private static Comments comment(Posts post, Long id, Long userId, Comments parent, CommentStatus status) {
         return Comments.builder()
-                .id(20L)
-                .post(publishedPost())
+                .id(id)
+                .post(post)
                 .userId(userId)
                 .parent(parent)
                 .content("댓글")
-                .status(CamNecT.server.domain.community.model.enums.CommentStatus.PUBLISHED)
+                .status(status)
                 .build();
     }
 }

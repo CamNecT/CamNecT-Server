@@ -195,9 +195,9 @@ public class CommentServiceImpl implements CommentService {
     @Transactional(readOnly = true)
     @Override
     public List<CommentRow> list(Long postId, int size) {
-        if (!postsRepository.existsById(postId)) {
-            throw new CustomException(CommunityErrorCode.POST_NOT_FOUND);
-        }
+        Posts post = postsRepository.findByIdForRead(postId)
+                .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
+        requirePublished(post);
 
         int limit = Math.clamp(size, 1, 50);
         var pageable = PageRequest.of(0, limit);
@@ -278,7 +278,7 @@ public class CommentServiceImpl implements CommentService {
     }
 
     private CommentRow toRow(Comments c, long likeCount, Map<Long, AuthorDto> authorMap) {
-        boolean deleted = (c.getStatus() == CommentStatus.DELETED);
+        boolean deleted = c.getStatus().isDeleted();
         String content = deleted ? "삭제된 댓글입니다." : c.getContent();
         Long parentId = (c.getParent() == null) ? null : c.getParent().getId();
 
@@ -295,13 +295,13 @@ public class CommentServiceImpl implements CommentService {
     }
 
     private void requirePublished(Posts post) {
-        if (post.getStatus() != PostStatus.PUBLISHED) {
+        if (!post.getStatus().isPublished()) {
             throw new CustomException(CommunityErrorCode.POST_NOT_PUBLISHED);
         }
     }
 
     private void requirePublished(Comments comment) {
-        if (comment.getStatus() != CommentStatus.PUBLISHED) {
+        if (!comment.getStatus().isPublished()) {
             throw new CustomException(CommunityErrorCode.COMMENT_NOT_PUBLISHED);
         }
     }
