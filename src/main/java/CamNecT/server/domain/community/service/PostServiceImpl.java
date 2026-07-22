@@ -291,7 +291,7 @@ public class PostServiceImpl implements PostService {
         } else {
             accessStatus = ContentAccessStatus.GRANTED;
         }
-        String content = (accessStatus == ContentAccessStatus.GRANTED) ? post.getContent() : null;
+        String content = accessStatus.canReadProtectedContent() ? post.getContent() : null;
 
         /// 글쓴이 프로필
         AuthorDto author = post.isAnonymous()
@@ -302,7 +302,7 @@ public class PostServiceImpl implements PostService {
 
         /// 첨부파일 내려주는 파트
         List<PostAttachmentItemResponse> attachments = null;
-        if (accessStatus == ContentAccessStatus.GRANTED) {
+        if (accessStatus.canReadProtectedContent()) {
             List<PostAttachments> atts = postAttachmentsRepository
                     .findByPost_IdAndStatusTrueOrderBySortOrderAscIdAsc(postId);
 
@@ -403,7 +403,7 @@ public class PostServiceImpl implements PostService {
         if (!Objects.equals(comment.getPost().getId(), postId)) {
             throw new CustomException(CommunityErrorCode.COMMENT_NOT_IN_POST);
         }
-        if (comment.getStatus() != CommentStatus.PUBLISHED) {
+        if (!comment.getStatus().isPublished()) {
             throw new CustomException(CommunityErrorCode.CANNOT_ACCEPT_UNPUBLISHED_COMMENT);
         }
         if (Objects.equals(comment.getUserId(), userId)) {
@@ -477,7 +477,7 @@ public class PostServiceImpl implements PostService {
         Posts post = postsRepository.findById(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
 
-        if (post.getStatus() != PostStatus.PUBLISHED) {
+        if (!post.getStatus().isPublished()) {
             throw new CustomException(CommunityErrorCode.POST_NOT_PUBLISHED);
         }
 
@@ -553,7 +553,7 @@ public class PostServiceImpl implements PostService {
     }
 
     private void requirePublished(Posts post) {
-        if (post.getStatus() != PostStatus.PUBLISHED) {
+        if (!post.getStatus().isPublished()) {
             throw new CustomException(CommunityErrorCode.POST_NOT_PUBLISHED);
         }
     }
