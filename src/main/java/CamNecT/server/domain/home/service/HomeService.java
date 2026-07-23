@@ -26,7 +26,7 @@ public class HomeService {
     private final ActivityService contestService;
 
     private static final int HOME_COFFEECHAT_PREVIEW_SIZE = 2;
-    private static final int HOME_RECRUITMENT_PREVIEW_SIZE = 2;
+    private static final int HOME_RECRUITMENT_PREVIEW_SIZE = 5;
     private static final int HOME_ALUMNI_PREVIEW_SIZE = 2;
     private static final int HOME_CONTEST_PREVIEW_SIZE = 4;
 

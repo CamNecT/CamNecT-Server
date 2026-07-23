@@ -114,14 +114,15 @@ public class EmailVerificationService {
         return expirationMinutes;
     }
 
-    @Transactional
+    // 인증 실패도 attemptCount는 커밋되어야 하므로 CustomException에는 롤백하지 않는다.
+    @Transactional(noRollbackFor = CustomException.class)
     public VerifyPasswordResetEmailResponse verifyPasswordResetEmail(VerifyPasswordResetEmailRequest req) {
         Users user = userRepository.findByEmail(req.email())
                 .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
         validateRecoverableUser(user);
 
-        EmailVerificationToken token = tokenRepository.findTopByEmailAndUsedAtIsNullOrderByIdDesc(req.email())
+        EmailVerificationToken token = tokenRepository.findFirstByEmailAndUsedAtIsNullOrderByIdDesc(req.email())
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.NO_ACTIVE_CODE));
 
         if (token.isExpired()) throw new CustomException(VerificationErrorCode.CODE_EXPIRED_OR_USED);
@@ -150,19 +151,22 @@ public class EmailVerificationService {
         }
 
         Long userId = jwtUtil.getUserId(req.resetToken());
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
+        validateRecoverableUser(user);
         passwordService.resetPasswordByUserId(userId, req.newPassword());
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = CustomException.class)
     public VerifySignupEmailResponse verifySignupAndCreateUser(VerifySignupEmailRequest req) {
 
-        // (idempotent) 이미 가입 + 이메일 인증 완료인 경우
+        // 인증 성공 후에만 사용자를 생성하므로, 같은 이메일의 사용자가 있으면 이미 가입 완료된 상태다.
         Users existing = userRepository.findByEmail(req.email()).orElse(null);
-        if (existing != null && existing.isEmailVerified()) {
+        if (existing != null) {
             return new VerifySignupEmailResponse(existing.getUserId(), true, null, 0L);
         }
 
-        EmailVerificationToken token = tokenRepository.findTopByEmailAndUsedAtIsNullOrderByIdDesc(req.email())
+        EmailVerificationToken token = tokenRepository.findFirstByEmailAndUsedAtIsNullOrderByIdDesc(req.email())
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.NO_ACTIVE_CODE));
 
         if (token.isExpired()) throw new CustomException(VerificationErrorCode.CODE_EXPIRED_OR_USED);
@@ -194,8 +198,8 @@ public class EmailVerificationService {
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }
-        if (!user.isEmailVerified()) {
-            throw new CustomException(AuthErrorCode.EMAIL_NOT_VERIFIED);
+        if (user.getStatus() == UserStatus.WITHDRAWN) {
+            throw new CustomException(AuthErrorCode.USER_WITHDRAWN);
         }
     }
 }

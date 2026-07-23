@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -17,9 +18,14 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AuthInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;
+    private final AccountAccessGuard accountAccessGuard;
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+    public boolean preHandle(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull Object handler
+    ) {
 
         //제외할 부분은 WebMvcConfig에서 제외함
         // 1. OPTIONS 요청(Preflight)은 통과시킴 (CORS 문제 방지)
@@ -47,6 +53,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
 
         Long userId = jwtUtil.getUserId(token);
+        accountAccessGuard.requireAccessible(userId);
         request.setAttribute("userId", userId);
 
         request.setAttribute("role", jwtUtil.getRole(token).name());
@@ -65,18 +72,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     }
 
     private boolean isAllowedForVerificationToken(String uri) {
-        return
-                // 문서 인증
-                uri.equals("/api/verification/documents")
-                        || uri.startsWith("/api/verification/documents/")
-
-                        // 온보딩 (Auth로 이동했으므로)
-                        || uri.equals("/api/auth/onboarding")
-
-                        // 프로필 관련 제한 API (선택)
-                        || uri.startsWith("/api/profile/")
-
-                        // Auth과정에서 tag조회해야하므로
-                        || uri.equals("/api/tags");
+        return uri.equals("/api/verification/documents")
+                || uri.startsWith("/api/verification/documents/");
     }
 }

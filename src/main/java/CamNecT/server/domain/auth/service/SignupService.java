@@ -45,9 +45,6 @@ public class SignupService {
                 .name(req.name())
                 .phoneNum(req.phoneNum())
                 .passwordHash(passwordEncoder.encode(req.password()))
-                .termsServiceAgreed(true)
-                .termsPrivacyAgreed(true)
-                .emailVerified(true)
                 .status(UserStatus.ADMIN_PENDING)
                 .build();
 

@@ -37,22 +37,10 @@ public class Users {
     @Column(name = "email", unique = true)
     private String email;
 
-    @Builder.Default //약관 동의1
-    @Column(name = "terms_service_agreed", nullable = false)
-    private boolean termsServiceAgreed = false;
-
-    @Builder.Default //약관 동의2
-    @Column(name = "terms_privacy_agreed", nullable = false)
-    private boolean termsPrivacyAgreed = false;
-
-    @Builder.Default
-    @Column(name = "email_verified", nullable = false)
-    private boolean emailVerified = false;
-
     @Builder.Default //
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
-    private UserStatus status = UserStatus.EMAIL_PENDING;
+    private UserStatus status = UserStatus.ADMIN_PENDING;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
@@ -122,29 +110,18 @@ public class Users {
         this.suspensionEndDate = null;
     }
 
-    //로그인시 User상태위한 메서드들
-    public void markVerificationCompletePending() { this.verificationCompletePending = true; }
-    public void clearVerificationCompletePending() { this.verificationCompletePending = false; }
-
     //회원 탈퇴
     public void withdrawAnonymize(
             String name,
             String username,
             String email,
             String phone,
-            boolean emailVerified,
-            UserStatus status,
-            boolean verificationCompletePending
+            UserStatus status
     ) {
         this.name = name;
         this.username = username;
         this.email = email;
         this.phoneNum = phone;
-        this.emailVerified = emailVerified;
         this.status = status;
-        this.verificationCompletePending = verificationCompletePending;
-
-        // 약관 동의, 기타 플래그도 정책대로 정리 가능
-        // this.termsServiceAgreed = false; ...
     }
 }

@@ -7,6 +7,8 @@ import CamNecT.server.global.jwt.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.MethodParameter;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
@@ -18,18 +20,24 @@ import org.springframework.web.method.support.ModelAndViewContainer;
 public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
 
     private final JwtUtil jwtUtil;
+    private final AccountAccessGuard accountAccessGuard;
 
     @Override
-    public boolean supportsParameter(MethodParameter parameter) {
+    public boolean supportsParameter(@NonNull MethodParameter parameter) {
         return parameter.hasParameterAnnotation(UserId.class)
                 && parameter.getParameterType().equals(Long.class);
     }
 
     @Override
-    public Object resolveArgument(MethodParameter parameter,
-                                  ModelAndViewContainer mavContainer,
-                                  NativeWebRequest webRequest,
-                                  WebDataBinderFactory binderFactory) {
+    public Object resolveArgument(@NonNull MethodParameter parameter,
+                                  @Nullable ModelAndViewContainer mavContainer,
+                                  @NonNull NativeWebRequest webRequest,
+                                  @Nullable WebDataBinderFactory binderFactory) {
+
+        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
+        if (request != null && request.getAttribute("userId") instanceof Long userId) {
+            return userId;
+        }
 
         String authHeader = webRequest.getHeader("Authorization");
         if (authHeader == null || authHeader.isBlank()) {
@@ -38,11 +46,14 @@ public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
 
         String token = extractBearerToken(authHeader);
         validateAuthEndpointTokenType(webRequest, token);
+        Long userId;
         try {
-            return jwtUtil.getUserId(token);
+            userId = jwtUtil.getUserId(token);
         } catch (CustomException e) {
             throw new CustomException(AuthErrorCode.INVALID_TOKEN, e);
         }
+        accountAccessGuard.requireAccessible(userId);
+        return userId;
     }
 
     private String extractBearerToken(String header) {
@@ -72,8 +83,8 @@ public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
 
         String uri = request.getRequestURI();
         boolean allowed = switch (uri) {
-            case "/api/auth/onboarding" -> tokenType == TokenType.ACCESS || tokenType == TokenType.VERIFICATION;
-            case "/api/auth/logout", "/api/auth/verification-complete", "/api/auth/me" -> tokenType == TokenType.ACCESS;
+            case "/api/auth/onboarding", "/api/auth/logout", "/api/auth/verification-complete", "/api/auth/me" ->
+                    tokenType == TokenType.ACCESS;
             default -> true;
         };
 

@@ -66,6 +66,9 @@ public class LoginService {
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }
+        if (user.getStatus() == UserStatus.WITHDRAWN) {
+            throw new CustomException(AuthErrorCode.USER_WITHDRAWN);
+        }
 
         // 1) 관리자
         if (user.getRole() == UserRole.ADMIN) {
@@ -90,11 +93,8 @@ public class LoginService {
                 .findTopByUserIdOrderBySubmittedAtDesc(user.getUserId())
                 .orElse(null);
 
-        // 3) 온보딩 완료 여부
-        boolean onboardingDone = userProfileRepository.existsByUserId(user.getUserId());
-
-        // 4) nextStep 결정
-        LoginNextStep nextStep = resolveNext(user, latest, onboardingDone);
+        // 3) nextStep 결정
+        LoginNextStep nextStep = resolveNext(user, latest);
 
         // 5) 토큰 선택
         if (needsVerificationToken(nextStep)) {
@@ -129,9 +129,11 @@ public class LoginService {
     public VerificationCompleteResponse getVerificationCompleteInfo(Long userId) {
         Users u = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
-
         UserProfile p = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+        if (u.getStatus() != UserStatus.ACTIVE || p.isInitialSetupCompleted()) {
+            throw new CustomException(AuthErrorCode.INITIAL_SETUP_NOT_ALLOWED);
+        }
 
         String instName = (p.getInstitutionId() == null) ? null
                 : institutionRepository.findNameKorById(p.getInstitutionId()).orElse(null);
@@ -147,14 +149,13 @@ public class LoginService {
         );
     }
 
-    private LoginNextStep resolveNext(Users user, DocumentVerificationSubmission latest, boolean onboardingDone) {
-        // ACTIVE면 인증완료/홈은 프론트에서 1회 처리(로컬 저장)로 나누는 걸 추천
+    private LoginNextStep resolveNext(Users user, DocumentVerificationSubmission latest) {
         if (user.getStatus() == UserStatus.ACTIVE) {
-            if (user.isVerificationCompletePending()) {
-                user.clearVerificationCompletePending();
-                return LoginNextStep.VERIFICATION_COMPLETE;
-            }
-            return LoginNextStep.HOME;
+            UserProfile profile = userProfileRepository.findByUserId(user.getUserId())
+                    .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+            return profile.isInitialSetupCompleted()
+                    ? LoginNextStep.HOME
+                    : LoginNextStep.VERIFICATION_COMPLETE;
         }
 
         // ADMIN_PENDING 흐름
@@ -163,7 +164,7 @@ public class LoginService {
 
             return switch (latest.getStatus()) {
                 case REJECTED, CANCELED -> LoginNextStep.DOCUMENT_REQUIRED;
-                case PENDING -> onboardingDone ? LoginNextStep.DOCUMENT_REVIEW_WAITING : LoginNextStep.ONBOARDING_REQUIRED;
+                case PENDING -> LoginNextStep.DOCUMENT_REVIEW_WAITING;
                 case APPROVED -> LoginNextStep.VERIFICATION_COMPLETE;
             };
         }
@@ -172,8 +173,7 @@ public class LoginService {
     }
 
     private boolean needsVerificationToken(LoginNextStep nextStep) {
-        return nextStep == LoginNextStep.ONBOARDING_REQUIRED
-                || nextStep == LoginNextStep.DOCUMENT_REQUIRED
+        return nextStep == LoginNextStep.DOCUMENT_REQUIRED
                 || nextStep == LoginNextStep.DOCUMENT_REVIEW_WAITING;
     }
 
@@ -203,9 +203,7 @@ public class LoginService {
                 "deleted_" + suffix,
                 null,
                 null,
-                false,
-                UserStatus.SUSPENDED,
-                true
+                UserStatus.WITHDRAWN
         );
 
         // 저장

@@ -1,28 +1,17 @@
 package CamNecT.server.domain.chat.service;
 
-import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.server.domain.chat.model.ChatRequest;
-import CamNecT.server.domain.chat.repository.ChatRepository;
 import CamNecT.server.domain.chat.repository.ChatRequestRepository;
-import CamNecT.server.domain.chat.repository.ChatRoomRepository;
 import CamNecT.server.domain.home.dto.HomeResponse;
-import CamNecT.server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
-import CamNecT.server.domain.users.repository.UserRepository;
-import CamNecT.server.domain.users.repository.UserTagMapRepository;
-import CamNecT.server.global.point.service.PointService;
-import CamNecT.server.global.storage.service.PublicUrlIssuer;
-import CamNecT.server.global.tag.repository.TagRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.List;
 
@@ -35,20 +24,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ChatHomeInboxTest {
 
-    @Mock UserRepository userRepository;
-    @Mock ChatRepository chatRepository;
-    @Mock ChatRoomRepository chatRoomRepository;
     @Mock ChatRequestRepository chatRequestRepository;
-    @Mock TagRepository tagRepository;
     @Mock UserProfileRepository userProfileRepository;
-    @Mock UserTagMapRepository userTagMapRepository;
-    @Mock MajorRepository majorRepository;
-    @Mock TeamRecruitmentRepository recruitmentRepository;
-    @Mock PublicUrlIssuer publicUrlIssuer;
-    @Mock ApplicationEventPublisher eventPublisher;
-    @Mock SimpMessagingTemplate messagingTemplate;
-    @Mock ChatPresenceService presenceService;
-    @Mock PointService pointService;
 
     @InjectMocks ChatService chatService;
 
@@ -76,7 +53,7 @@ class ChatHomeInboxTest {
                 receiverId,
                 ChatRequest.RequestType.TEAM_RECRUIT,
                 ChatRequest.RequestStatus.WAITING,
-                PageRequest.of(0, 2)
+                PageRequest.of(0, 5)
         )).thenReturn(List.of(recruitmentRequest));
         when(userProfileRepository.findGlobalsByUserIdIn(List.of(2L)))
                 .thenReturn(List.of(new ProfileGlobalDto(2L, "커피 발신자", "컴퓨터공학", "20240001", null)));
@@ -84,7 +61,7 @@ class ChatHomeInboxTest {
                 .thenReturn(List.of(new ProfileGlobalDto(3L, "모집 지원자", "경영학", "20230002", null)));
 
         HomeResponse.CoffeeChatSection coffeeChat = chatService.getHomeInbox(receiverId, 2);
-        HomeResponse.RecruitmentSection recruitment = chatService.getHomeRecruitmentInbox(receiverId, 2);
+        HomeResponse.RecruitmentSection recruitment = chatService.getHomeRecruitmentInbox(receiverId, 5);
 
         assertThat(coffeeChat.pendingCount()).isEqualTo(2L);
         assertThat(coffeeChat.latest2()).singleElement().satisfies(preview -> {
@@ -95,7 +72,7 @@ class ChatHomeInboxTest {
             assertThat(preview.studentNo()).isEqualTo("20240001");
         });
         assertThat(recruitment.pendingCount()).isEqualTo(3L);
-        assertThat(recruitment.latest2()).singleElement().satisfies(preview -> {
+        assertThat(recruitment.latest5()).singleElement().satisfies(preview -> {
             assertThat(preview.requestId()).isEqualTo(12L);
             assertThat(preview.senderUserId()).isEqualTo(3L);
             assertThat(preview.senderName()).isEqualTo("모집 지원자");
@@ -115,7 +92,7 @@ class ChatHomeInboxTest {
         )).thenReturn(0L);
 
         HomeResponse.CoffeeChatSection coffeeChat = chatService.getHomeInbox(receiverId, 2);
-        HomeResponse.RecruitmentSection recruitment = chatService.getHomeRecruitmentInbox(receiverId, 2);
+        HomeResponse.RecruitmentSection recruitment = chatService.getHomeRecruitmentInbox(receiverId, 5);
 
         assertThat(coffeeChat).isEqualTo(HomeResponse.CoffeeChatSection.empty());
         assertThat(recruitment).isEqualTo(HomeResponse.RecruitmentSection.empty());
@@ -129,7 +106,7 @@ class ChatHomeInboxTest {
                 receiverId,
                 ChatRequest.RequestType.TEAM_RECRUIT,
                 ChatRequest.RequestStatus.WAITING,
-                PageRequest.of(0, 2)
+                PageRequest.of(0, 5)
         );
     }
 
