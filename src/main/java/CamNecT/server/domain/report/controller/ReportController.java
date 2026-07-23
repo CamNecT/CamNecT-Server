@@ -139,7 +139,7 @@ public class ReportController {
     /**
      * 관리자가 신고 목록을 조회하는 메서드
      * GET /api/v1/reports/admin
-     * 쿼리 파라미터: type (COMMUNITY, ACTIVITY, USER, CHAT), status (RECEIVED, RESOLVED, REJECTED)
+     * 쿼리 파라미터: type (COMMUNITY, COMMUNITY_COMMENT, ACTIVITY, ACTIVITY_RECRUITMENT, USER, CHAT), status (RECEIVED, RESOLVED, REJECTED)
      */
     @Operation(
             summary = "신고 목록 조회 (관리자)",
