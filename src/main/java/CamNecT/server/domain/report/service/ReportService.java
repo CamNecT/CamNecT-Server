@@ -1,5 +1,9 @@
 package CamNecT.server.domain.report.service;
 
+import CamNecT.server.domain.activity.service.ActivityService;
+import CamNecT.server.domain.activity.service.RecruitmentService;
+import CamNecT.server.domain.community.service.CommentService;
+import CamNecT.server.domain.community.service.PostService;
 import CamNecT.server.domain.report.dto.request.ReportCreateRequest;
 import CamNecT.server.domain.report.dto.response.ReportResponse;
 import CamNecT.server.domain.report.model.*;
@@ -29,6 +33,10 @@ public class ReportService {
     private final UserRepository userRepository;
     private final PublicUrlIssuer publicUrlIssuer;
     private final ReportAttachmentService reportAttachmentService;
+    private final PostService postService;
+    private final CommentService commentService;
+    private final ActivityService activityService;
+    private final RecruitmentService recruitmentService;
 
     // 관리자 검증 공통 메서드
     private void validateAdmin(Long userId) {
@@ -106,6 +114,46 @@ public class ReportService {
 
         if (newStatus == ReportStatus.RESOLVED) {
             applyPenalty(report);
+            deleteReportedContent(userId, report);
+        }
+    }
+
+    /**
+     * 신고된 게시글 삭제
+     */
+    @Transactional
+    protected void deleteReportedContent(Long adminId, Report report) {
+        if (report.getReportedPostId() == null || report.getPostType() == null) {
+            return;
+        }
+
+        Long postId = report.getReportedPostId();
+        TargetType targetType = report.getPostType();
+
+        try {
+            switch (targetType) {
+                case COMMUNITY:
+                    postService.delete(adminId, postId);
+                    break;
+                case COMMUNITY_COMMENT:
+                    commentService.delete(adminId, postId);
+                    break;
+                case ACTIVITY:
+                    activityService.delete(postId, adminId);
+                    break;
+                case ACTIVITY_RECRUITMENT:
+                    recruitmentService.deleteRecruitment(adminId, postId);
+                    break;
+                case USER:
+                    // 사용자 계정 삭제는 신고 처리의 일부가 아님 (별도 처리)
+                    break;
+                case CHAT:
+                    // 채팅방 삭제는 신고 처리의 일부가 아님 (별도 처리)
+                    break;
+            }
+        } catch (Exception e) {
+            // 게시글 삭제 실패해도 신고 처리는 계속 진행
+            // (이미 사용자에게 패널티는 적용됨)
         }
     }
 
