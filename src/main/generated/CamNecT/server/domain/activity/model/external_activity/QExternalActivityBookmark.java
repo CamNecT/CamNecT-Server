@@ -50,7 +50,7 @@ public class QExternalActivityBookmark extends EntityPathBase<ExternalActivityBo
     public QExternalActivityBookmark(Class<? extends ExternalActivityBookmark> type, PathMetadata metadata, PathInits inits) {
         super(type, metadata, inits);
         this.activity = inits.isInitialized("activity") ? new QExternalActivity(forProperty("activity"), inits.get("activity")) : null;
-        this.user = inits.isInitialized("user") ? new CamNecT.server.domain.users.model.QUsers(forProperty("user")) : null;
+        this.user = inits.isInitialized("user") ? new CamNecT.server.domain.users.model.QUsers(forProperty("user"), inits.get("user")) : null;
     }
 
 }

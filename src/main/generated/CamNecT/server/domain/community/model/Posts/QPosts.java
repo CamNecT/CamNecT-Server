@@ -69,7 +69,7 @@ public class QPosts extends EntityPathBase<Posts> {
         super(type, metadata, inits);
         this.board = inits.isInitialized("board") ? new CamNecT.server.domain.community.model.QBoards(forProperty("board")) : null;
         this.stats = inits.isInitialized("stats") ? new QPostStats(forProperty("stats"), inits.get("stats")) : null;
-        this.user = inits.isInitialized("user") ? new CamNecT.server.domain.users.model.QUsers(forProperty("user")) : null;
+        this.user = inits.isInitialized("user") ? new CamNecT.server.domain.users.model.QUsers(forProperty("user"), inits.get("user")) : null;
     }
 
 }

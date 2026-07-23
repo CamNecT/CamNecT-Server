@@ -63,8 +63,8 @@ public class QChatRequest extends EntityPathBase<ChatRequest> {
 
     public QChatRequest(Class<? extends ChatRequest> type, PathMetadata metadata, PathInits inits) {
         super(type, metadata, inits);
-        this.receiver = inits.isInitialized("receiver") ? new CamNecT.server.domain.users.model.QUsers(forProperty("receiver")) : null;
-        this.requester = inits.isInitialized("requester") ? new CamNecT.server.domain.users.model.QUsers(forProperty("requester")) : null;
+        this.receiver = inits.isInitialized("receiver") ? new CamNecT.server.domain.users.model.QUsers(forProperty("receiver"), inits.get("receiver")) : null;
+        this.requester = inits.isInitialized("requester") ? new CamNecT.server.domain.users.model.QUsers(forProperty("requester"), inits.get("requester")) : null;
     }
 
 }

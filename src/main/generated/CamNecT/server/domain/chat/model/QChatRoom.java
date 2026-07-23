@@ -63,9 +63,9 @@ public class QChatRoom extends EntityPathBase<ChatRoom> {
 
     public QChatRoom(Class<? extends ChatRoom> type, PathMetadata metadata, PathInits inits) {
         super(type, metadata, inits);
-        this.receiver = inits.isInitialized("receiver") ? new CamNecT.server.domain.users.model.QUsers(forProperty("receiver")) : null;
+        this.receiver = inits.isInitialized("receiver") ? new CamNecT.server.domain.users.model.QUsers(forProperty("receiver"), inits.get("receiver")) : null;
         this.request = inits.isInitialized("request") ? new QChatRequest(forProperty("request"), inits.get("request")) : null;
-        this.requester = inits.isInitialized("requester") ? new CamNecT.server.domain.users.model.QUsers(forProperty("requester")) : null;
+        this.requester = inits.isInitialized("requester") ? new CamNecT.server.domain.users.model.QUsers(forProperty("requester"), inits.get("requester")) : null;
     }
 
 }

@@ -51,20 +51,8 @@ public class Users {
     @Column(name = "verification_complete_pending", nullable = false)
     private boolean verificationCompletePending = false;
 
-    @Builder.Default
-    @Column(name = "report_count", nullable = false)
-    private int reportCount = 0;
-
-    @Column(name = "suspension_end_date")
-    private LocalDateTime suspensionEndDate; // 정지 종료 날짜
-
-    @Builder.Default
-    @Column(name = "is_permanently_banned", nullable = false)
-    private boolean isPermanentlyBanned = false;
-
-    @Column(name = "ban_reason")
-    private String banReason; // 차단 사유
-
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private UserSuspensionRecord suspensionRecord;
 
     @CreationTimestamp // 생성 시 자동으로 시간 입력
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -88,26 +76,33 @@ public class Users {
 
     public void changePasswordHash(String encoded) { this.passwordHash = encoded; }
 
+    // 신고 관련 메서드들 (SuspensionRecord에 위임)
     public void incrementReportCount() {
-        this.reportCount++;
+        this.suspensionRecord.incrementReportCount();
     }
 
     public void applySuspension(LocalDateTime endDate) {
-        this.suspensionEndDate = endDate;
+        this.suspensionRecord.applySuspension(endDate);
     }
 
     public void applyPermanentBan(String reason) {
-        this.isPermanentlyBanned = true;
-        this.banReason = reason;
+        this.suspensionRecord.applyPermanentBan(reason);
     }
 
     public boolean isSuspended() {
-        if (suspensionEndDate == null) return false;
-        return LocalDateTime.now().isBefore(suspensionEndDate);
+        return suspensionRecord.isSuspended();
     }
 
     public void clearSuspension() {
-        this.suspensionEndDate = null;
+        suspensionRecord.clearSuspension();
+    }
+
+    public int getReportCount() {
+        return suspensionRecord.getReportCount();
+    }
+
+    public boolean isPermanentlyBanned() {
+        return suspensionRecord.isPermanentlyBanned();
     }
 
     //회원 탈퇴

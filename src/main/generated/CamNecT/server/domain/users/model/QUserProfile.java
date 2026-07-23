@@ -27,6 +27,8 @@ public class QUserProfile extends EntityPathBase<UserProfile> {
 
     public final StringPath bio = createString("bio");
 
+    public final BooleanPath initialSetupCompleted = createBoolean("initialSetupCompleted");
+
     public final NumberPath<Long> institutionId = createNumber("institutionId", Long.class);
 
     public final BooleanPath isCertificateVisible = createBoolean("isCertificateVisible");
@@ -72,7 +74,7 @@ public class QUserProfile extends EntityPathBase<UserProfile> {
     public QUserProfile(Class<? extends UserProfile> type, PathMetadata metadata, PathInits inits) {
         super(type, metadata, inits);
         this.major = inits.isInitialized("major") ? new CamNecT.server.domain.profile.components.majors.model.QMajors(forProperty("major"), inits.get("major")) : null;
-        this.user = inits.isInitialized("user") ? new QUsers(forProperty("user")) : null;
+        this.user = inits.isInitialized("user") ? new QUsers(forProperty("user"), inits.get("user")) : null;
     }
 
 }

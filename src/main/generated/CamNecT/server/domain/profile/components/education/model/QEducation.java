@@ -63,7 +63,7 @@ public class QEducation extends EntityPathBase<Education> {
         super(type, metadata, inits);
         this.institution = inits.isInitialized("institution") ? new CamNecT.server.domain.profile.components.institutions.model.QInstitutions(forProperty("institution")) : null;
         this.major = inits.isInitialized("major") ? new CamNecT.server.domain.profile.components.majors.model.QMajors(forProperty("major"), inits.get("major")) : null;
-        this.user = inits.isInitialized("user") ? new CamNecT.server.domain.users.model.QUsers(forProperty("user")) : null;
+        this.user = inits.isInitialized("user") ? new CamNecT.server.domain.users.model.QUsers(forProperty("user"), inits.get("user")) : null;
     }
 
 }

@@ -129,33 +129,37 @@ public class ReportService {
             return;
         }
 
-        // 신고 누적 횟수 증가
+        // 신고 누적 횟수 증가 및 패널티 결정
         reportedUser.incrementReportCount();
         int reportCount = reportedUser.getReportCount();
 
-        PenaltyType penaltyType;
-
-        if (reportCount == 1) {
-            // 1회: 경고 알림만 발송
-            penaltyType = PenaltyType.WARNING;
-            // TODO: 경고 알림 발송 로직
-        } else if (reportCount == 2) {
-            // 2회: 7일 정지
-            penaltyType = PenaltyType.SUSPENDED_7_DAYS;
-            LocalDateTime suspensionEndDate = LocalDateTime.now().plusDays(7);
-            reportedUser.applySuspension(suspensionEndDate);
-            // TODO: 7일 정지 알림 발송 로직
-        } else if (reportCount >= 3) {
-            // 3회 이상: 영구 차단
-            penaltyType = PenaltyType.PERMANENT_BAN;
-            reportedUser.applyPermanentBan("신고 누적 3회로 인한 영구 차단");
-            // TODO: 영구 차단 알림 발송 로직
-        } else {
-            penaltyType = PenaltyType.WARNING;
-        }
+        PenaltyType penaltyType = determinePenalty(reportCount, reportedUser);
 
         report.applyPenalty(penaltyType);
         userRepository.save(reportedUser);
+    }
+
+    /**
+     * 신고 누적 횟수에 따른 패널티 결정 및 적용
+     */
+    private PenaltyType determinePenalty(int reportCount, Users reportedUser) {
+        if (reportCount == 1) {
+            // 1회: 경고 알림만 발송
+            return PenaltyType.WARNING;
+            // TODO: 경고 알림 발송 로직
+        } else if (reportCount == 2) {
+            // 2회: 7일 정지
+            LocalDateTime suspensionEndDate = LocalDateTime.now().plusDays(7);
+            reportedUser.applySuspension(suspensionEndDate);
+            // TODO: 7일 정지 알림 발송 로직
+            return PenaltyType.SUSPENDED_7_DAYS;
+        } else if (reportCount >= 3) {
+            // 3회 이상: 영구 차단
+            reportedUser.applyPermanentBan("신고 누적 3회로 인한 영구 차단");
+            // TODO: 영구 차단 알림 발송 로직
+            return PenaltyType.PERMANENT_BAN;
+        }
+        return PenaltyType.WARNING;
     }
 
     /**

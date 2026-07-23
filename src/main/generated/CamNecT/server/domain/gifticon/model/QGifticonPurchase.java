@@ -83,7 +83,7 @@ public class QGifticonPurchase extends EntityPathBase<GifticonPurchase> {
         super(type, metadata, inits);
         this.exportBatch = inits.isInitialized("exportBatch") ? new QGifticonExportBatch(forProperty("exportBatch")) : null;
         this.product = inits.isInitialized("product") ? new QGifticonProduct(forProperty("product")) : null;
-        this.user = inits.isInitialized("user") ? new CamNecT.server.domain.users.model.QUsers(forProperty("user")) : null;
+        this.user = inits.isInitialized("user") ? new CamNecT.server.domain.users.model.QUsers(forProperty("user"), inits.get("user")) : null;
     }
 
 }

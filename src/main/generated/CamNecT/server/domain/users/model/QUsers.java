@@ -9,6 +9,7 @@ import com.querydsl.core.types.dsl.StringTemplate;
 import com.querydsl.core.types.PathMetadata;
 import javax.annotation.processing.Generated;
 import com.querydsl.core.types.Path;
+import com.querydsl.core.types.dsl.PathInits;
 
 
 /**
@@ -20,17 +21,13 @@ public class QUsers extends EntityPathBase<Users> {
 
     private static final long serialVersionUID = 2012922951L;
 
-    public static final QUsers users = new QUsers("users");
+    private static final PathInits INITS = PathInits.DIRECT2;
 
-    public final StringPath banReason = createString("banReason");
+    public static final QUsers users = new QUsers("users");
 
     public final DateTimePath<java.time.LocalDateTime> createdAt = createDateTime("createdAt", java.time.LocalDateTime.class);
 
     public final StringPath email = createString("email");
-
-    public final BooleanPath emailVerified = createBoolean("emailVerified");
-
-    public final BooleanPath isPermanentlyBanned = createBoolean("isPermanentlyBanned");
 
     public final StringPath name = createString("name");
 
@@ -38,17 +35,11 @@ public class QUsers extends EntityPathBase<Users> {
 
     public final StringPath phoneNum = createString("phoneNum");
 
-    public final NumberPath<Integer> reportCount = createNumber("reportCount", Integer.class);
-
     public final EnumPath<UserRole> role = createEnum("role", UserRole.class);
 
     public final EnumPath<UserStatus> status = createEnum("status", UserStatus.class);
 
-    public final DateTimePath<java.time.LocalDateTime> suspensionEndDate = createDateTime("suspensionEndDate", java.time.LocalDateTime.class);
-
-    public final BooleanPath termsPrivacyAgreed = createBoolean("termsPrivacyAgreed");
-
-    public final BooleanPath termsServiceAgreed = createBoolean("termsServiceAgreed");
+    public final QUserSuspensionRecord suspensionRecord;
 
     public final DateTimePath<java.time.LocalDateTime> updatedAt = createDateTime("updatedAt", java.time.LocalDateTime.class);
 
@@ -59,15 +50,24 @@ public class QUsers extends EntityPathBase<Users> {
     public final BooleanPath verificationCompletePending = createBoolean("verificationCompletePending");
 
     public QUsers(String variable) {
-        super(Users.class, forVariable(variable));
+        this(Users.class, forVariable(variable), INITS);
     }
 
     public QUsers(Path<? extends Users> path) {
-        super(path.getType(), path.getMetadata());
+        this(path.getType(), path.getMetadata(), PathInits.getFor(path.getMetadata(), INITS));
     }
 
     public QUsers(PathMetadata metadata) {
-        super(Users.class, metadata);
+        this(metadata, PathInits.getFor(metadata, INITS));
+    }
+
+    public QUsers(PathMetadata metadata, PathInits inits) {
+        this(Users.class, metadata, inits);
+    }
+
+    public QUsers(Class<? extends Users> type, PathMetadata metadata, PathInits inits) {
+        super(type, metadata, inits);
+        this.suspensionRecord = inits.isInitialized("suspensionRecord") ? new QUserSuspensionRecord(forProperty("suspensionRecord"), inits.get("suspensionRecord")) : null;
     }
 
 }
