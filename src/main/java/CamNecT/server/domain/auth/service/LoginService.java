@@ -10,6 +10,7 @@ import CamNecT.server.domain.profile.components.education.repository.EducationRe
 import CamNecT.server.domain.profile.components.experience.repository.ExperienceRepository;
 import CamNecT.server.domain.profile.components.institutions.repository.InstitutionRepository;
 import CamNecT.server.domain.profile.components.majors.repository.MajorRepository;
+import CamNecT.server.domain.report.service.ReportService;
 import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.model.UserRole;
 import CamNecT.server.domain.users.model.UserStatus;
@@ -43,6 +44,7 @@ public class LoginService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final JwtFacade jwtFacade;
+    private final ReportService reportService;
     private final DocumentVerificationSubmissionRepository submissionRepo;
     private final UserProfileRepository userProfileRepository;
     private final InstitutionRepository institutionRepository;
@@ -63,9 +65,14 @@ public class LoginService {
             throw new CustomException(AuthErrorCode.INVALID_CREDENTIALS);
         }
 
-        if (user.getStatus() == UserStatus.SUSPENDED) {
+        // 만료된 정지 자동 해제
+        reportService.clearExpiredSuspension(user.getUserId());
+        
+        // 정지 상태 검사 (영구 차단 OR 임시 정지 활성)
+        if (user.isSuspended()) {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }
+
         if (user.getStatus() == UserStatus.WITHDRAWN) {
             throw new CustomException(AuthErrorCode.USER_WITHDRAWN);
         }

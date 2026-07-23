@@ -9,6 +9,7 @@ import CamNecT.server.domain.report.dto.response.ReportResponse;
 import CamNecT.server.domain.report.model.*;
 import CamNecT.server.domain.report.repository.ReportRepository;
 import CamNecT.server.domain.users.model.UserRole;
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
@@ -155,6 +156,32 @@ public class ReportService {
             // 게시글 삭제 실패해도 신고 처리는 계속 진행
             // (이미 사용자에게 패널티는 적용됨)
         }
+    }
+
+    /**
+     * 만료된 정지 자동 해제
+     * - 임시 정지(7일) 기간이 끝났으면 사용자 상태 복구
+     * - 영구 차단은 유지
+     */
+    @Transactional
+    public void clearExpiredSuspension(Long userId) {
+        Users user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+
+        // 정지 상태가 아니면 처리할 것 없음
+        if (!user.isSuspended()) {
+            return;
+        }
+
+        // 영구 차단이면 유지 (해제 불가)
+        if (user.isPermanentlyBanned()) {
+            return;
+        }
+
+        // 임시 정지 기간이 만료됨 → 상태 복구
+        user.clearSuspension();
+        user.changeStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
     }
 
     /**
