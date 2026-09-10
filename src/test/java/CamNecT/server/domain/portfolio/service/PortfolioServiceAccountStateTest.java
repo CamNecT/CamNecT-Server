@@ -152,6 +152,7 @@ class PortfolioServiceAccountStateTest {
     private static PortfolioRequest createRequest() {
         return new PortfolioRequest(
                 "portfolio",
+                "subtitle",
                 "description",
                 LocalDate.of(2026, 8, 1),
                 null,
@@ -166,6 +167,7 @@ class PortfolioServiceAccountStateTest {
     private static PortfolioRequest updateRequest() {
         return new PortfolioRequest(
                 "updated portfolio",
+                "subtitle",
                 "description",
                 LocalDate.of(2026, 8, 1),
                 null,

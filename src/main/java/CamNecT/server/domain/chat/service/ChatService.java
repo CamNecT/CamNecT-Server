@@ -232,7 +232,7 @@ public class ChatService {
 
         String majorName = "전공 미입력";
         String studentNo = "학번 미입력";
-        String profileImgUrl = "/images/default.png";
+        String profileImgUrl = resolveRequestProfileImageUrl(request.getType(), opProfile, opponent);
         if (opProfile != null) {
             if (opProfile.getMajorId() != null) {
                 majorName = majorRepository.findById(opProfile.getMajorId())
@@ -240,7 +240,6 @@ public class ChatService {
                         .orElse("알 수 없는 전공");
             }
             studentNo = opProfile.getStudentNo();
-            profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
         }
 
         List<String> opTagNames = userTagMapRepository.findAllTagsByUserId(opponent.getUserId())
@@ -292,10 +291,11 @@ public class ChatService {
                         majorName = g.majorName();
                     }
 
-                    String profileImgUrl = "/images/default.png";
-                    if (g != null && StringUtils.hasText(g.profileImageKey())) {
-                        profileImgUrl = publicUrlIssuer.issuePublicUrl(g.profileImageKey());
-                    }
+                    String profileImgUrl = resolveRequestProfileImageUrl(
+                            request.getType(),
+                            g == null ? null : g.profileImageKey(),
+                            request.getRequester()
+                    );
 
                     String title = resolveRequestTitle(request, recruitmentTitleMap);
 
@@ -355,10 +355,8 @@ public class ChatService {
                         .map(Majors::getMajorNameKor)
                         .orElse("알 수 없는 전공");
             }
-            if (StringUtils.hasText(opProfile.getProfileImageKey())) {
-                profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
-            }
         }
+        profileImgUrl = resolveProfileImageUrl(opProfile, opponent, false);
 
         List<String> tagNames = userTagMapRepository.findAllTagsByUserId(opponent.getUserId())
                 .stream()
@@ -400,7 +398,7 @@ public class ChatService {
                 .distinct()
                 .toList();
 
-        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdIn(opponentIds)
+        Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdInWithUser(opponentIds)
                 .stream()
                 .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
 
@@ -425,7 +423,7 @@ public class ChatService {
 
                     String majorName = "전공 미입력";
                     String studentNo = "";
-                    String profileImgUrl = "/images/default.png";
+                    String profileImgUrl = resolveProfileImageUrl(opProfile, opProfile != null ? opProfile.getUser() : null, true);
 
                     if (opProfile != null) {
                         studentNo = (opProfile.getStudentNo() != null) ? opProfile.getStudentNo() : "미입력";
@@ -434,7 +432,6 @@ public class ChatService {
                                     .map(Majors::getMajorNameKor)
                                     .orElse("알 수 없는 전공");
                         }
-                        profileImgUrl = publicUrlIssuer.issuePublicUrl(opProfile.getProfileImageKey());
 
                     }
 
@@ -672,9 +669,7 @@ public class ChatService {
                     UserProfile profile = profileMap.get(senderId);
                     if (profile == null || profile.getUser() == null) return null;
 
-                    String profileImageUrl = StringUtils.hasText(profile.getProfileImageKey())
-                            ? publicUrlIssuer.issuePublicUrl(profile.getProfileImageKey())
-                            : null;
+                    String profileImageUrl = resolveProfileImageUrl(profile, profile.getUser(), false);
 
                     return new HomeResponse.RecruitmentSection.RecruitmentPreview(
                             senderId,
@@ -709,6 +704,64 @@ public class ChatService {
         private static HomeRequestInbox empty() {
             return new HomeRequestInbox(0, List.of());
         }
+    }
+
+    private String resolveRequestProfileImageUrl(ChatRequest.RequestType requestType, UserProfile profile, Users user) {
+        if (user != null && user.getStatus() == UserStatus.WITHDRAWN) {
+            return null;
+        }
+        if (requestType == ChatRequest.RequestType.COFFEE_CHAT) {
+            return null;
+        }
+        if (profile != null && StringUtils.hasText(profile.getProfileImageKey())) {
+            String issuedUrl = publicUrlIssuer.issuePublicUrl(profile.getProfileImageKey());
+            if (StringUtils.hasText(issuedUrl)) {
+                return issuedUrl;
+            }
+        }
+        return null;
+    }
+
+    private String resolveRequestProfileImageUrl(ChatRequest.RequestType requestType, String profileImageKey, Users user) {
+        if (user != null && user.getStatus() == UserStatus.WITHDRAWN) {
+            return null;
+        }
+        if (requestType == ChatRequest.RequestType.COFFEE_CHAT) {
+            return null;
+        }
+        if (StringUtils.hasText(profileImageKey)) {
+            String issuedUrl = publicUrlIssuer.issuePublicUrl(profileImageKey);
+            if (StringUtils.hasText(issuedUrl)) {
+                return issuedUrl;
+            }
+        }
+        return null;
+    }
+
+    private String resolveProfileImageUrl(UserProfile profile, Users user, boolean fallbackToDefault) {
+        if (user != null && user.getStatus() == UserStatus.WITHDRAWN) {
+            return null;
+        }
+        if (profile != null && StringUtils.hasText(profile.getProfileImageKey())) {
+            String issuedUrl = publicUrlIssuer.issuePublicUrl(profile.getProfileImageKey());
+            if (StringUtils.hasText(issuedUrl)) {
+                return issuedUrl;
+            }
+        }
+        return null;
+    }
+
+    private String resolveProfileImageUrl(String profileImageKey, Users user, boolean fallbackToDefault) {
+        if (user != null && user.getStatus() == UserStatus.WITHDRAWN) {
+            return null;
+        }
+        if (StringUtils.hasText(profileImageKey)) {
+            String issuedUrl = publicUrlIssuer.issuePublicUrl(profileImageKey);
+            if (StringUtils.hasText(issuedUrl)) {
+                return issuedUrl;
+            }
+        }
+        return null;
     }
 
     @Transactional

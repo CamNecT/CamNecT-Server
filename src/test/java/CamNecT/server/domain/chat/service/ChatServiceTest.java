@@ -11,10 +11,12 @@ import CamNecT.server.domain.chat.event.ChatRoomClosedCommittedEvent;
 import CamNecT.server.domain.chat.model.Chat;
 import CamNecT.server.domain.chat.model.ChatRequest;
 import CamNecT.server.domain.chat.model.ChatRoom;
+import CamNecT.server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.server.domain.chat.repository.ChatRepository;
 import CamNecT.server.domain.chat.repository.ChatRequestRepository;
 import CamNecT.server.domain.chat.repository.ChatRoomRepository;
 import CamNecT.server.domain.profile.components.majors.repository.MajorRepository;
+import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
@@ -212,8 +214,8 @@ class ChatServiceTest {
                 ChatRequest.RequestStatus.WAITING
         )).thenReturn(List.of(request));
         when(request.getId()).thenReturn(20L);
-        when(request.getRequester()).thenReturn(requester);
         when(request.getReceiver()).thenReturn(receiver);
+        when(request.getRequester()).thenReturn(requester);
         when(request.getType()).thenReturn(ChatRequest.RequestType.TEAM_RECRUIT);
         when(request.getRecruitmentId()).thenReturn(30L);
         when(request.getActivityId()).thenReturn(10L);
@@ -273,6 +275,68 @@ class ChatServiceTest {
 
         assertThat(result.getRecruitmentTitle()).isEqualTo("삭제된 모집 공고입니다.");
         assertThat(result.getRecruitmentId()).isEqualTo(30L);
+    }
+
+    @Test
+    void coffeeChatRequestDetailReturnsNullProfileImage() {
+        Users receiver = activeUser(1L, "receiver");
+        Users requester = activeUser(2L, "requester");
+        ChatRequest request = mock(ChatRequest.class);
+        UserProfile profile = UserProfile.builder()
+                .userId(2L)
+                .profileImageKey("profile.png")
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(receiver));
+        when(chatRequestRepository.findById(20L)).thenReturn(Optional.of(request));
+        when(request.getReceiver()).thenReturn(receiver);
+        when(request.getRequester()).thenReturn(requester);
+        when(request.getType()).thenReturn(ChatRequest.RequestType.COFFEE_CHAT);
+        when(request.getContent()).thenReturn("안녕하세요.");
+        when(request.getCreatedAt()).thenReturn(java.time.LocalDateTime.of(2026, 8, 25, 12, 0));
+        when(request.getRequestInterests()).thenReturn(List.of());
+        when(userProfileRepository.findByUserId(2L)).thenReturn(Optional.of(profile));
+        when(userTagMapRepository.findAllTagsByUserId(2L)).thenReturn(List.of());
+
+        ChatRequestDetailDto detail = chatService.getChatRequestDetail(20L, 1L);
+
+        assertThat(detail.opponentProfileImg()).isNull();
+        verifyNoInteractions(publicUrlIssuer);
+    }
+
+    @Test
+    void withdrawnRequesterInTeamRecruitRequestListReturnsNullProfileImage() {
+        Users receiver = activeUser(1L, "receiver");
+        Users requester = Users.builder().userId(2L).name("withdrawn").status(UserStatus.WITHDRAWN).build();
+        ChatRequest request = mock(ChatRequest.class);
+        ProfileGlobalDto global = new ProfileGlobalDto(2L, "withdrawn", "컴퓨터공학과", "20210101", "profile.png");
+        UserProfile profile = UserProfile.builder()
+                .userId(2L)
+                .profileImageKey("profile.png")
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(receiver));
+        when(chatRequestRepository.findRequestsWithRequester(
+                1L,
+                ChatRequest.RequestType.TEAM_RECRUIT,
+                ChatRequest.RequestStatus.WAITING
+        )).thenReturn(List.of(request));
+        when(request.getId()).thenReturn(20L);
+        when(request.getRequester()).thenReturn(requester);
+        when(request.getType()).thenReturn(ChatRequest.RequestType.TEAM_RECRUIT);
+        when(request.getRecruitmentId()).thenReturn(30L);
+        when(request.getActivityId()).thenReturn(10L);
+        when(request.getContent()).thenReturn("지원합니다.");
+        when(request.getCreatedAt()).thenReturn(java.time.LocalDateTime.of(2026, 8, 25, 12, 0));
+        when(recruitmentRepository.findAllById(Set.of(30L))).thenReturn(List.of());
+        when(userProfileRepository.findGlobalsByUserIdIn(List.of(2L))).thenReturn(List.of(global));
+        when(userProfileRepository.findAllByUserIdIn(List.of(2L))).thenReturn(List.of(profile));
+
+        ChatRequestListResponseDto list = chatService.getChatRequestList(1L, ChatRequest.RequestType.TEAM_RECRUIT);
+
+        assertThat(list.chatRequestList()).hasSize(1);
+        assertThat(list.chatRequestList().getFirst().opponentProfileImg()).isNull();
+        verifyNoInteractions(publicUrlIssuer);
     }
 
     @Test

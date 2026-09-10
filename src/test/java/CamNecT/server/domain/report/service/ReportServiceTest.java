@@ -122,7 +122,7 @@ class ReportServiceTest {
         order.verify(userRepository).lockUserRow(2L);
         order.verify(reportTargetResolver).resolveForCreateLocked(1L, request);
         order.verify(userRepository).findById(2L);
-        order.verify(reportCaseRepository).findByTargetKey("COMMUNITY:100");
+        order.verify(reportCaseRepository).findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED);
         verify(reportRepository, never()).saveAndFlush(any());
     }
 
@@ -151,7 +151,7 @@ class ReportServiceTest {
         order.verify(userRepository).lockUserRow(2L);
         order.verify(accountAccessGuard).requireAccessibleForUpdate(3L);
         order.verify(userRepository).findById(2L);
-        order.verify(reportCaseRepository).findByTargetKey("COMMUNITY:100");
+        order.verify(reportCaseRepository).findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED);
         verify(reportCaseRepository, never()).saveAndFlush(any());
     }
 
@@ -198,7 +198,8 @@ class ReportServiceTest {
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, actualAuthor));
         when(userRepository.findById(2L)).thenReturn(Optional.of(actualAuthor));
-        when(reportCaseRepository.findByTargetKey("COMMUNITY:100")).thenReturn(Optional.of(forgedCase));
+        when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
+                .thenReturn(Optional.of(forgedCase));
 
         CustomException exception = assertThrows(
                 CustomException.class,
@@ -224,7 +225,8 @@ class ReportServiceTest {
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
         when(userRepository.findById(2L)).thenReturn(Optional.of(author));
-        when(reportCaseRepository.findByTargetKey("COMMUNITY:100")).thenReturn(Optional.of(reportCase));
+        when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
+                .thenReturn(Optional.of(reportCase));
 
         CustomException exception = assertThrows(
                 CustomException.class,
@@ -248,7 +250,8 @@ class ReportServiceTest {
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
         when(userRepository.findById(2L)).thenReturn(Optional.of(author));
-        when(reportCaseRepository.findByTargetKey("COMMUNITY:100")).thenReturn(Optional.of(reportCase));
+        when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
+                .thenReturn(Optional.of(reportCase));
         when(reportRepository.saveAndFlush(any(Report.class)))
                 .thenThrow(new DataIntegrityViolationException("duplicate", constraintFailure));
 
@@ -270,7 +273,8 @@ class ReportServiceTest {
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
         when(userRepository.findById(2L)).thenReturn(Optional.of(author));
-        when(reportCaseRepository.findByTargetKey("COMMUNITY:100")).thenReturn(Optional.of(reportCase));
+        when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
+                .thenReturn(Optional.of(reportCase));
         when(reportRepository.saveAndFlush(any(Report.class))).thenThrow(failure);
 
         DataIntegrityViolationException exception = assertThrows(

@@ -2,6 +2,7 @@ package CamNecT.server.domain.profile.service;
 
 import CamNecT.server.domain.portfolio.dto.response.PortfolioPreviewResponse;
 import CamNecT.server.domain.portfolio.repository.PortfolioRepository;
+import CamNecT.server.domain.chat.repository.ChatRoomRepository;
 import CamNecT.server.domain.profile.components.certificate.repository.CertificateRepository;
 import CamNecT.server.domain.profile.components.education.repository.EducationRepository;
 import CamNecT.server.domain.profile.components.experience.repository.ExperienceRepository;
@@ -61,6 +62,7 @@ class ProfilePortfolioPreviewTest {
                 mock(ExperienceRepository.class),
                 userProfileRepository,
                 mock(UserFollowRepository.class),
+                mock(ChatRoomRepository.class),
                 portfolioRepository,
                 mock(UserTagMapRepository.class),
                 mock(EducationRepository.class),
@@ -136,6 +138,7 @@ class ProfilePortfolioPreviewTest {
         return new PortfolioPreviewResponse(
                 id,
                 "portfolio-" + id,
+                "subtitle-" + id,
                 thumbnail,
                 isPublic,
                 false,

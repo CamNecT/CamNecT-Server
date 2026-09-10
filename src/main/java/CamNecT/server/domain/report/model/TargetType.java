@@ -8,4 +8,3 @@ public enum TargetType {
     USER,           // 유저 프로필
     CHAT            // 1:1 채팅방
 }
-
