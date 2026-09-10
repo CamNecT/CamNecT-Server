@@ -1,9 +1,12 @@
 package CamNecT.server.domain.community.service;
 
+import CamNecT.server.domain.community.model.Posts.Posts;
 import CamNecT.server.domain.community.model.enums.BoardCode;
 import CamNecT.server.domain.community.model.enums.PostAccessType;
 import CamNecT.server.domain.community.model.enums.PostStatus;
 import CamNecT.server.domain.community.repository.Posts.PostsRepository;
+import CamNecT.server.domain.users.model.UserRole;
+import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.CommunityErrorCode;
 import org.junit.jupiter.api.Test;
@@ -26,6 +29,7 @@ import static org.mockito.Mockito.*;
 class PostQueryServiceImplTest {
 
     @Mock PostsRepository postsRepository;
+    @Mock UserRepository userRepository;
     @Mock PostSummaryAssembler postSummaryAssembler;
 
     @InjectMocks PostQueryServiceImpl service;
@@ -64,8 +68,8 @@ class PostQueryServiceImplTest {
     @Test
     void recommendedAcceptsCompleteCursorPair() {
         when(postsRepository.findFeedRecommended(
-                eq(PostStatus.PUBLISHED), isNull(), isNull(), isNull(),
-                eq(1L), eq(PostAccessType.POINT_REQUIRED), eq(BoardCode.QUESTION),
+                eq(PostStatus.PUBLISHED), isNull(), eq(List.of(-1L)), eq(false), isNull(),
+                eq(1L), eq(false), eq(PostAccessType.POINT_REQUIRED), eq(BoardCode.QUESTION),
                 eq(3L), eq(10L), any(Pageable.class)
         )).thenReturn(new SliceImpl<>(List.of()));
 
@@ -78,8 +82,8 @@ class PostQueryServiceImplTest {
     @Test
     void searchEscapesLikeWildcardsBeforeRepositoryCall() {
         when(postsRepository.findFeedLatestWithFilter(
-                eq(PostStatus.PUBLISHED), eq(BoardCode.INFO), isNull(), anyString(),
-                eq(1L), eq(PostAccessType.POINT_REQUIRED), eq(BoardCode.QUESTION),
+                eq(PostStatus.PUBLISHED), eq(BoardCode.INFO), eq(List.of(-1L)), eq(false), anyString(),
+                eq(1L), eq(false), eq(PostAccessType.POINT_REQUIRED), eq(BoardCode.QUESTION),
                 isNull(), any(Pageable.class)
         )).thenReturn(new SliceImpl<>(List.of()));
 
@@ -89,9 +93,64 @@ class PostQueryServiceImplTest {
         );
 
         verify(postsRepository).findFeedLatestWithFilter(
-                eq(PostStatus.PUBLISHED), eq(BoardCode.INFO), isNull(), eq("!%!_!!"),
-                eq(1L), eq(PostAccessType.POINT_REQUIRED), eq(BoardCode.QUESTION),
+                eq(PostStatus.PUBLISHED), eq(BoardCode.INFO), eq(List.of(-1L)), eq(false), eq("!%!_!!"),
+                eq(1L), eq(false), eq(PostAccessType.POINT_REQUIRED), eq(BoardCode.QUESTION),
                 isNull(), any(Pageable.class)
         );
+    }
+
+    @Test
+    void administratorRoleIsPassedToSearchAndSummaryAssembly() {
+        Posts post = mock(Posts.class);
+        List<Posts> posts = List.of(post);
+        when(userRepository.existsByUserIdAndRole(99L, UserRole.ADMIN)).thenReturn(true);
+        when(postsRepository.findFeedLatestWithFilter(
+                eq(PostStatus.PUBLISHED), isNull(), eq(List.of(-1L)), eq(false), eq("audit"),
+                eq(99L), eq(true), eq(PostAccessType.POINT_REQUIRED), eq(BoardCode.QUESTION),
+                isNull(), any(Pageable.class)
+        )).thenReturn(new SliceImpl<>(posts));
+        when(postSummaryAssembler.assemble(99L, true, posts)).thenReturn(
+                new PostSummaryAssembler.AssembleResult(
+                        List.of(), new PostSummaryAssembler.CursorStats(0L, 0L, 0L)
+                )
+        );
+
+        service.getPosts(
+                99L, PostQueryService.Tab.ALL, PostQueryService.Sort.LATEST,
+                null, "audit", null, null, 20
+        );
+
+        verify(postSummaryAssembler).assemble(99L, true, posts);
+    }
+
+    @Test
+    void multipleTagsAreDeduplicatedAndPassedAsAnyMatchFilter() {
+        when(postsRepository.findFeedLatestWithFilter(
+                eq(PostStatus.PUBLISHED), isNull(), eq(List.of(10L, 20L, 30L)), eq(true), isNull(),
+                eq(1L), eq(false), eq(PostAccessType.POINT_REQUIRED), eq(BoardCode.QUESTION),
+                isNull(), any(Pageable.class)
+        )).thenReturn(new SliceImpl<>(List.of()));
+
+        service.getPosts(
+                1L, PostQueryService.Tab.ALL, PostQueryService.Sort.LATEST,
+                List.of(10L, 20L, 10L, 30L), null, null, null, 20
+        );
+
+        verify(postsRepository).findFeedLatestWithFilter(
+                eq(PostStatus.PUBLISHED), isNull(), eq(List.of(10L, 20L, 30L)), eq(true), isNull(),
+                eq(1L), eq(false), eq(PostAccessType.POINT_REQUIRED), eq(BoardCode.QUESTION),
+                isNull(), any(Pageable.class)
+        );
+    }
+
+    @Test
+    void moreThanThreeDistinctTagsAreRejected() {
+        CustomException exception = assertThrows(CustomException.class, () -> service.getPosts(
+                1L, PostQueryService.Tab.ALL, PostQueryService.Sort.LATEST,
+                List.of(10L, 20L, 30L, 40L), null, null, null, 20
+        ));
+
+        assertThat(exception.getErrorCode()).isEqualTo(CommunityErrorCode.INVALID_TAG_IDS);
+        verifyNoInteractions(postsRepository);
     }
 }

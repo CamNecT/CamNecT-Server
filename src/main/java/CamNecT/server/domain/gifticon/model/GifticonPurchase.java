@@ -11,7 +11,10 @@ import java.time.LocalDateTime;
         name = "gifticon_purchases",
         uniqueConstraints = @UniqueConstraint(name = "uk_gifticon_purchase_client_req", columnNames = {"user_id", "client_request_id"}),
         indexes = {
-                @Index(name = "idx_gifticon_purchase_export", columnList = "export_batch_id"),
+                @Index(
+                        name = "idx_gifticon_purchase_export_queue",
+                        columnList = "export_batch_id,requested_at,purchase_id"
+                ),
                 @Index(name = "idx_gifticon_purchase_user", columnList = "user_id")
         }
 )
@@ -53,17 +56,15 @@ public class GifticonPurchase {
     @Column(name = "buyer_name", nullable = false, length = 100)
     private String buyerName;
 
-    @Column(name = "buyer_phone", length = 30)
-    private String buyerPhone;
-
-    @Column(name = "buyer_email", length = 200)
+    @Column(name = "buyer_email", length = 255)
     private String buyerEmail;
 
     @Column(name = "recipient_name", length = 100)
     private String recipientName;
 
-    @Column(name = "recipient_phone", length = 30)
-    private String recipientPhone;
+    // 기존 주문의 수신 이메일을 확인할 수 없으면 null로 유지한다.
+    @Column(name = "recipient_email", length = 255)
+    private String recipientEmail;
 
     @Column(name = "gift_message", length = 500)
     private String giftMessage;

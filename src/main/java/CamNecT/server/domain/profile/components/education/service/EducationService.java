@@ -30,13 +30,11 @@ public class EducationService {
 
     @Transactional
     public void addEducation(Long userId, EducationRequest request) {
-        Users user = accessGuard.requireAuthenticatedUser(userId);
+        Users user = accessGuard.requireAuthenticatedUserForUpdate(userId);
 
         Institutions institution = institutionRepository.findById(request.institutionId())
                 .orElseThrow(() -> new CustomException(UserErrorCode.INSTITUTION_NOT_FOUND));
-        Campus campus = campusRepository.findById(request.campusId())
-                .orElseThrow(() -> new CustomException(UserErrorCode.CAMPUS_NOT_FOUND));
-        assertCampusBelongsToInstitution(campus, institution);
+        Campus campus = requireActiveCampus(request.campusId(), institution.getInstitutionId());
 
 
         Education education = Education.builder()
@@ -62,7 +60,7 @@ public class EducationService {
 
     @Transactional
     public void updateEducation(Long userId, Long educationId, EducationRequest request) {
-        accessGuard.requireAuthenticatedUser(userId);
+        accessGuard.requireAuthenticatedUserForUpdate(userId);
         Education education = educationRepository.findById(educationId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.EDUCATION_NOT_FOUND));
 
@@ -73,9 +71,7 @@ public class EducationService {
 
         Institutions institution = institutionRepository.findById(request.institutionId())
                 .orElseThrow(() -> new CustomException(UserErrorCode.INSTITUTION_NOT_FOUND));
-        Campus campus = campusRepository.findById(request.campusId())
-                .orElseThrow(() -> new CustomException(UserErrorCode.CAMPUS_NOT_FOUND));
-        assertCampusBelongsToInstitution(campus, institution);
+        Campus campus = requireActiveCampus(request.campusId(), institution.getInstitutionId());
 
 
         education.updateEducation(
@@ -90,7 +86,7 @@ public class EducationService {
 
     @Transactional
     public void deleteEducation(Long userId, Long educationId) {
-        accessGuard.requireAuthenticatedUser(userId);
+        accessGuard.requireAuthenticatedUserForUpdate(userId);
         Education education = educationRepository.findById(educationId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.EDUCATION_NOT_FOUND));
 
@@ -100,9 +96,8 @@ public class EducationService {
         educationRepository.delete(education);
     }
 
-    private void assertCampusBelongsToInstitution(Campus campus, Institutions institution) {
-        if (!campus.getInstitution().getInstitutionId().equals(institution.getInstitutionId())) {
-            throw new CustomException(UserErrorCode.CAMPUS_NOT_FOUND);
-        }
+    private Campus requireActiveCampus(Long campusId, Long institutionId) {
+        return campusRepository.findActiveByIdAndInstitutionId(campusId, institutionId)
+                .orElseThrow(() -> new CustomException(UserErrorCode.CAMPUS_NOT_FOUND));
     }
 }

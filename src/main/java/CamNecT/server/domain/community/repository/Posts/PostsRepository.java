@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface PostsRepository extends JpaRepository<Posts, Long> {
@@ -20,6 +21,13 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_READ)
     @Query("select p from Posts p where p.id = :postId")
     Optional<Posts> findByIdForRead(@Param("postId") Long postId);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_READ)
+    @Query("select p from Posts p where p.id = :postId and p.status = :status")
+    Optional<Posts> findByIdAndStatusForRead(
+            @Param("postId") Long postId,
+            @Param("status") PostStatus status
+    );
 
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Posts p where p.id = :postId")
@@ -34,7 +42,8 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
           and (:cursorId is null or p.id < :cursorId)
           and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
                            or (p.content like concat('%', :keyword, '%') escape '!'
-                               and (p.accessType <> :pointRequiredAccess
+                               and (:adminRead = true
+                                    or p.accessType <> :pointRequiredAccess
                                     or p.board.code <> :questionCode
                                     or not exists (select 1 from AcceptedComments ac where ac.post = p)
                                     or p.user.userId = :viewerUserId
@@ -43,18 +52,20 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
                                                  and viewerAnswer.comment.userId = :viewerUserId)
                                     or exists (select 1 from PostAccess pa
                                                where pa.post = p and pa.user.userId = :viewerUserId))))
-          and (:tagId is null or exists (
+          and (:filterByTags = false or exists (
                 select 1 from PostTags pt
-                where pt.post = p and pt.tag.id = :tagId
+                where pt.post = p and pt.tag.id in :tagIds
           ))
         order by p.id desc
     """)
     Slice<Posts> findFeedLatestWithFilter(
             @Param("status") PostStatus status,
             @Param("code") BoardCode code,
-            @Param("tagId") Long tagId,
+            @Param("tagIds") List<Long> tagIds,
+            @Param("filterByTags") boolean filterByTags,
             @Param("keyword") String keyword,
             @Param("viewerUserId") Long viewerUserId,
+            @Param("adminRead") boolean adminRead,
             @Param("pointRequiredAccess") PostAccessType pointRequiredAccess,
             @Param("questionCode") BoardCode questionCode,
             @Param("cursorId") Long cursorId,
@@ -93,7 +104,8 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
       and (:code is null or p.board.code = :code)
       and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
                        or (p.content like concat('%', :keyword, '%') escape '!'
-                           and (p.accessType <> :pointRequiredAccess
+                           and (:adminRead = true
+                                or p.accessType <> :pointRequiredAccess
                                 or p.board.code <> :questionCode
                                 or not exists (select 1 from AcceptedComments ac where ac.post = p)
                                 or p.user.userId = :viewerUserId
@@ -102,9 +114,9 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
                                              and viewerAnswer.comment.userId = :viewerUserId)
                                 or exists (select 1 from PostAccess pa
                                            where pa.post = p and pa.user.userId = :viewerUserId))))
-      and (:tagId is null or exists (
+      and (:filterByTags = false or exists (
             select 1 from PostTags pt
-            where pt.post = p and pt.tag.id = :tagId
+            where pt.post = p and pt.tag.id in :tagIds
       ))
       and (
             :cursorValue is null
@@ -116,9 +128,11 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
     Slice<Posts> findFeedRecommended(
             @Param("status") PostStatus status,
             @Param("code") BoardCode code,
-            @Param("tagId") Long tagId,
+            @Param("tagIds") List<Long> tagIds,
+            @Param("filterByTags") boolean filterByTags,
             @Param("keyword") String keyword,
             @Param("viewerUserId") Long viewerUserId,
+            @Param("adminRead") boolean adminRead,
             @Param("pointRequiredAccess") PostAccessType pointRequiredAccess,
             @Param("questionCode") BoardCode questionCode,
             @Param("cursorValue") Long cursorValue,   // hotScore 커서
@@ -135,7 +149,8 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
       and (:code is null or p.board.code = :code)
       and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
                        or (p.content like concat('%', :keyword, '%') escape '!'
-                           and (p.accessType <> :pointRequiredAccess
+                           and (:adminRead = true
+                                or p.accessType <> :pointRequiredAccess
                                 or p.board.code <> :questionCode
                                 or not exists (select 1 from AcceptedComments ac where ac.post = p)
                                 or p.user.userId = :viewerUserId
@@ -144,9 +159,9 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
                                              and viewerAnswer.comment.userId = :viewerUserId)
                                 or exists (select 1 from PostAccess pa
                                            where pa.post = p and pa.user.userId = :viewerUserId))))
-      and (:tagId is null or exists (
+      and (:filterByTags = false or exists (
             select 1 from PostTags pt
-            where pt.post = p and pt.tag.id = :tagId
+            where pt.post = p and pt.tag.id in :tagIds
       ))
       and (
             :cursorValue is null
@@ -158,9 +173,11 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
     Slice<Posts> findFeedLikeDesc(
             @Param("status") PostStatus status,
             @Param("code") BoardCode code,
-            @Param("tagId") Long tagId,
+            @Param("tagIds") List<Long> tagIds,
+            @Param("filterByTags") boolean filterByTags,
             @Param("keyword") String keyword,
             @Param("viewerUserId") Long viewerUserId,
+            @Param("adminRead") boolean adminRead,
             @Param("pointRequiredAccess") PostAccessType pointRequiredAccess,
             @Param("questionCode") BoardCode questionCode,
             @Param("cursorValue") Long cursorValue,   // likeCount 커서
@@ -176,7 +193,8 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
       and (:code is null or p.board.code = :code)
       and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
                        or (p.content like concat('%', :keyword, '%') escape '!'
-                           and (p.accessType <> :pointRequiredAccess
+                           and (:adminRead = true
+                                or p.accessType <> :pointRequiredAccess
                                 or p.board.code <> :questionCode
                                 or not exists (select 1 from AcceptedComments ac where ac.post = p)
                                 or p.user.userId = :viewerUserId
@@ -185,9 +203,9 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
                                              and viewerAnswer.comment.userId = :viewerUserId)
                                 or exists (select 1 from PostAccess pa
                                            where pa.post = p and pa.user.userId = :viewerUserId))))
-      and (:tagId is null or exists (
+      and (:filterByTags = false or exists (
             select 1 from PostTags pt
-            where pt.post = p and pt.tag.id = :tagId
+            where pt.post = p and pt.tag.id in :tagIds
       ))
       and (
             :cursorValue is null
@@ -199,9 +217,11 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
     Slice<Posts> findFeedBookmarkDesc(
             @Param("status") PostStatus status,
             @Param("code") BoardCode code,
-            @Param("tagId") Long tagId,
+            @Param("tagIds") List<Long> tagIds,
+            @Param("filterByTags") boolean filterByTags,
             @Param("keyword") String keyword,
             @Param("viewerUserId") Long viewerUserId,
+            @Param("adminRead") boolean adminRead,
             @Param("pointRequiredAccess") PostAccessType pointRequiredAccess,
             @Param("questionCode") BoardCode questionCode,
             @Param("cursorValue") Long cursorValue,   // bookmarkCount 커서

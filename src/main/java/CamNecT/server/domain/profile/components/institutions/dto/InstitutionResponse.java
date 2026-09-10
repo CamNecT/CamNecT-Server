@@ -27,7 +27,9 @@ public class InstitutionResponse {
                 .code(institution.getInstitutionCode())
                 .nameKor(institution.getInstitutionNameKor())
                 .nameEng(institution.getInstitutionNameEng())
-                .campuses(campuses.stream().map(CampusResponse::from).toList())
+                .campuses(campuses.stream()
+                        .map(CampusResponse::from)
+                        .toList())
                 .build();
     }
 }

@@ -8,7 +8,10 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "Users") // 테이블명
+@Table(
+        name = "Users",
+        indexes = @Index(name = "idx_users_status_user_id", columnList = "status,user_id")
+) // 테이블명
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED) // JPA 기본 생성자
 @AllArgsConstructor
@@ -29,10 +32,6 @@ public class Users {
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
-
-    //일단 수집
-    @Column(name = "phone_num", length = 20, unique = true)
-    private String phoneNum;
 
     @Column(name = "email", unique = true)
     private String email;
@@ -74,13 +73,11 @@ public class Users {
             String name,
             String username,
             String email,
-            String phone,
             UserStatus status
     ) {
         this.name = name;
         this.username = username;
         this.email = email;
-        this.phoneNum = phone;
         this.status = status;
     }
 }

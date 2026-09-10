@@ -6,6 +6,8 @@ import CamNecT.server.domain.gifticon.model.GifticonProduct;
 import CamNecT.server.domain.gifticon.model.GifticonPurchase;
 import CamNecT.server.domain.gifticon.repository.GifticonProductRepository;
 import CamNecT.server.domain.gifticon.repository.GifticonPurchaseRepository;
+import CamNecT.server.domain.report.service.UserReportPenaltyService;
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.Users;
@@ -30,6 +32,8 @@ public class GifticonPurchaseService {
     private final GifticonPurchaseRepository purchaseRepository;
     private final UserRepository userRepository;
     private final PointService pointService;
+    private final UserReportPenaltyService userReportPenaltyService;
+    private final GifticonEmailPolicy emailPolicy;
 
     @Transactional
     public GifticonPurchaseConfirmResponse confirm(Long userId, ConfirmGifticonPurchaseRequest req) {
@@ -50,6 +54,14 @@ public class GifticonPurchaseService {
             return new GifticonPurchaseConfirmResponse(exists.getId(), exists.getRequestedAt());
         }
 
+        if (user.getStatus() == UserStatus.WITHDRAWN) {
+            throw new CustomException(AuthErrorCode.USER_WITHDRAWN);
+        }
+        if (user.getStatus() == UserStatus.SUSPENDED
+                || userReportPenaltyService.hasActiveRestriction(userId, user.getStatus())) {
+            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
+        }
+
         GifticonProduct product = productRepository.findById(req.productId())
                 .orElseThrow(() -> new CustomException(GifticonErrorCode.PRODUCT_NOT_FOUND));
 
@@ -67,6 +79,12 @@ public class GifticonPurchaseService {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
 
+        String buyerEmail = emailPolicy.normalize(user.getEmail());
+        String recipientEmail = resolveRecipientEmail(req, buyerEmail);
+        if (!emailPolicy.isValid(recipientEmail)) {
+            throw new CustomException(GifticonErrorCode.INVALID_RECIPIENT_EMAIL);
+        }
+
         // 2) 구매요청 적재(스냅샷)
         GifticonPurchase purchase = GifticonPurchase.builder()
                 .user(user)
@@ -77,11 +95,10 @@ public class GifticonPurchaseService {
                 .totalPricePoints((int) expected)
 
                 .buyerName(user.getName())
-                .buyerPhone(user.getPhoneNum())  // Users에 없으면 null 처리/필드명 수정
-                .buyerEmail(user.getEmail())  // Users에 없으면 null 처리/필드명 수정
+                .buyerEmail(buyerEmail)
 
                 .recipientName(blankToNull(req.recipientName()))
-                .recipientPhone(blankToNull(req.recipientPhone()))
+                .recipientEmail(recipientEmail)
                 .giftMessage(blankToNull(req.giftMessage()))
                 .requestedAt(LocalDateTime.now())
                 .build();
@@ -93,8 +110,8 @@ public class GifticonPurchaseService {
         }
 
         // 3) 포인트 차감 (PointService 사용)
-        // 멱등키(eventKey)는 clientRequestId 기반으로 잡습니다.
-        PointEvent event = PointEvent.gifticonPurchase(userId, purchase.getId(), req.clientRequestId());
+        // 구매 레코드가 clientRequestId 멱등성을 보장하므로 포인트 이벤트는 길이가 제한된 purchaseId를 사용합니다.
+        PointEvent event = PointEvent.gifticonPurchase(userId, purchase.getId());
         pointService.spendPoint(userId, (int) expected, event);
 
         return new GifticonPurchaseConfirmResponse(purchase.getId(), purchase.getRequestedAt());
@@ -104,12 +121,18 @@ public class GifticonPurchaseService {
         return (s == null || s.isBlank()) ? null : s;
     }
 
-    private static boolean matchesRequest(GifticonPurchase purchase, ConfirmGifticonPurchaseRequest req) {
+    private String resolveRecipientEmail(ConfirmGifticonPurchaseRequest req, String buyerEmail) {
+        String recipientEmail = emailPolicy.normalize(req.recipientEmail());
+        return recipientEmail == null ? emailPolicy.normalize(buyerEmail) : recipientEmail;
+    }
+
+    private boolean matchesRequest(GifticonPurchase purchase, ConfirmGifticonPurchaseRequest req) {
         return Objects.equals(purchase.getProduct().getId(), req.productId())
                 && Objects.equals(purchase.getQuantity(), req.quantity())
                 && Objects.equals(purchase.getTotalPricePoints(), req.spendPoints())
                 && Objects.equals(purchase.getRecipientName(), blankToNull(req.recipientName()))
-                && Objects.equals(purchase.getRecipientPhone(), blankToNull(req.recipientPhone()))
+                // 재시도 시 현재 계정 이메일이 아닌 구매 당시 스냅샷으로 비교한다.
+                && Objects.equals(purchase.getRecipientEmail(), resolveRecipientEmail(req, purchase.getBuyerEmail()))
                 && Objects.equals(purchase.getGiftMessage(), blankToNull(req.giftMessage()));
     }
 }

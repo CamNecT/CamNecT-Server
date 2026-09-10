@@ -21,8 +21,8 @@ public record EducationResponse(
         return new EducationResponse(
                 education.getEducationId(),
                 education.getInstitution().getInstitutionNameKor(),
-                education.getCampus() != null ? education.getCampus().getCampusId() : null,
-                education.getCampus() != null ? education.getCampus().getCampusName() : null,
+                education.getCampus() == null ? null : education.getCampus().getCampusId(),
+                education.getCampus() == null ? null : education.getCampus().getCampusName(),
 //                education.getMajor().getMajorNameKor(),
 //                education.getDegree(),
                 education.getStartDate(),
