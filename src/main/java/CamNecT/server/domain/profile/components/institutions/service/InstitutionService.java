@@ -2,10 +2,9 @@ package CamNecT.server.domain.profile.components.institutions.service;
 
 import CamNecT.server.domain.profile.components.institutions.dto.InstitutionListResponse;
 import CamNecT.server.domain.profile.components.institutions.dto.InstitutionResponse;
-import CamNecT.server.domain.profile.components.institutions.dto.CampusResponse;
 import CamNecT.server.domain.profile.components.institutions.model.Campus;
-import CamNecT.server.domain.profile.components.institutions.repository.InstitutionRepository;
 import CamNecT.server.domain.profile.components.institutions.repository.CampusRepository;
+import CamNecT.server.domain.profile.components.institutions.repository.InstitutionRepository;
 import CamNecT.server.domain.profile.components.institutions.model.Institutions;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;

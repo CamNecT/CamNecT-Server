@@ -9,6 +9,7 @@ import CamNecT.server.domain.report.repository.ReportEvidenceRepository;
 import CamNecT.server.global.common.auth.AccountAccessGuard;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
+import CamNecT.server.global.common.response.errorcode.bydomains.StorageErrorCode;
 import CamNecT.server.global.storage.dto.request.PresignUploadBatchRequest;
 import CamNecT.server.global.storage.dto.response.PresignUploadResponse;
 import CamNecT.server.global.storage.model.UploadPurpose;
@@ -20,6 +21,8 @@ import CamNecT.server.global.storage.service.PresignEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
@@ -45,6 +48,34 @@ class ReportAttachmentServiceTest {
     @Mock GlobalPresignMethods globalPresignMethods;
 
     private ReportAttachmentService service;
+
+    @ParameterizedTest
+    @ValueSource(ints = {2, 6})
+    void uploadAndSubmissionEnforceTheSameConfiguredLimit(int limit) {
+        service = new ReportAttachmentService(accountAccessGuard, presignEngine, ticketRepository,
+                evidenceRepository, globalPresignMethods, new ReportEvidenceProps(5, limit));
+        List<PresignUploadBatchRequest.Item> items = java.util.stream.IntStream.range(0, limit)
+                .mapToObj(i -> new PresignUploadBatchRequest.Item("image/png", 100L, "file-" + i + ".png"))
+                .toList();
+        when(globalPresignMethods.normalize("image/png")).thenReturn("image/png");
+        when(presignEngine.issueUploadBatch(eq(1L), eq(UploadPurpose.REPORT_EVIDENCE),
+                anyString(), anyList(), eq(limit))).thenReturn(List.of());
+        service.presignEvidenceBatch(1L, new PresignUploadBatchRequest(items));
+        verify(presignEngine).issueUploadBatch(eq(1L), eq(UploadPurpose.REPORT_EVIDENCE),
+                anyString(), argThat(batch -> batch.size() == limit), eq(limit));
+
+        List<PresignUploadBatchRequest.Item> tooMany = new java.util.ArrayList<>(items);
+        tooMany.add(new PresignUploadBatchRequest.Item("image/png", 100L, "extra.png"));
+        assertThat(assertThrows(CustomException.class, () -> service.presignEvidenceBatch(
+                1L, new PresignUploadBatchRequest(tooMany))).getErrorCode())
+                .isEqualTo(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
+        List<String> keys = java.util.stream.IntStream.range(0, limit + 1)
+                .mapToObj(i -> "temp/file-" + i + ".png").toList();
+        assertThat(assertThrows(CustomException.class,
+                () -> service.applyOnReportCreate(1L, null, keys)).getErrorCode())
+                .isEqualTo(StorageErrorCode.UPLOAD_TICKET_LIMIT_EXCEEDED);
+        verifyNoInteractions(ticketRepository, evidenceRepository);
+    }
 
     @BeforeEach
     void setUp() {

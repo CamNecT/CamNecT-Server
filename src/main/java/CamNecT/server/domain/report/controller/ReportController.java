@@ -85,7 +85,7 @@ public class ReportController {
 
     @Operation(
             summary = "신고 증거 이미지 일괄 업로드 URL 발급",
-            description = "신고 한 건에 첨부할 이미지들을 최대 5개까지 한 번에 presign 합니다."
+            description = "신고 한 건의 증거 이미지 업로드 URL을 일괄 발급합니다. 허용 개수는 서버의 신고 증거 이미지 설정을 따릅니다."
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true)
     @PostMapping("/uploads/presign/evidence/batch")

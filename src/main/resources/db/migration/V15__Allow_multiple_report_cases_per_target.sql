@@ -5,11 +5,12 @@
 -- received_guard: status = 'RECEIVED'이면 1, 그 외는 NULL (STORED generated column)
 -- MySQL에서 NULL은 유니크 제약 중복으로 처리되지 않으므로,
 -- uk_report_case_target_received는 RECEIVED 케이스에 대해서만 (target_key) 유니크를 보장합니다.
-ALTER TABLE report_case DROP INDEX uk_report_case_target;
-
+-- Replace the guard in one MySQL ALTER so failure cannot leave the table
+-- without its existing uniqueness constraint.
 ALTER TABLE report_case
     ADD COLUMN received_guard TINYINT GENERATED ALWAYS AS (
         CASE WHEN status = 'RECEIVED' THEN 1 ELSE NULL END
     ) STORED,
     ADD UNIQUE INDEX uk_report_case_target_received (target_key, received_guard),
-    ADD INDEX idx_report_case_target_status (target_key, status);
+    ADD INDEX idx_report_case_target_status (target_key, status),
+    DROP INDEX uk_report_case_target;

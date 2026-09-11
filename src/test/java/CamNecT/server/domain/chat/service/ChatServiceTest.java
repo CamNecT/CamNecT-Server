@@ -31,6 +31,9 @@ import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import CamNecT.server.global.tag.repository.TagRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
@@ -277,14 +280,16 @@ class ChatServiceTest {
         assertThat(result.getRecruitmentId()).isEqualTo(30L);
     }
 
-    @Test
-    void coffeeChatRequestDetailReturnsNullProfileImage() {
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"profile.png"})
+    void coffeeChatRequestDetailPreservesAnExistingImage(String imageKey) {
         Users receiver = activeUser(1L, "receiver");
         Users requester = activeUser(2L, "requester");
         ChatRequest request = mock(ChatRequest.class);
         UserProfile profile = UserProfile.builder()
                 .userId(2L)
-                .profileImageKey("profile.png")
+                .profileImageKey(imageKey)
                 .build();
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(receiver));
@@ -297,11 +302,18 @@ class ChatServiceTest {
         when(request.getRequestInterests()).thenReturn(List.of());
         when(userProfileRepository.findByUserId(2L)).thenReturn(Optional.of(profile));
         when(userTagMapRepository.findAllTagsByUserId(2L)).thenReturn(List.of());
+        if (imageKey != null && !imageKey.isEmpty()) {
+            when(publicUrlIssuer.issuePublicUrl(imageKey)).thenReturn("https://cdn.example/profile.png");
+        }
 
         ChatRequestDetailDto detail = chatService.getChatRequestDetail(20L, 1L);
 
-        assertThat(detail.opponentProfileImg()).isNull();
-        verifyNoInteractions(publicUrlIssuer);
+        if (imageKey == null || imageKey.isEmpty()) {
+            assertThat(detail.opponentProfileImg()).isNull();
+            verifyNoInteractions(publicUrlIssuer);
+        } else {
+            assertThat(detail.opponentProfileImg()).isEqualTo("https://cdn.example/profile.png");
+        }
     }
 
     @Test
@@ -337,6 +349,40 @@ class ChatServiceTest {
         assertThat(list.chatRequestList()).hasSize(1);
         assertThat(list.chatRequestList().getFirst().opponentProfileImg()).isNull();
         verifyNoInteractions(publicUrlIssuer);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {"profile.png"})
+    void coffeeChatRequestListPreservesAnExistingImage(String imageKey) {
+        Users receiver = activeUser(1L, "receiver");
+        Users requester = activeUser(2L, "requester");
+        ChatRequest request = mock(ChatRequest.class);
+        ProfileGlobalDto global = new ProfileGlobalDto(2L, "requester", "major", "2026", imageKey);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(receiver));
+        when(chatRequestRepository.findRequestsWithRequester(
+                1L, ChatRequest.RequestType.COFFEE_CHAT, ChatRequest.RequestStatus.WAITING))
+                .thenReturn(List.of(request));
+        when(request.getId()).thenReturn(20L);
+        when(request.getRequester()).thenReturn(requester);
+        when(request.getType()).thenReturn(ChatRequest.RequestType.COFFEE_CHAT);
+        when(request.getContent()).thenReturn("hello");
+        when(request.getCreatedAt()).thenReturn(java.time.LocalDateTime.of(2026, 9, 11, 12, 0));
+        when(userProfileRepository.findGlobalsByUserIdIn(List.of(2L))).thenReturn(List.of(global));
+        if (imageKey != null && !imageKey.isEmpty()) {
+            when(publicUrlIssuer.issuePublicUrl(imageKey)).thenReturn("https://cdn.example/profile.png");
+        }
+
+        ChatRequestListResponseDto result = chatService.getChatRequestList(1L, ChatRequest.RequestType.COFFEE_CHAT);
+
+        assertThat(result.chatRequestList()).hasSize(1);
+        if (imageKey == null || imageKey.isEmpty()) {
+            assertThat(result.chatRequestList().getFirst().opponentProfileImg()).isNull();
+            verifyNoInteractions(publicUrlIssuer);
+        } else {
+            assertThat(result.chatRequestList().getFirst().opponentProfileImg())
+                    .isEqualTo("https://cdn.example/profile.png");
+        }
     }
 
     @Test

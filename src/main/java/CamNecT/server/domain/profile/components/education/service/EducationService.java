@@ -6,9 +6,9 @@ import CamNecT.server.domain.profile.components.education.dto.response.Education
 import CamNecT.server.domain.profile.components.education.model.Education;
 import CamNecT.server.domain.profile.components.education.repository.EducationRepository;
 import CamNecT.server.domain.profile.components.institutions.model.Campus;
+import CamNecT.server.domain.profile.components.institutions.repository.CampusRepository;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.domain.profile.components.institutions.repository.InstitutionRepository;
-import CamNecT.server.domain.profile.components.institutions.repository.CampusRepository;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.domain.profile.components.institutions.model.Institutions;

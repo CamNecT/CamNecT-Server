@@ -32,7 +32,7 @@ public class Education {
     private Institutions institution;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "campus_id", nullable = false)
+    @JoinColumn(name = "campus_id")
     private Campus campus;
 
     @ManyToOne(fetch = FetchType.LAZY)
