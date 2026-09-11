@@ -15,7 +15,7 @@ import java.util.Optional;
 
 public interface ReportCaseRepository extends JpaRepository<ReportCase, Long> {
 
-    Optional<ReportCase> findByTargetKey(String targetKey);
+    Optional<ReportCase> findByTargetKeyAndStatus(String targetKey, ReportStatus status);
 
     @Query("select c.reportedUser.userId from ReportCase c where c.caseId = :caseId")
     Optional<Long> findReportedUserIdByCaseId(@Param("caseId") Long caseId);

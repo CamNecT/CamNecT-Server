@@ -14,6 +14,14 @@ This service onboards an existing, Hibernate-managed schema to Flyway while also
 
 Do not edit an already deployed migration. Add a new sequential migration instead.
 
+## V15/V16: report reopening and portfolio subtitles
+
+- `V15__Allow_multiple_report_cases_per_target.sql` preserves existing report cases and submissions. It replaces the lifetime target uniqueness constraint with a generated-column unique index for RECEIVED cases only. Resolved/rejected cases remain available as history. The old index is replaced in one ALTER statement.
+- `V16__Add_portfolio_subtitle.sql` adds one nullable VARCHAR(50) subtitle column; existing projects retain NULL.
+- The earlier PR-only V3/V6/V7/V8 scripts were never part of main and collide with deployed versions. Their necessary deltas are consolidated above; the duplicate campus-column script is removed because V12 already supplies the column and institution/campus foreign key. Existing V0–V14 scripts are unchanged.
+- Legacy education rows may still have no campus. New/update API requests require a campus; the entity and database remain nullable for existing data.
+- Local H2 tests resolve the full catalog through Flyway to detect duplicate versions even though application tests disable migration execution. Apply and validate the new SQL against MySQL before deployment.
+
 ## V14: separate onboarding from the approval notice
 
 - `V14__Separate_signup_completion_notification.sql` adds `verification_complete_notified` to `user_profile` without changing `initial_setup_completed` or account approval status.

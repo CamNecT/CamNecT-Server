@@ -98,7 +98,7 @@ public class ReportService {
         Users targetAuthor = userRepository.findById(target.author().getUserId())
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
 
-        ReportCase reportCase = reportCaseRepository.findByTargetKey(target.targetKey())
+        ReportCase reportCase = reportCaseRepository.findByTargetKeyAndStatus(target.targetKey(), ReportStatus.RECEIVED)
                 .orElseGet(() -> reportCaseRepository.saveAndFlush(ReportCase.open(
                         target.targetKey(),
                         targetAuthor,
@@ -112,7 +112,6 @@ public class ReportService {
         if (reportCase.getStatus() != ReportStatus.RECEIVED) {
             throw new CustomException(ReportErrorCode.REPORT_CASE_CLOSED);
         }
-
         if (reportRepository.existsByReporterIdAndReportCase_CaseId(reporterId, reportCase.getCaseId())) {
             throw new CustomException(ReportErrorCode.REPORT_DUPLICATE);
         }

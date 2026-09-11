@@ -68,6 +68,7 @@ class PortfolioDefaultThumbnailTest {
                 new PortfolioPreviewResponse(
                         11L,
                         "portfolio",
+                        "subtitle",
                         storedThumbnail,
                         true,
                         false,
