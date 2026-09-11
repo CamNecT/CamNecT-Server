@@ -89,7 +89,7 @@ public class LoginService {
                 .orElse(null);
         LoginNextStep nextStep = resolveNext(user, latest);
 
-        if (needsVerificationToken(nextStep)) {
+        if (user.getStatus() == UserStatus.ADMIN_PENDING) {
             String verification = jwtUtil.generateVerificationToken(
                     user.getUserId(), user.getRole(), user.getPasswordHash());
             return new LoginResponse(
@@ -105,7 +105,15 @@ public class LoginService {
             );
         }
 
-        return issueTokenLoginResponse(user, nextStep);
+        LoginResponse response = issueTokenLoginResponse(user, nextStep);
+        if (nextStep == LoginNextStep.VERIFICATION_COMPLETE) {
+            // login holds the user lock: concurrent logins cannot both issue
+            // this nextStep. Only mark it after session creation succeeds.
+            userProfileRepository.findByUserId(user.getUserId()).orElseThrow(
+                    () -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND)
+            ).markVerificationCompleteNotified();
+        }
+        return response;
     }
 
     public VerificationCompleteResponse getVerificationCompleteInfo(Long userId) {
@@ -113,7 +121,7 @@ public class LoginService {
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
-        if (user.getStatus() != UserStatus.ACTIVE || profile.isInitialSetupCompleted()) {
+        if (user.getStatus() != UserStatus.ACTIVE || !profile.isInitialSetupCompleted()) {
             throw new CustomException(AuthErrorCode.INITIAL_SETUP_NOT_ALLOWED);
         }
 
@@ -198,9 +206,9 @@ public class LoginService {
         if (user.getStatus() == UserStatus.ACTIVE) {
             UserProfile profile = userProfileRepository.findByUserId(user.getUserId())
                     .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
-            return profile.isInitialSetupCompleted()
-                    ? LoginNextStep.HOME
-                    : LoginNextStep.VERIFICATION_COMPLETE;
+            if (!profile.isInitialSetupCompleted()) return LoginNextStep.ONBOARDING_REQUIRED;
+            return profile.isVerificationCompleteNotified()
+                    ? LoginNextStep.HOME : LoginNextStep.VERIFICATION_COMPLETE;
         }
 
         if (user.getStatus() == UserStatus.ADMIN_PENDING) {
@@ -209,15 +217,15 @@ public class LoginService {
             }
             return switch (latest.getStatus()) {
                 case REJECTED, CANCELED -> LoginNextStep.DOCUMENT_REQUIRED;
-                case PENDING -> LoginNextStep.DOCUMENT_REVIEW_WAITING;
-                case APPROVED -> LoginNextStep.VERIFICATION_COMPLETE;
+                case PENDING, APPROVED -> {
+                    UserProfile profile = userProfileRepository.findByUserId(user.getUserId())
+                            .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
+                    yield profile.isInitialSetupCompleted()
+                            ? LoginNextStep.DOCUMENT_REVIEW_WAITING : LoginNextStep.ONBOARDING_REQUIRED;
+                }
             };
         }
         return LoginNextStep.HOME;
     }
 
-    private boolean needsVerificationToken(LoginNextStep nextStep) {
-        return nextStep == LoginNextStep.DOCUMENT_REQUIRED
-                || nextStep == LoginNextStep.DOCUMENT_REVIEW_WAITING;
-    }
 }

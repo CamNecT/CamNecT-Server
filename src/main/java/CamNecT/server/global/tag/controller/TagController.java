@@ -24,6 +24,7 @@ public class TagController {
     @Operation(summary = "태그 카테고리/태그 목록 조회",
             description = """
                     온보딩/프로필 태그 선택에 필요한 카테고리별 태그 목록을 반환합니다.
+                    Access Token 또는 회원가입용 tempToken(VERIFICATION)으로 조회할 수 있습니다.
                     scope=COMMUNITY_QUESTION 이면 '채택 상태' 카테고리 추가,
                     scope=ACTIVITY_RECRUIT 이면 '모집 상태' 카테고리 추가.
                     """)

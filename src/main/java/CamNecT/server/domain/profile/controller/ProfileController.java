@@ -58,7 +58,7 @@ public class ProfileController {
         return ApiResponse.success(profileService.getUserProfile(loginUserId, profileUserId));
     }
 
-    @Operation(summary = "프로필 이미지 업로드 URL 생성", description = "프로필 이미지를 업로드하기 위한 S3 presigned URL을 생성합니다.")
+    @Operation(summary = "프로필 이미지 업로드 URL 생성", description = "프로필 이미지 업로드용 S3 presigned URL을 생성합니다. Access Token 또는 회원가입용 tempToken(VERIFICATION)을 허용합니다. 온보딩 중 관리자가 먼저 승인해도 가입용 토큰의 제한된 업로드 권한은 만료 전까지 유지됩니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 49001 파일 크기가 0 이하", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),

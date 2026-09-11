@@ -26,7 +26,8 @@ class AuthInterceptorTest {
     private final JwtUtil jwtUtil = mock(JwtUtil.class);
     private final AccountAccessGuard accountAccessGuard = mock(AccountAccessGuard.class);
     private final TokenSessionService tokenSessionService = mock(TokenSessionService.class);
-    private final AuthInterceptor interceptor = new AuthInterceptor(jwtUtil, accountAccessGuard, tokenSessionService);
+    private final AuthInterceptor interceptor = new AuthInterceptor(
+            jwtUtil, accountAccessGuard, tokenSessionService, new VerificationTokenGuard(jwtUtil));
 
     @Test
     void verificationTokenCarriesTheIssuingPasswordFingerprint() {
@@ -58,8 +59,8 @@ class AuthInterceptorTest {
     }
 
     @Test
-    void rejectsVerificationTokenFromProfileApi() {
-        HttpServletRequest request = request("/api/profile/uploads/presign");
+    void rejectsVerificationTokenFromRegularProfileApi() {
+        HttpServletRequest request = request("/api/profile/me");
         HttpServletResponse response = mock(HttpServletResponse.class);
         when(jwtUtil.getTokenType("token")).thenReturn(TokenType.VERIFICATION);
 

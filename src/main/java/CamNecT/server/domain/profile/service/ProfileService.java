@@ -209,8 +209,13 @@ public class ProfileService {
         Users user = accountAccessGuard.requireAccessibleForUpdate(userId);
         UserProfile userProfile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
-        if (user.getStatus() != UserStatus.ACTIVE || userProfile.isInitialSetupCompleted()) {
+        if (user.getStatus() != UserStatus.ACTIVE && user.getStatus() != UserStatus.ADMIN_PENDING) {
             throw new CustomException(AuthErrorCode.INITIAL_SETUP_NOT_ALLOWED);
+        }
+        // A retry after a lost response must not clear tags or consume an image
+        // ticket twice. Later profile edits use the dedicated profile endpoints.
+        if (userProfile.isInitialSetupCompleted()) {
+            return new ProfileStatusResponse(user.getStatus());
         }
 
         // 1) bio 정리

@@ -15,8 +15,6 @@ import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.domain.users.repository.UserTagMapRepository;
 import CamNecT.server.global.common.auth.AccountAccessGuard;
-import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.global.storage.service.GlobalPresignMethods;
 import CamNecT.server.global.storage.service.PresignEngine;
@@ -26,11 +24,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class ProfileOnboardingStateTest {
 
@@ -90,35 +89,36 @@ class ProfileOnboardingStateTest {
     }
 
     @Test
-    void rejectsOnboardingBeforeAdminApproval() {
+    void completesOnboardingBeforeAdminApprovalWithoutActivatingAccount() {
         Users user = Users.builder().userId(1L).status(UserStatus.ADMIN_PENDING).build();
         UserProfile profile = UserProfile.builder().user(user).build();
         when(accountAccessGuard.requireAccessibleForUpdate(1L)).thenReturn(user);
         when(userProfileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
 
-        CustomException exception = assertThrows(CustomException.class,
-                () -> profileService.createOnboarding(
-                        1L,
-                        new UpdateOnboardingRequest(null, null, null)
-                ));
+        ProfileStatusResponse response = profileService.createOnboarding(
+                1L, new UpdateOnboardingRequest(null, null, List.of()));
 
-        assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INITIAL_SETUP_NOT_ALLOWED);
+        assertThat(response.status()).isEqualTo(UserStatus.ADMIN_PENDING);
+        assertThat(user.getStatus()).isEqualTo(UserStatus.ADMIN_PENDING);
+        assertThat(profile.isInitialSetupCompleted()).isTrue();
+        assertThat(profile.isVerificationCompleteNotified()).isFalse();
     }
 
     @Test
-    void rejectsOnboardingAfterInitialSetupWasAlreadyCompleted() {
+    void retryAfterCompletionPreservesProfileAndDoesNotConsumeTicketAgain() {
         Users user = Users.builder().userId(1L).status(UserStatus.ACTIVE).build();
         UserProfile profile = UserProfile.builder().user(user).build();
         profile.completeInitialSetup();
+        profile.updateOnboardingProfile("saved bio", "saved-image");
         when(accountAccessGuard.requireAccessibleForUpdate(1L)).thenReturn(user);
         when(userProfileRepository.findByUserId(1L)).thenReturn(Optional.of(profile));
 
-        CustomException exception = assertThrows(CustomException.class,
-                () -> profileService.createOnboarding(
-                        1L,
-                        new UpdateOnboardingRequest(null, null, null)
-                ));
+        ProfileStatusResponse response = profileService.createOnboarding(
+                1L, new UpdateOnboardingRequest("already-consumed-ticket", "replacement", List.of(999L)));
 
-        assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INITIAL_SETUP_NOT_ALLOWED);
+        assertThat(response.status()).isEqualTo(UserStatus.ACTIVE);
+        assertThat(profile.getBio()).isEqualTo("saved bio");
+        assertThat(profile.getProfileImageKey()).isEqualTo("saved-image");
+        verifyNoInteractions(userTagMapRepository, tagRepository, presignEngine);
     }
 }

@@ -1,6 +1,5 @@
 package CamNecT.server.global.common.auth;
 
-import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
@@ -23,6 +22,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     private final JwtUtil jwtUtil;
     private final AccountAccessGuard accountAccessGuard;
     private final TokenSessionService tokenSessionService;
+    private final VerificationTokenGuard verificationTokenGuard;
 
     @Override
     public boolean preHandle(
@@ -46,11 +46,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
         }
 
-        String uri = request.getRequestURI();
-
         if (type == TokenType.ACCESS) {
             // pass
-        } else if (type == TokenType.VERIFICATION && isAllowedForVerificationToken(uri)) {
+        } else if (type == TokenType.VERIFICATION && verificationTokenGuard.isAllowed(request)) {
             // pass
         } else {
             throw new CustomException(AuthErrorCode.TOKEN_TYPE_NOT_ALLOWED);
@@ -62,7 +60,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             String sessionId = tokenSessionService.requireActiveAccess(userId, token);
             request.setAttribute("sessionId", sessionId);
         } else {
-            requireCurrentVerificationToken(token, user);
+            verificationTokenGuard.requireCurrent(token, user, request);
         }
         request.setAttribute("userId", userId);
 
@@ -79,28 +77,5 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new CustomException(AuthErrorCode.INVALID_TOKEN);
         }
         return header.substring(7);
-    }
-
-    private boolean isAllowedForVerificationToken(String uri) {
-        return uri.equals("/api/verification/documents")
-                || uri.startsWith("/api/verification/documents/");
-    }
-
-    private void requireCurrentVerificationToken(String token, Users user) {
-        if (user.getStatus() != UserStatus.ADMIN_PENDING) {
-            throw new CustomException(AuthErrorCode.INVALID_TOKEN);
-        }
-
-        try {
-            String expectedFingerprint = jwtUtil.getPasswordFingerprint(token);
-            if (!jwtUtil.matchesPasswordFingerprint(expectedFingerprint, user.getPasswordHash())) {
-                throw new CustomException(AuthErrorCode.INVALID_TOKEN);
-            }
-        } catch (CustomException e) {
-            if (e.getErrorCode() == AuthErrorCode.INVALID_TOKEN) {
-                throw e;
-            }
-            throw new CustomException(AuthErrorCode.INVALID_TOKEN, e);
-        }
     }
 }
