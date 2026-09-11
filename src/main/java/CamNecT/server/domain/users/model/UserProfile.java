@@ -52,6 +52,10 @@ public class UserProfile {
     @Column(name = "initial_setup_completed", nullable = false)
     private boolean initialSetupCompleted = false;
 
+    @Builder.Default
+    @Column(name = "verification_complete_notified", nullable = false)
+    private boolean verificationCompleteNotified = false;
+
     @Column(name = "student_no", length = 20) //학번
     private String studentNo;
 
@@ -78,8 +82,8 @@ public class UserProfile {
         this.initialSetupCompleted = true;
     }
 
-    public void requireInitialSetup() {
-        this.initialSetupCompleted = false;
+    public void markVerificationCompleteNotified() {
+        this.verificationCompleteNotified = true;
     }
 
     public void updateBio(String bio) {

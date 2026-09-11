@@ -40,7 +40,7 @@ class InitialSetupIntegrationTest {
 
     @Test
     @Transactional
-    void activeUserIsPromptedUntilSetupOrSkipIsExplicitlyCompleted() throws Exception {
+    void activeUserCompletesOnboardingThenReceivesVerificationNoticeOnce() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         String username = "setup-" + suffix;
         String password = "password1";
@@ -56,7 +56,7 @@ class InitialSetupIntegrationTest {
         String firstLogin = login(username, password)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
-                .andExpect(jsonPath("$.nextStep").value("VERIFICATION_COMPLETE"))
+                .andExpect(jsonPath("$.nextStep").value("ONBOARDING_REQUIRED"))
                 .andReturn().getResponse().getContentAsString();
 
         JsonNode loginResponse = objectMapper.readTree(firstLogin);
@@ -65,7 +65,7 @@ class InitialSetupIntegrationTest {
         login(username, password)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
-                .andExpect(jsonPath("$.nextStep").value("VERIFICATION_COMPLETE"));
+                .andExpect(jsonPath("$.nextStep").value("ONBOARDING_REQUIRED"));
 
         mockMvc.perform(post("/api/auth/onboarding")
                         .header("Authorization", "Bearer " + accessToken)
@@ -76,6 +76,10 @@ class InitialSetupIntegrationTest {
 
         assertThat(userProfileRepository.findByUserId(user.getUserId()).orElseThrow().isInitialSetupCompleted())
                 .isTrue();
+
+        login(username, password)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nextStep").value("VERIFICATION_COMPLETE"));
 
         login(username, password)
                 .andExpect(status().isOk())

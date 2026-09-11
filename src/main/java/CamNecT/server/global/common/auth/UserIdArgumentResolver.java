@@ -1,5 +1,6 @@
 package CamNecT.server.global.common.auth;
 
+import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.jwt.model.TokenType;
@@ -23,6 +24,7 @@ public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
     private final JwtUtil jwtUtil;
     private final AccountAccessGuard accountAccessGuard;
     private final TokenSessionService tokenSessionService;
+    private final VerificationTokenGuard verificationTokenGuard;
 
     @Override
     public boolean supportsParameter(@NonNull MethodParameter parameter) {
@@ -55,17 +57,19 @@ public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
         }
 
         String token = extractBearerToken(authHeader);
-        TokenType tokenType = validateAuthEndpointTokenType(webRequest, token);
+        TokenType tokenType = validateEndpointTokenType(request, token);
         Long userId;
         try {
             userId = jwtUtil.getUserId(token);
         } catch (CustomException e) {
             throw new CustomException(AuthErrorCode.INVALID_TOKEN, e);
         }
-        accountAccessGuard.requireAccessible(userId);
+        Users user = accountAccessGuard.requireAccessible(userId);
         String sessionId = null;
         if (tokenType == TokenType.ACCESS) {
             sessionId = tokenSessionService.requireActiveAccess(userId, token);
+        } else {
+            verificationTokenGuard.requireCurrent(token, user, request);
         }
         if (request != null) {
             request.setAttribute("userId", userId);
@@ -90,29 +94,18 @@ public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
         return header.substring(prefix.length()).trim();
     }
 
-    private TokenType validateAuthEndpointTokenType(NativeWebRequest webRequest, String token) {
-        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
-        if (request == null || !request.getRequestURI().startsWith("/api/auth/")) {
-            return jwtUtil.getTokenType(token);
-        }
-
-        TokenType tokenType;
-        try {
-            tokenType = jwtUtil.getTokenType(token);
-        } catch (CustomException e) {
-            throw new CustomException(AuthErrorCode.INVALID_TOKEN, e);
-        }
+    private TokenType validateEndpointTokenType(HttpServletRequest request, String token) {
+        // Keep JWT expiry/signature errors as 40100, just like AuthInterceptor,
+        // so access-token clients can use RTR on /api/auth endpoints as well.
+        TokenType tokenType = jwtUtil.getTokenType(token);
 
         if (tokenType == null) {
             throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
         }
 
-        String uri = request.getRequestURI();
-        boolean allowed = switch (uri) {
-            case "/api/auth/onboarding", "/api/auth/logout", "/api/auth/verification-complete", "/api/auth/me" ->
-                    tokenType == TokenType.ACCESS;
-            default -> true;
-        };
+        boolean allowed = tokenType == TokenType.ACCESS
+                || (tokenType == TokenType.VERIFICATION && request != null
+                && verificationTokenGuard.isAllowed(request));
 
         if (!allowed) {
             throw new CustomException(AuthErrorCode.TOKEN_TYPE_NOT_ALLOWED);

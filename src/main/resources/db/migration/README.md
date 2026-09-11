@@ -14,6 +14,13 @@ This service onboards an existing, Hibernate-managed schema to Flyway while also
 
 Do not edit an already deployed migration. Add a new sequential migration instead.
 
+## V14: separate onboarding from the approval notice
+
+- `V14__Separate_signup_completion_notification.sql` adds `verification_complete_notified` to `user_profile` without changing `initial_setup_completed` or account approval status.
+- Existing ACTIVE/SUSPENDED users who completed initial setup retain HOME behavior. Optional bio/image/tag values are not used to infer onboarding completion.
+- New and pending users start with notification=false. Login records notification=true only after approval, onboarding completion, and successful access/refresh session creation.
+- See [the signup and token contract](../../../../../docs/signup-token-flow.md) for frontend coordination and rollout checks.
+
 ## V13: remove phone numbers and deliver gifticons by email
 
 - `V13__Remove_phone_numbers_and_use_gifticon_email.sql` preserves users, credentials, statuses, points, purchase IDs, and export/processing state. It removes `users.phone_num`, `gifticon_purchases.buyer_phone`, and `gifticon_purchases.recipient_phone`, including stored phone values.

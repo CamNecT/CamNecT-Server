@@ -202,7 +202,6 @@ public class AdminDocumentVerificationService {
                 .orElseThrow(() -> new CustomException(UserErrorCode.USER_PROFILE_NOT_FOUND));
 
         profile.applyVerifiedInfo(studentName, studentNo, institutionId, majorId);
-        profile.requireInitialSetup();
     }
 
     private String safeName(String name) {

@@ -34,6 +34,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -184,7 +185,10 @@ public class DocumentVerificationService {
 
     @Transactional
     public void cancel(Long userId, Long submissionId) {
-        DocumentVerificationSubmission r = submissionRepo.findByIdAndUserId(submissionId, userId)
+        // Review locks this same row. Check PENDING under the lock so a stale
+        // cancellation cannot overwrite approval and delete its document.
+        DocumentVerificationSubmission r = submissionRepo.findByIdForUpdate(submissionId)
+                .filter(submission -> Objects.equals(submission.getUserId(), userId))
                 .orElseThrow(() -> new CustomException(VerificationErrorCode.SUBMISSION_NOT_FOUND));
 
         if (r.getStatus() != VerificationStatus.PENDING) {
