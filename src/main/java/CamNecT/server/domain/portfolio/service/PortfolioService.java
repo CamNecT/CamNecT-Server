@@ -213,7 +213,7 @@ public class PortfolioService {
         // 1. 일반 정보 업데이트 (프로젝트 역할 및 기술 스택 포함)
         project.updateInfo(
                 request.projectTitle(),
-                request.subtitle(),
+                request.subtitleProvided() ? request.subtitle() : project.getSubtitle(),
                 request.description(),
                 request.review(),
                 request.startedAt(),

@@ -95,7 +95,7 @@ public class PortfolioController {
         return ApiResponse.success(portfolioService.create(userId, portfolioUserId, portfolioRequest));
     }
 
-    @Operation(summary = "포트폴리오 수정", description = "소유자의 포트폴리오 정보와 썸네일·첨부 목록을 교체합니다.")
+    @Operation(summary = "포트폴리오 수정", description = "소유자의 포트폴리오 정보를 수정합니다. subtitle은 미전송 시 보존하고, 명시적 null은 삭제합니다. thumbnailKey와 attachmentKeys는 전송한 경우에만 변경합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 ID·요청값·날짜 검증 실패 / 49010 만료·사용된 티켓 / 49011 업로드 객체와 티켓 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
