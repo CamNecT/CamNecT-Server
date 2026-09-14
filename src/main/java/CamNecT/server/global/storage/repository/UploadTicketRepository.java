@@ -60,6 +60,17 @@ public interface UploadTicketRepository extends JpaRepository<UploadTicket, Long
             @Param("now") LocalDateTime now
     );
 
+    /** Caller must hold the user's write lock until the replacement ticket is issued. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            update UploadTicket t
+               set t.status = CamNecT.server.global.storage.model.UploadTicket.Status.EXPIRED
+             where t.userId = :userId
+               and t.purpose = :purpose
+               and t.status = CamNecT.server.global.storage.model.UploadTicket.Status.PENDING
+            """)
+    void expirePendingForReplacement(@Param("userId") Long userId, @Param("purpose") UploadPurpose purpose);
+
     long countByUserIdAndPurposeAndStatusAndExpiresAtAfter(
             Long userId, UploadPurpose purpose, UploadTicket.Status status, LocalDateTime now
     );
