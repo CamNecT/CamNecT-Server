@@ -215,6 +215,9 @@ public class ProfileService {
         // A retry after a lost response must not clear tags or consume an image
         // ticket twice. Later profile edits use the dedicated profile endpoints.
         if (userProfile.isInitialSetupCompleted()) {
+            if (user.getStatus() == UserStatus.ACTIVE) {
+                userProfile.markVerificationCompleteNotified();
+            }
             return new ProfileStatusResponse(user.getStatus());
         }
 
@@ -258,6 +261,11 @@ public class ProfileService {
 
         userProfile.updateOnboardingProfile(bio, finalProfileImageKey);
         userProfile.completeInitialSetup();
+        // FE displays verification completion when onboarding returns ACTIVE,
+        // including retries. Do not issue the same notice on the next login.
+        if (user.getStatus() == UserStatus.ACTIVE) {
+            userProfile.markVerificationCompleteNotified();
+        }
 
         return new ProfileStatusResponse(user.getStatus());
     }

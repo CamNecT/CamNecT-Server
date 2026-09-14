@@ -136,7 +136,7 @@ public class AuthController {
 
     @Operation(
             summary = "온보딩 정보 등록",
-            description = "ADMIN_PENDING 또는 ACTIVE 사용자의 선택 프로필 정보를 저장하고 온보딩을 완료합니다. 가입용 tempToken 또는 유효한 Access Token으로 호출합니다. profileImageKey, bio, tagIds는 모두 선택값이며 빈 JSON 객체로 건너뛸 수 있습니다. 관리자 승인 상태는 변경하지 않으며 완료 후 재요청은 기존 결과를 반환합니다."
+            description = "ADMIN_PENDING 또는 ACTIVE 사용자의 선택 프로필 정보를 저장하고 온보딩을 완료합니다. 가입용 tempToken 또는 유효한 Access Token으로 호출합니다. profileImageKey, bio, tagIds는 모두 선택값이며 빈 JSON 객체로 건너뛸 수 있습니다. 관리자 승인 상태는 변경하지 않으며 완료 후 재요청은 저장된 프로필을 보존합니다. ACTIVE 성공 응답에서는 FE가 인증 완료 화면을 표시하므로 안내 완료도 기록하고 다음 로그인부터 HOME을 반환합니다. ADMIN_PENDING 완료는 심사 대기를 유지하고 승인 후 첫 로그인에 VERIFICATION_COMPLETE를 한 번 반환합니다."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "생성 성공", useReturnTypeSchema = true),
