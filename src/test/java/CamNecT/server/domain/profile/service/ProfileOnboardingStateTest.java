@@ -22,6 +22,8 @@ import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import CamNecT.server.global.tag.repository.TagRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.Optional;
 import java.util.List;
@@ -86,6 +88,7 @@ class ProfileOnboardingStateTest {
         assertThat(response.status()).isEqualTo(UserStatus.ACTIVE);
         assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
         assertThat(profile.isInitialSetupCompleted()).isTrue();
+        assertThat(profile.isVerificationCompleteNotified()).isTrue();
     }
 
     @Test
@@ -104,9 +107,10 @@ class ProfileOnboardingStateTest {
         assertThat(profile.isVerificationCompleteNotified()).isFalse();
     }
 
-    @Test
-    void retryAfterCompletionPreservesProfileAndDoesNotConsumeTicketAgain() {
-        Users user = Users.builder().userId(1L).status(UserStatus.ACTIVE).build();
+    @ParameterizedTest
+    @EnumSource(value = UserStatus.class, names = {"ACTIVE", "ADMIN_PENDING"})
+    void retryAfterCompletionPreservesProfileAndDoesNotConsumeTicketAgain(UserStatus status) {
+        Users user = Users.builder().userId(1L).status(status).build();
         UserProfile profile = UserProfile.builder().user(user).build();
         profile.completeInitialSetup();
         profile.updateOnboardingProfile("saved bio", "saved-image");
@@ -116,7 +120,8 @@ class ProfileOnboardingStateTest {
         ProfileStatusResponse response = profileService.createOnboarding(
                 1L, new UpdateOnboardingRequest("already-consumed-ticket", "replacement", List.of(999L)));
 
-        assertThat(response.status()).isEqualTo(UserStatus.ACTIVE);
+        assertThat(response.status()).isEqualTo(status);
+        assertThat(profile.isVerificationCompleteNotified()).isEqualTo(status == UserStatus.ACTIVE);
         assertThat(profile.getBio()).isEqualTo("saved bio");
         assertThat(profile.getProfileImageKey()).isEqualTo("saved-image");
         verifyNoInteractions(userTagMapRepository, tagRepository, presignEngine);

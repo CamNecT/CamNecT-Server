@@ -142,6 +142,7 @@ class SignupTokenFlowIntegrationTest {
                 .andExpect(jsonPath("$.status").value("ADMIN_PENDING"));
         assertThat(profiles.findByUserId(user.getUserId()).orElseThrow().isInitialSetupCompleted()).isTrue();
         assertThat(user.getStatus()).isEqualTo(UserStatus.ADMIN_PENDING);
+        assertThat(profiles.findByUserId(user.getUserId()).orElseThrow().isVerificationCompleteNotified()).isFalse();
         login(user, "DOCUMENT_REVIEW_WAITING");
 
         approve(submission);
@@ -179,12 +180,41 @@ class SignupTokenFlowIntegrationTest {
         assertThat(profiles.findByUserId(user.getUserId()).orElseThrow().getBio())
                 .isEqualTo("saved before leaving signup");
 
+        // SchoolCompletion reads these details with the existing ACCESS token
+        // after the ACTIVE onboarding response has consumed the notice.
+        mockMvc.perform(get("/api/auth/verification-complete")
+                        .header("Authorization", bearer(login.path("accessToken").asText())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("verified user"))
+                .andExpect(jsonPath("$.institutionName").value("Test University"));
+
         mockMvc.perform(get("/api/verification/documents/me").header("Authorization", bearer(tempToken)))
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value(41103));
         mockMvc.perform(get("/api/profile/me").header("Authorization", bearer(tempToken)))
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value(41106));
         refresh(tempToken).andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value(41106));
-        login(user, "VERIFICATION_COMPLETE");
+        login(user, "HOME");
+        login(user, "HOME");
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void activeOnboardingCommitsInlineNoticeAndNextLoginGoesHome(boolean useAccessToken) throws Exception {
+        Users user = user(UserStatus.ACTIVE);
+        JsonNode before = login(user, "ONBOARDING_REQUIRED");
+        login(user, "ONBOARDING_REQUIRED");
+        UserProfile incomplete = profiles.findByUserId(user.getUserId()).orElseThrow();
+        assertThat(incomplete.isInitialSetupCompleted()).isFalse();
+        assertThat(incomplete.isVerificationCompleteNotified()).isFalse();
+
+        String token = useAccessToken ? before.path("accessToken").asText() : tempToken(user);
+        onboarding(token, "{}").andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+
+        UserProfile completed = profiles.findByUserId(user.getUserId()).orElseThrow();
+        assertThat(completed.isInitialSetupCompleted()).isTrue();
+        assertThat(completed.isVerificationCompleteNotified()).isTrue();
+        login(user, "HOME");
         login(user, "HOME");
     }
 
@@ -362,7 +392,7 @@ class SignupTokenFlowIntegrationTest {
         approve(submission);
         onboarding(token, body).andExpect(status().isCreated());
         onboarding(token, "{}").andExpect(status().isCreated());
-        login(user, "VERIFICATION_COMPLETE");
+        login(user, "HOME");
         login(user, "HOME");
 
         UserProfile persisted = profiles.findByUserId(user.getUserId()).orElseThrow();
@@ -375,10 +405,11 @@ class SignupTokenFlowIntegrationTest {
         verify(s3, times(1)).copyObject(any(CopyObjectRequest.class));
     }
 
-    @Test
+    @ParameterizedTest
+    @EnumSource(value = UserStatus.class, names = {"ACTIVE", "ADMIN_PENDING"})
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void failedImageConsumptionRollsBackTagReplacementAndCompletion() throws Exception {
-        Users user = user(UserStatus.ADMIN_PENDING);
+    void failedImageConsumptionRollsBackTagReplacementAndCompletion(UserStatus userStatus) throws Exception {
+        Users user = user(userStatus);
         Tag original = tag();
         Tag replacement = tag();
         userTags.saveAndFlush(UserTagMap.builder().userId(user.getUserId()).tagId(original.getId()).build());
@@ -391,6 +422,7 @@ class SignupTokenFlowIntegrationTest {
 
         UserProfile persisted = profiles.findByUserId(user.getUserId()).orElseThrow();
         assertThat(persisted.isInitialSetupCompleted()).isFalse();
+        assertThat(persisted.isVerificationCompleteNotified()).isFalse();
         assertThat(persisted.getBio()).isNull();
         assertThat(userTags.findAllTagsByUserId(user.getUserId())).extracting(Tag::getId).containsExactly(original.getId());
         verifyNoInteractions(s3);
@@ -404,11 +436,13 @@ class SignupTokenFlowIntegrationTest {
         String token = tempToken(user);
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
+        String onboardingStatus;
         try (var executor = Executors.newFixedThreadPool(2)) {
             var onboarding = executor.submit(() -> {
                 ready.countDown();
                 assertThat(start.await(10, TimeUnit.SECONDS)).isTrue();
-                return onboarding(token, "{\"bio\":\"concurrent bio\"}").andExpect(status().isCreated());
+                return onboarding(token, "{\"bio\":\"concurrent bio\"}").andExpect(status().isCreated())
+                        .andReturn().getResponse().getContentAsString();
             });
             var approval = executor.submit(() -> {
                 ready.countDown();
@@ -418,7 +452,7 @@ class SignupTokenFlowIntegrationTest {
             });
             assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
             start.countDown();
-            onboarding.get(20, TimeUnit.SECONDS);
+            onboardingStatus = objectMapper.readTree(onboarding.get(20, TimeUnit.SECONDS)).path("status").asText();
             approval.get(20, TimeUnit.SECONDS);
         } finally {
             start.countDown();
@@ -428,7 +462,9 @@ class SignupTokenFlowIntegrationTest {
         assertThat(persisted.getBio()).isEqualTo("concurrent bio");
         assertThat(persisted.getStudentNo()).isEqualTo("2026");
         assertThat(users.findById(user.getUserId()).orElseThrow().getStatus()).isEqualTo(UserStatus.ACTIVE);
-        login(user, "VERIFICATION_COMPLETE");
+        assertThat(onboardingStatus).isIn("ACTIVE", "ADMIN_PENDING");
+        assertThat(persisted.isVerificationCompleteNotified()).isEqualTo(onboardingStatus.equals("ACTIVE"));
+        login(user, onboardingStatus.equals("ACTIVE") ? "HOME" : "VERIFICATION_COMPLETE");
         login(user, "HOME");
     }
 

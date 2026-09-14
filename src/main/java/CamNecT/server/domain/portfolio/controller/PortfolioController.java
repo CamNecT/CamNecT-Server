@@ -95,7 +95,7 @@ public class PortfolioController {
         return ApiResponse.success(portfolioService.create(userId, portfolioUserId, portfolioRequest));
     }
 
-    @Operation(summary = "포트폴리오 수정", description = "소유자의 포트폴리오 정보와 썸네일·첨부 목록을 교체합니다.")
+    @Operation(summary = "포트폴리오 수정", description = "소유자의 포트폴리오 정보를 수정합니다. subtitle은 미전송 시 보존하고, 명시적 null은 삭제합니다. thumbnailKey와 attachmentKeys는 전송한 경우에만 변경합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 ID·요청값·날짜 검증 실패 / 49010 만료·사용된 티켓 / 49011 업로드 객체와 티켓 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
@@ -171,7 +171,7 @@ public class PortfolioController {
         return ApiResponse.success(portfolioService.toggleFavorite(userId, portfolioUserId, portfolioId));
     }
 
-    @Operation(summary = "썸네일 업로드용 Presigned URL 발급", description = "소유자가 이미지 썸네일을 업로드할 수 있는 단건 Presigned URL을 발급합니다.")
+    @Operation(summary = "썸네일 업로드용 Presigned URL 발급", description = "소유자가 이미지 썸네일을 업로드할 수 있는 단건 Presigned URL을 발급합니다. 재발급 시 이전 미사용 썸네일 티켓을 교체하므로 마지막 응답의 fileKey를 저장에 사용해야 합니다. 파일은 응답의 uploadUrl로 PUT 업로드합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 49020 파일 크기가 0 이하", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
@@ -179,7 +179,6 @@ public class PortfolioController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "41302 정지된 사용자 / 44310 URL 사용자와 로그인 사용자 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "413", description = "49005 썸네일 용량 제한 초과", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type / 49004 허용되지 않은 이미지 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "49006 미사용 썸네일 티켓 제한 초과", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 Presigned URL 발급 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/uploads/presign/thumbnail")

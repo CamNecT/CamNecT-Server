@@ -58,7 +58,7 @@ public class PortfolioProject {
     @Builder.Default
     private List<String> assignedRole = new ArrayList<>();
 
-    @Column(name = "tech_stack", nullable = false)
+    @Column(name = "tech_stack", nullable = false, length = 512)
     @Convert(converter = StringListConverter.class)
     @Builder.Default
     private List<String> techStack = new ArrayList<>();

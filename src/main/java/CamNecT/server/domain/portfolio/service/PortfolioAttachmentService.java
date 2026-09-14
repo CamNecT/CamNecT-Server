@@ -47,6 +47,7 @@ public class PortfolioAttachmentService {
      * 썸네일 업로드 presign (단건)
      * - 이미지 타입만 허용
      * - temp 경로로 발급됨
+     * - 재시도/이미지 교체 시 이전 미사용 썸네일 티켓을 대체함
      */
     @Transactional
     public PresignUploadResponse presignThumbnail(Long userId, Long portfolioUserId, PresignUploadRequest req) {
@@ -59,6 +60,10 @@ public class PortfolioAttachmentService {
         if (!THUMB_ALLOWED.contains(ct)) throw new CustomException(StorageErrorCode.UNSUPPORTED_CONTENT_TYPE);
 
         String prefix = "portfolio/user-" + userId + "/thumbnail";
+
+        // 사용자 행 잠금을 잡은 동일 트랜잭션에서 교체한다. 발급 실패 시 이전 티켓도 복구된다.
+        // 저장 실패/취소 후 남은 티켓 때문에 10분 동안 재시도가 차단되는 것을 방지한다.
+        ticketRepo.expirePendingForReplacement(userId, UploadPurpose.PORTFOLIO_THUMBNAIL);
 
         return presignEngine.issueUpload(
                 userId,
