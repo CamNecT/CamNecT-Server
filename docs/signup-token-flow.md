@@ -47,15 +47,17 @@ tempToken의 비밀번호 fingerprint 검증은 인터셉터와 `/api/auth` 인�
 
 JWT 만료·서명 오류는 일반 API와 `/api/auth` 모두 40100으로 통일했다. 폐기된/없는 Redis 세션은 41103, 타입 오용은 41106, REFRESH 재사용은 41107, REFRESH 만료는 41108, Redis 일시 장애는 50310을 유지한다.
 
-## FE에서 함께 확인할 부분
+## FE 실제 코드와 대조 — 2026-09-14
 
-1. PR #167이 실제 UT 배포에 포함되는지 확인한다. 확인한 main/develop의 axios에는 RTR이 없고 401에서 즉시 로그아웃한다.
-2. `LoginPage.tsx`는 로그인 성공 시 모두 `setUserLogin`을 호출한다. ADMIN_PENDING + refreshToken=null이면 `setSignupLogin(response.accessToken, user)`으로 분기해야 가입용 토큰이 정식 인증 상태로 표시되지 않는다. ACTIVE는 `setUserLogin(accessToken, refreshToken, user)`을 유지한다.
-3. PR #167의 `authMode: signup`은 signupToken이 없으면 ACCESS로 대체하지만 응답 인터셉터는 실제 토큰과 무관하게 signup 요청의 401을 RTR 대상에서 제외한다. **ACTIVE 사용자가 ACCESS로 온보딩 중 만료되면 갱신되지 않는 문제**가 남는다. 요청에 실제 인증 방식/사용한 토큰을 기록해 ACCESS를 사용한 요청은 RTR 후 한 번 재시도하고, 진짜 tempToken은 재로그인으로 안내해야 한다.
-4. 동일 페이지 내 중복 갱신은 refreshPromise로 합쳐져 있다. 별도 탭은 이 Promise를 공유하지 않는다. 여러 탭에서 동일 REFRESH를 동시에 사용하면 서버의 재사용 차단이 작동하므로 브라우저 탭 간 갱신 조율도 필요하다. 이는 서버의 재사용 차단을 해제해서 해결할 문제가 아니다.
-5. 온보딩의 bare `{status}` 응답이 ACTIVE이면 FE가 인증 완료 화면을 바로 보여주고, 다음 로그인은 HOME으로 진행한다. ADMIN_PENDING이면 심사 대기를 표시하며 승인 후 첫 로그인에 COMPLETE를 한 번 받는다. 이 응답은 새 ACCESS/REFRESH 발급을 뜻하지 않으며 tempToken의 만료 또는 비밀번호 변경에는 재로그인을 안내한다.
+Web develop `bb9b49980e5a7b56fc7b78b94938464647aaddad`, main `72c3f655d38e938d64f23c38de1f87e7eb418976`을 확인했다. 두 브랜치의 온보딩 성공 분기는 같다. RTR PR #167도 병합된 상태로 확인했으며, 과거 검토의 미병합 상태와 구분한다. 실제 운영 FE 빌드 SHA까지 확인한 것은 아니다.
 
-FE 원격 저장소는 참고자료로만 사용했다. 위 프론트 변경은 이 서버 브랜치에 포함되지 않는다.
+1. [InterestsStep](https://github.com/CamNecT/CamNecT-Web/blob/bb9b49980e5a7b56fc7b78b94938464647aaddad/src/pages/auth/InterestsStep.tsx#L104)은 저장 성공 후 bare 응답의 `result.status`를 부모에게 넘긴다.
+2. [SignUpPage.handleOnboardingComplete](https://github.com/CamNecT/CamNecT-Web/blob/bb9b49980e5a7b56fc7b78b94938464647aaddad/src/pages/auth/SignUpPage.tsx#L44)는 ADMIN_PENDING이면 심사 대기(step 7), ACTIVE이며 정식 ACCESS/REFRESH 세션이 있으면 SchoolCompletion(step 8)으로 이동한다.
+3. TEMP만 가진 ACTIVE 사용자는 인증 상세 완료 화면 대신 “승인이 완료되었습니다 / 다시 로그인해 주세요” 팝업을 본다. 요청한 ACTIVE 기준에 따라 이 경로도 다음 로그인은 HOME이다. 온보딩 성공 응답에서 새 정식 토큰을 발급하거나 TEMP의 권한을 확대하지 않는다.
+4. SchoolCompletion은 `/api/auth/verification-complete`로 인증 정보를 읽고, 시작하기에서 로컬 nextStep을 HOME으로 변경한다. 서버의 안내 플래그가 true여도 인증 정보 GET은 가능하므로 완료 화면 조회를 막지 않는다.
+5. LoginPage는 HOME 응답이면 스플래시 후 `/home`으로 이동한다. 승인 전 온보딩을 완료한 사용자는 기존처럼 승인 후 첫 로그인에서 VERIFICATION_COMPLETE를 받고, 그 이후 HOME으로 이동한다.
+
+FE 코드의 경로·응답 타입·성공 콜백을 대조한 결과이며 브라우저 E2E 실행 결과는 아니다. 이 PR은 서버를 수정한다. 여러 탭의 refreshToken 재사용 시 해당 sid의 최신 ACCESS/REFRESH가 함께 폐기되는 기존 정책도 유지한다.
 
 ## 엄격 재검토에서 추가 확인한 사항
 

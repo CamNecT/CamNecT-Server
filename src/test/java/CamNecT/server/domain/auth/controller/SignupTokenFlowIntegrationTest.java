@@ -180,6 +180,13 @@ class SignupTokenFlowIntegrationTest {
         assertThat(profiles.findByUserId(user.getUserId()).orElseThrow().getBio())
                 .isEqualTo("saved before leaving signup");
 
+        // SchoolCompletion reads these details with the existing ACCESS token
+        // after the ACTIVE onboarding response has consumed the notice.
+        mockMvc.perform(get("/api/auth/verification-complete")
+                        .header("Authorization", bearer(login.path("accessToken").asText())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("verified user"))
+                .andExpect(jsonPath("$.institutionName").value("Test University"));
+
         mockMvc.perform(get("/api/verification/documents/me").header("Authorization", bearer(tempToken)))
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value(41103));
         mockMvc.perform(get("/api/profile/me").header("Authorization", bearer(tempToken)))

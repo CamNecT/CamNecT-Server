@@ -40,7 +40,7 @@ class InitialSetupIntegrationTest {
 
     @Test
     @Transactional
-    void activeUserCompletesOnboardingThenReceivesVerificationNoticeOnce() throws Exception {
+    void activeUserCompletesOnboardingThenGoesHomeWithoutAnotherVerificationNotice() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         String username = "setup-" + suffix;
         String password = "password1";
@@ -76,10 +76,12 @@ class InitialSetupIntegrationTest {
 
         assertThat(userProfileRepository.findByUserId(user.getUserId()).orElseThrow().isInitialSetupCompleted())
                 .isTrue();
+        assertThat(userProfileRepository.findByUserId(user.getUserId()).orElseThrow().isVerificationCompleteNotified())
+                .isTrue();
 
         login(username, password)
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nextStep").value("VERIFICATION_COMPLETE"));
+                .andExpect(jsonPath("$.nextStep").value("HOME"));
 
         login(username, password)
                 .andExpect(status().isOk())
