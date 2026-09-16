@@ -4,6 +4,12 @@ on:
   push:
     branches: [ "develop" ]
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy after publishing the multi-platform image
+        type: boolean
+        required: true
+        default: true
 
 concurrency:
   group: deploy-stage
@@ -14,54 +20,49 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE: ${{ secrets.DOCKER_USERNAME }}/camnect-server:stage
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
           cache: gradle
-
       - name: Run tests
         run: |
           chmod +x gradlew
           ./gradlew test --no-daemon
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and Push Docker Image (target=prod, tag=stage)
+      - name: Build and Push Docker Image (target=prod)
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           target: prod
+          platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.IMAGE }}
+          tags: |
+            ${{ env.IMAGE }}
+            ${{ secrets.DOCKER_USERNAME }}/camnect-server:sha-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
       - name: Ensure stage directory exists on EC2
+        if: github.event_name != 'workflow_dispatch' || inputs.deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
-          script: |
-            set -e
-            mkdir -p /home/${{ secrets.USERNAME }}/camnect-stage
-
+          script: mkdir -p /home/${{ secrets.USERNAME }}/camnect-stage
       - name: Upload docker-compose.stage.yml to EC2
+        if: github.event_name != 'workflow_dispatch' || inputs.deploy
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.HOST }}
@@ -70,8 +71,8 @@ jobs:
           source: "docker-compose.stage.yml"
           target: "/home/${{ secrets.USERNAME }}/camnect-stage/"
           overwrite: true
-
       - name: Deploy STAGE to EC2
+        if: github.event_name != 'workflow_dispatch' || inputs.deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
@@ -80,23 +81,17 @@ jobs:
           script: |
             set -e
             cd /home/${{ secrets.USERNAME }}/camnect-stage
-
             if [ ! -f .env.stage ]; then
               echo "[ERROR] .env.stage not found in camnect-stage"
               exit 1
             fi
-
             export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
-
             if command -v docker-compose >/dev/null 2>&1; then
               DC="docker-compose"
             else
               DC="docker compose"
             fi
-
             echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
             sudo mkdir -p /home/ubuntu/app/exports/gifticon-stage
-
             sudo -E $DC -p camnect-stage -f docker-compose.stage.yml pull
             sudo -E $DC -p camnect-stage -f docker-compose.stage.yml up -d --remove-orphans
