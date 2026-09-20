@@ -25,6 +25,7 @@ public interface UserRepository extends JpaRepository<Users, Long> {
     Optional<Long> findUserIdByUsername(@Param("username") String username);
     @Query("select u.status from Users u where u.userId = :userId")
     Optional<UserStatus> findStatusByUserId(@Param("userId") Long userId);
+    boolean existsByPhoneNum(String phoneNum);
     boolean existsByEmail(String email);
     boolean existsByUsername(String username);
     boolean existsByName(String name);

@@ -59,7 +59,7 @@ public class GifticonService {
                 ))
                 .toList();
 
-        return new GifticonHomeResponse(myPoint, myEmail, views, lastSyncedAt);
+        return new GifticonHomeResponse(myPoint, myEmail, pointService.getPhoneNum(userId), views, lastSyncedAt);
     }
 
     public GifticonProductDetailResponse productDetail(Long productId) {

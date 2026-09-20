@@ -373,7 +373,8 @@ public class ProfileService {
                 user.getUserId(),
                 user.getName(),
                 profileImageUrl,
-                user.getEmail()
+                user.getEmail(),
+                user.getPhoneNum()
         );
     }
 

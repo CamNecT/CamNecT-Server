@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class GifticonEmailRequestContractTest {
 
     @Test
-    void legacyRecipientFieldIsRejectedEvenWhenJacksonIgnoresUnknownProperties() throws Exception {
+    void unknownRecipientFieldIsRejectedEvenWhenJacksonIgnoresUnknownProperties() throws Exception {
         var service = mock(GifticonPurchaseService.class);
         var mapper = new ObjectMapper().findAndRegisterModules()
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
@@ -41,7 +41,7 @@ class GifticonEmailRequestContractTest {
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(mapper)).build();
         var request = new LinkedHashMap<String, Object>(Map.of(
                 "productId", 10, "quantity", 1, "spendPoints", 1000, "clientRequestId", "legacy"));
-        request.put("recipientPhone", "01012345678");
+        request.put("recipientPhon", "01012345678");
 
         mvc.perform(post("/api/gifticons/purchases/confirm").contentType(MediaType.APPLICATION_JSON)
                         .content(mapper.writeValueAsBytes(request)))
@@ -49,7 +49,7 @@ class GifticonEmailRequestContractTest {
                 .andExpect(jsonPath("$.code").value(40000));
         verifyNoInteractions(service);
 
-        request.remove("recipientPhone");
+        request.remove("recipientPhon");
         request.put("recipientEmail", "recipient@example.com");
         when(service.confirm(isNull(), any())).thenReturn(
                 new GifticonPurchaseConfirmResponse(1L, LocalDateTime.now()));
@@ -57,7 +57,7 @@ class GifticonEmailRequestContractTest {
                         .content(mapper.writeValueAsBytes(request)))
                 .andExpect(status().isOk());
         verify(service).confirm(isNull(), eq(new ConfirmGifticonPurchaseRequest(
-                10L, 1, 1000, "legacy", null, "recipient@example.com", null)));
+                10L, 1, 1000, "legacy", null, "recipient@example.com", null, null)));
     }
 
     @Test
@@ -75,7 +75,18 @@ class GifticonEmailRequestContractTest {
         }
     }
 
+    @Test
+    void recipientPhoneIsNormalizedAndValidated() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var valid = new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "phone", null, null, null, " 010-1234-5678 ");
+            assertThat(factory.getValidator().validate(valid)).isEmpty();
+            assertThat(valid.recipientPhone()).isEqualTo("01012345678");
+            var invalid = new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "phone", null, null, null, "010123");
+            assertThat(factory.getValidator().validate(invalid)).isNotEmpty();
+        }
+    }
+
     private ConfirmGifticonPurchaseRequest request(String email) {
-        return new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "request", null, email, null);
+        return new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "request", null, email, null, null);
     }
 }

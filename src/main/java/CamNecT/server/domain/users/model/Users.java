@@ -36,6 +36,9 @@ public class Users {
     @Column(name = "email", unique = true)
     private String email;
 
+    @Column(name = "phone_num", length = 20, unique = true)
+    private String phoneNum;
+
     @Builder.Default //
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
@@ -78,6 +81,7 @@ public class Users {
         this.name = name;
         this.username = username;
         this.email = email;
+        this.phoneNum = null;
         this.status = status;
     }
 }

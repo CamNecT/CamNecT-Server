@@ -12,6 +12,7 @@ public enum AuthErrorCode implements BaseErrorCode {
     // 410xx - 입력/검증
     INVALID_PASSWORD(HttpStatus.BAD_REQUEST, 41010, "비밀번호 형식이 올바르지 않습니다."),
     SAME_AS_CURRENT_PASSWORD(HttpStatus.BAD_REQUEST, 41011, "기존 비밀번호와 동일한 비밀번호는 사용할 수 없습니다."),
+    INVALID_PHONE_NUMBER(HttpStatus.BAD_REQUEST, 41012, "유효한 휴대전화번호가 필요합니다."),
     TERMS_REQUIRED(HttpStatus.BAD_REQUEST, 41020, "필수 약관에 동의해야 합니다."),
 
     // 411xx - 인증/토큰
@@ -35,6 +36,7 @@ public enum AuthErrorCode implements BaseErrorCode {
     // 419xx - 충돌
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, 41901, "이미 가입된 이메일입니다."),
     USERNAME_ALREADY_EXISTS(HttpStatus.CONFLICT, 41902, "이미 사용 중인 아이디입니다."),
+    PHONENUM_ALREADY_EXISTS(HttpStatus.CONFLICT, 41903, "이미 가입된 전화번호입니다."),
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, 41904, "서버가 생성하려는 자원이 이미 존재해서 충돌"),
     INITIAL_SETUP_NOT_ALLOWED(HttpStatus.CONFLICT, 41905, "초기 설정이 필요한 상태가 아닙니다.");
     private final HttpStatus httpStatus;

@@ -262,6 +262,7 @@ class EmailVerificationServiceIssuanceTest {
                 USERNAME,
                 "password1",
                 "user",
+                "010-1234-5678",
                 new VerifySignupEmailRequest.Agreements(true, true)
         );
     }

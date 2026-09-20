@@ -62,6 +62,7 @@ class SignupServiceTest {
                     .email(user.getEmail())
                     .username(user.getUsername())
                     .name(user.getName())
+                    .phoneNum(user.getPhoneNum())
                     .passwordHash(user.getPasswordHash())
                     .status(user.getStatus())
                     .build();
@@ -70,6 +71,7 @@ class SignupServiceTest {
         Users saved = signupService.signupVerifiedUser(request);
 
         assertThat(saved.getStatus()).isEqualTo(UserStatus.ADMIN_PENDING);
+        assertThat(saved.getPhoneNum()).isEqualTo("01012345678");
         verify(userProfileRepository).save(any(UserProfile.class));
     }
 
@@ -95,6 +97,7 @@ class SignupServiceTest {
                 "username",
                 "password123!A",
                 "name",
+                "010-1234-5678",
                 new VerifySignupEmailRequest.Agreements(serviceTerms, privacyTerms)
         );
     }

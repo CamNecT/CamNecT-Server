@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
+import CamNecT.server.global.common.util.PhoneNumbers;
 
 @Service
 @RequiredArgsConstructor
@@ -85,6 +86,11 @@ public class GifticonPurchaseService {
             throw new CustomException(GifticonErrorCode.INVALID_RECIPIENT_EMAIL);
         }
 
+        String recipientPhone = resolveRecipientPhone(req, user.getPhoneNum());
+        if (!PhoneNumbers.isValid(recipientPhone)) {
+            throw new CustomException(GifticonErrorCode.INVALID_RECIPIENT_PHONE);
+        }
+
         // 2) 구매요청 적재(스냅샷)
         GifticonPurchase purchase = GifticonPurchase.builder()
                 .user(user)
@@ -96,9 +102,11 @@ public class GifticonPurchaseService {
 
                 .buyerName(user.getName())
                 .buyerEmail(buyerEmail)
+                .buyerPhone(PhoneNumbers.normalize(user.getPhoneNum()))
 
                 .recipientName(blankToNull(req.recipientName()))
                 .recipientEmail(recipientEmail)
+                .recipientPhone(recipientPhone)
                 .giftMessage(blankToNull(req.giftMessage()))
                 .requestedAt(LocalDateTime.now())
                 .build();
@@ -126,6 +134,11 @@ public class GifticonPurchaseService {
         return recipientEmail == null ? emailPolicy.normalize(buyerEmail) : recipientEmail;
     }
 
+    private String resolveRecipientPhone(ConfirmGifticonPurchaseRequest req, String buyerPhone) {
+        String recipientPhone = PhoneNumbers.normalize(req.recipientPhone());
+        return recipientPhone == null ? PhoneNumbers.normalize(buyerPhone) : recipientPhone;
+    }
+
     private boolean matchesRequest(GifticonPurchase purchase, ConfirmGifticonPurchaseRequest req) {
         return Objects.equals(purchase.getProduct().getId(), req.productId())
                 && Objects.equals(purchase.getQuantity(), req.quantity())
@@ -133,6 +146,7 @@ public class GifticonPurchaseService {
                 && Objects.equals(purchase.getRecipientName(), blankToNull(req.recipientName()))
                 // 재시도 시 현재 계정 이메일이 아닌 구매 당시 스냅샷으로 비교한다.
                 && Objects.equals(purchase.getRecipientEmail(), resolveRecipientEmail(req, purchase.getBuyerEmail()))
+                && Objects.equals(purchase.getRecipientPhone(), resolveRecipientPhone(req, purchase.getBuyerPhone()))
                 && Objects.equals(purchase.getGiftMessage(), blankToNull(req.giftMessage()));
     }
 }
