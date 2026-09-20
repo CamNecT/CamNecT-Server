@@ -46,6 +46,11 @@ class CommunityRequestValidationTest {
 
         assertThat(validator.validate(request)).extracting(v -> v.getPropertyPath().toString())
                 .contains("content", "parentCommentId");
+
+        assertThat(validator.validate(new CreateCommentRequest("가".repeat(5_000), null))).isEmpty();
+        assertThat(validator.validate(new UpdateCommentRequest("가".repeat(5_000)))).isEmpty();
+        assertThat(validator.validate(new UpdateCommentRequest("가".repeat(5_001))))
+                .anyMatch(v -> v.getPropertyPath().toString().equals("content"));
     }
 
     @Test

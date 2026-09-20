@@ -42,7 +42,7 @@ public class Comments {
     private Comments parent;
 
     @Lob
-    @Column(name = "content", nullable = false)
+    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
     @Enumerated(EnumType.STRING)

@@ -72,6 +72,40 @@ class ChatServiceTest {
     @InjectMocks ChatService chatService;
 
     @Test
+    void acceptanceRewardsTheReceiverAndRetryDoesNotGrantAgain() {
+        var request = ChatRequest.builder().requester(activeUser(1L)).receiver(activeUser(2L))
+                .content("커피챗 요청").type(ChatRequest.RequestType.COFFEE_CHAT).build();
+        org.springframework.test.util.ReflectionTestUtils.setField(request, "id", 10L);
+        org.springframework.test.util.ReflectionTestUtils.setField(chatService, "rewardCoffeeChatAccepted", 500);
+        when(chatRequestRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(request));
+        var room = mock(ChatRoom.class);
+        when(room.getId()).thenReturn(20L);
+        when(chatRoomRepository.save(any(ChatRoom.class))).thenReturn(room);
+
+        chatService.respondToRequest(10L, 2L, true);
+        chatService.respondToRequest(10L, 2L, true);
+
+        assertThat(request.getStatus()).isEqualTo(ChatRequest.RequestStatus.ACCEPTED);
+        verify(pointService, times(1)).earnCoffeeChatAccepted(2L, 1L, 10L, 500);
+        verify(chatRoomRepository, times(1)).save(any(ChatRoom.class));
+    }
+
+    @Test
+    void teamRecruitmentKeepsItsExistingRequestScopedReward() {
+        var request = ChatRequest.builder().requester(activeUser(1L)).receiver(activeUser(2L))
+                .content("팀 모집 요청").type(ChatRequest.RequestType.TEAM_RECRUIT).recruitmentId(30L).build();
+        org.springframework.test.util.ReflectionTestUtils.setField(request, "id", 10L);
+        org.springframework.test.util.ReflectionTestUtils.setField(chatService, "rewardCoffeeChatAccepted", 500);
+        when(chatRequestRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(request));
+        var room = mock(ChatRoom.class);
+        when(room.getId()).thenReturn(20L);
+        when(chatRoomRepository.save(any(ChatRoom.class))).thenReturn(room);
+        chatService.respondToRequest(10L, 2L, true);
+        verify(pointService).earnPoint(1L, 500, CamNecT.server.global.point.model.PointEvent.coffeeChatAccepted(1L, 10L));
+        verifyNoMoreInteractions(pointService);
+    }
+
+    @Test
     void closePublishesRoomClosedEventAfterChangingRoomAndRequestState() {
         Users user = activeUser(1L);
         ChatRoom room = mock(ChatRoom.class);

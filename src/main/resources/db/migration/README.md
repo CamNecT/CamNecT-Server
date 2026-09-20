@@ -14,6 +14,12 @@ This service onboards an existing, Hibernate-managed schema to Flyway while also
 
 Do not edit an already deployed migration. Add a new sequential migration instead.
 
+## V18: comment content capacity (priority rollout)
+
+- `V18__Expand_comment_content.sql` expands `comments.content` from TINYTEXT to TEXT, preserving existing comments and matching the API's 5,000-character limit for multibyte input.
+- Deploy this server-only fix first. Before merging the later, mutually exclusive gifticon PRs #304/#305, rebase the chosen PR and renumber its still-unapplied migrations after this V18 (gifticon snapshots to V19, signup-phone restoration to V20 if #304 is chosen). Recheck the latest catalog at merge time; never edit this V18 after deployment. The community upload retry PR follows separately and has no schema migration.
+- Validate the migration and long Korean/emoji comment creation and editing on MySQL before deployment. H2 tests cover preservation and the SQL change but do not emulate MySQL's TINYTEXT byte limit.
+
 ## V15/V16: report reopening and portfolio subtitles
 
 - `V15__Allow_multiple_report_cases_per_target.sql` preserves existing report cases and submissions. It replaces the lifetime target uniqueness constraint with a generated-column unique index for RECEIVED cases only. Resolved/rejected cases remain available as history. The old index is replaced in one ALTER statement.

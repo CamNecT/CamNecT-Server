@@ -790,13 +790,19 @@ public class ChatService {
 
     private void rewardCoffeeChatAcceptedPoint(ChatRequest request) {
         Long requestId = request.getId();
-        Long targetUserId = (request.getRequester() == null) ? null : request.getRequester().getUserId();
+        Long targetUserId = (request.getReceiver() == null) ? null : request.getReceiver().getUserId();
+        Long opponentId = (request.getRequester() == null) ? null : request.getRequester().getUserId();
 
-        if (requestId == null || targetUserId == null) {
+        if (requestId == null || targetUserId == null || opponentId == null) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
-        pointService.earnPoint(targetUserId, rewardCoffeeChatAccepted,
-                PointEvent.coffeeChatAccepted(targetUserId, requestId));
+        if (request.getType() == ChatRequest.RequestType.COFFEE_CHAT) {
+            pointService.earnCoffeeChatAccepted(targetUserId, opponentId, requestId, rewardCoffeeChatAccepted);
+        } else {
+            // Team recruitment shares this endpoint; retain its existing reward contract.
+            pointService.earnPoint(opponentId, rewardCoffeeChatAccepted,
+                    PointEvent.coffeeChatAccepted(opponentId, requestId));
+        }
     }
 
     private List<Long> normalizeTagIds(List<Long> tagIds) {
