@@ -1,6 +1,7 @@
 package CamNecT.server.domain.community.service;
 
 import CamNecT.server.domain.community.dto.request.AttachmentRequest;
+import CamNecT.server.domain.community.dto.request.CommunityAttachmentPresignRequest;
 import CamNecT.server.domain.community.model.props.CommunityAttachmentProps;
 import CamNecT.server.domain.community.model.Posts.PostAttachments;
 import CamNecT.server.domain.community.model.Posts.Posts;
@@ -13,6 +14,8 @@ import CamNecT.server.global.storage.dto.request.PresignUploadBatchRequest;
 import CamNecT.server.global.storage.dto.response.PresignUploadBatchResponse;
 import CamNecT.server.global.storage.model.UploadPurpose;
 import CamNecT.server.global.storage.model.UploadRefType;
+import CamNecT.server.global.storage.model.UploadTicket;
+import CamNecT.server.global.storage.repository.UploadTicketRepository;
 import CamNecT.server.global.storage.service.PresignEngine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,11 +33,12 @@ public class PostAttachmentsService {
     private final PresignEngine presignEngine;
     private final CommunityAttachmentProps attachmentProps;
     private final GlobalPresignMethods globalPresignMethods;
+    private final UploadTicketRepository ticketRepository;
 
 
 
     @Transactional
-    public PresignUploadBatchResponse presignAttachmentsBatch(Long userId, PresignUploadBatchRequest req) {
+    public PresignUploadBatchResponse presignAttachmentsBatch(Long userId, CommunityAttachmentPresignRequest req) {
         var items = (req == null || req.items() == null)
                 ? List.<PresignUploadBatchRequest.Item>of()
                 : req.items();
@@ -60,6 +64,8 @@ public class PostAttachmentsService {
             issueItems.add(new PresignEngine.IssueItem(ct, item.size(), item.originalFilename()));
         }
 
+        expireReplacedTickets(userId, req.replaceFileKeys());
+
         return new PresignUploadBatchResponse(
                 presignEngine.issueUploadBatch(
                         userId,
@@ -69,6 +75,33 @@ public class PostAttachmentsService {
                         attachmentProps.maxFiles()
                 )
         );
+    }
+
+    private void expireReplacedTickets(Long userId, List<String> keys) {
+        if (keys == null || keys.isEmpty()) return;
+        if (keys.size() > attachmentProps.maxFiles()
+                || keys.stream().anyMatch(key -> !StringUtils.hasText(key) || key.length() > 500)) {
+            throw new CustomException(StorageErrorCode.INVALID_ATTACHMENT_METADATA);
+        }
+        Set<String> distinctKeys = new HashSet<>(keys);
+        if (distinctKeys.size() != keys.size()) {
+            throw new CustomException(StorageErrorCode.DUPLICATE_ATTACHMENT_KEY);
+        }
+        var tickets = ticketRepository.findAllByStorageKeyInForUpdate(distinctKeys);
+        if (tickets.size() != distinctKeys.size()) {
+            throw new CustomException(StorageErrorCode.UPLOAD_TICKET_NOT_FOUND);
+        }
+        for (var ticket : tickets) {
+            if (!Objects.equals(ticket.getUserId(), userId)
+                    || ticket.getPurpose() != UploadPurpose.COMMUNITY_POST_ATTACHMENT) {
+                throw new CustomException(StorageErrorCode.UPLOAD_TICKET_FORBIDDEN);
+            }
+            if (ticket.getStatus() == UploadTicket.Status.USED) {
+                throw new CustomException(StorageErrorCode.UPLOAD_TICKET_EXPIRED_OR_USED);
+            }
+        }
+        // User and ticket locks are held until issueUploadBatch commits; failures roll back expiry.
+        tickets.forEach(UploadTicket::markExpired);
     }
 
     /**
