@@ -1,7 +1,6 @@
 package CamNecT.server.domain.community.service;
 
 import CamNecT.server.domain.community.dto.request.AttachmentRequest;
-import CamNecT.server.domain.community.dto.request.CommunityAttachmentPresignRequest;
 import CamNecT.server.domain.community.model.Posts.Posts;
 import CamNecT.server.domain.community.model.props.CommunityAttachmentProps;
 import CamNecT.server.domain.community.repository.Posts.PostAttachmentsRepository;
@@ -69,7 +68,7 @@ class PostAttachmentsServiceTest {
     void inaccessibleActorCannotIssueAttachmentUploadTicket() {
         doThrow(new CustomException(AuthErrorCode.USER_WITHDRAWN))
                 .when(accountAccessGuard).requireAccessibleForUpdate(1L);
-        CommunityAttachmentPresignRequest request = new CommunityAttachmentPresignRequest(List.of(
+        PresignUploadBatchRequest request = new PresignUploadBatchRequest(List.of(
                 new PresignUploadBatchRequest.Item("image/png", 100L, "community.png")
         ));
 
