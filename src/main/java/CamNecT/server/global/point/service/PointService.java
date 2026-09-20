@@ -70,6 +70,33 @@ public class PointService {
         changePoint(userId, amount, TransactionType.EARN, event);
     }
 
+    /** Once per recipient/opponent, including rewards paid before pair-based keys existed. */
+    @Transactional
+    public void earnCoffeeChatAccepted(Long receiverId, Long opponentId, Long requestId, int amount) {
+        if (receiverId == null || opponentId == null || requestId == null
+                || receiverId.equals(opponentId) || amount <= 0) {
+            throw new CustomException(ErrorCode.INTERNAL_ERROR);
+        }
+        // Serialize the historical check and new grant on the recipient's wallet.
+        ensureWallet(receiverId);
+        findBalanceForUpdate(receiverId);
+        boolean previouslyRewarded = jdbcTemplate.query("""
+                SELECT pt.point_tx_id
+                  FROM point_transaction pt
+                  JOIN coffee_chat_request cr ON cr.request_id = pt.request_id
+                 WHERE pt.user_id = ?
+                   AND pt.source_type = 'COFFEECHAT_ACCEPTANCE'
+                   AND pt.transaction_type = 'EARN'
+                   AND cr.request_type = 'COFFEE_CHAT'
+                   AND ((cr.requester_id = ? AND cr.receiver_id = ?)
+                     OR (cr.requester_id = ? AND cr.receiver_id = ?))
+                 LIMIT 1 FOR UPDATE
+                """, rows -> { return rows.next(); }, receiverId, receiverId, opponentId, opponentId, receiverId);
+        if (previouslyRewarded) return;
+        changePoint(receiverId, amount, TransactionType.EARN,
+                PointEvent.coffeeChatAccepted(receiverId, opponentId, requestId));
+    }
+
     @Transactional
     public void changePoint(Long userId, int amount, TransactionType type, PointEvent event) {
         if (userId == null || amount <= 0 || type == null || event == null || event.source() == null) {

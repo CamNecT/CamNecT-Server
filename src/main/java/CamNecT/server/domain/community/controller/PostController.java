@@ -11,7 +11,7 @@ import CamNecT.server.domain.community.service.PostService;
 import CamNecT.server.global.common.auth.UserId;
 import CamNecT.server.global.common.response.ApiResponse;
 import CamNecT.server.global.common.response.ErrorResponse;
-import CamNecT.server.global.storage.dto.request.PresignUploadBatchRequest;
+import CamNecT.server.domain.community.dto.request.CommunityAttachmentPresignRequest;
 import CamNecT.server.global.storage.dto.response.PresignDownloadResponse;
 import CamNecT.server.global.storage.dto.response.PresignUploadBatchResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -253,6 +253,7 @@ public class PostController {
             description = """
                 게시글에 포함될 파일을 S3에 업로드하기 위한 Presigned URL을 발급합니다.
                 - 업로드는 temp 경로로 수행됩니다.
+                - 재시도 시 replaceFileKeys에 실패한 미사용 티켓 키를 지정하면 해당 티켓만 교체합니다.
                 - 게시글 저장/수정 시 consume되어 최종 경로로 이동됩니다.
                 - 규칙: items[0]은 썸네일(이미지 jpg/png/webp)가 권장됩니다.
                 - 규칙: items[1..]은 일반 첨부(예: pdf 포함 허용)입니다.
@@ -271,7 +272,7 @@ public class PostController {
     @PostMapping("/uploads/presign")
     public ApiResponse<PresignUploadBatchResponse> presignAttachmentUpload(
             @UserId Long userId,
-            @RequestBody @Valid PresignUploadBatchRequest req
+            @RequestBody @Valid CommunityAttachmentPresignRequest req
     ) {
         return ApiResponse.success(postAttachmentsService.presignAttachmentsBatch(userId, req));
     }

@@ -29,8 +29,14 @@ public record PointEvent(
         return new PointEvent(PointSource.GIFTICON_PURCHASE, null, purchaseId, key);
     }
 
+    // Preserve the existing request-scoped reward for non-coffee-chat callers.
     public static PointEvent coffeeChatAccepted(Long userId, Long requestId) {
-        String key = "COFFEECHAT_ACCEPTANCE:" + userId + ":" + requestId;
+        return new PointEvent(PointSource.COFFEECHAT_ACCEPTANCE, null, requestId,
+                "COFFEECHAT_ACCEPTANCE:" + userId + ":" + requestId);
+    }
+
+    public static PointEvent coffeeChatAccepted(Long userId, Long opponentId, Long requestId) {
+        String key = "COFFEECHAT_PAIR:" + userId + ":" + opponentId;
         return new PointEvent(PointSource.COFFEECHAT_ACCEPTANCE, null, requestId, key);
     }
 

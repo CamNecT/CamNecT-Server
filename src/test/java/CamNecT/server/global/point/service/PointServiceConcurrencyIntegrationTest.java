@@ -46,6 +46,49 @@ class PointServiceConcurrencyIntegrationTest {
     @Autowired PointTransactionRepository transactionRepository;
     @Autowired PlatformTransactionManager transactionManager;
 
+    @Autowired CamNecT.server.domain.users.repository.UserRepository users;
+    @Autowired CamNecT.server.domain.chat.repository.ChatRequestRepository requests;
+
+    @Test
+    void concurrentNewRequestIdsForTheSameOpponentGrantOnlyOnce() throws Exception {
+        runConcurrently(
+                () -> pointService.earnCoffeeChatAccepted(9_200_001L, 9_200_002L, 100L, 500),
+                () -> pointService.earnCoffeeChatAccepted(9_200_001L, 9_200_002L, 101L, 500)
+        );
+        assertThat(pointService.getBalance(9_200_001L)).isEqualTo(500);
+        assertThat(transactionRepository.findAll()).hasSize(1);
+        pointService.earnCoffeeChatAccepted(9_200_001L, 9_200_003L, 102L, 500);
+        pointService.earnCoffeeChatAccepted(9_200_002L, 9_200_001L, 103L, 500);
+        assertThat(pointService.getBalance(9_200_001L)).isEqualTo(1000);
+        assertThat(pointService.getBalance(9_200_002L)).isEqualTo(500);
+    }
+
+    @Test
+    void legacyRequesterRewardCountsForThatRecipientWithoutBlockingTheOtherPersonsFirstReward() {
+        var first = users.saveAndFlush(CamNecT.server.domain.users.model.Users.builder()
+                .username("legacy-first-" + UUID.randomUUID()).passwordHash("hash").name("첫째").build());
+        var second = users.saveAndFlush(CamNecT.server.domain.users.model.Users.builder()
+                .username("legacy-second-" + UUID.randomUUID()).passwordHash("hash").name("둘째").build());
+        var request = CamNecT.server.domain.chat.model.ChatRequest.builder().requester(first).receiver(second)
+                .content("legacy").requestInterest(List.of()).build();
+        request.closeRequest();
+        request = requests.saveAndFlush(request);
+        try {
+            pointService.earnPoint(first.getUserId(), 500, new PointEvent(PointSource.COFFEECHAT_ACCEPTANCE,
+                    null, request.getId(), "COFFEECHAT_ACCEPTANCE:" + first.getUserId() + ":" + request.getId()));
+            pointService.earnCoffeeChatAccepted(first.getUserId(), second.getUserId(), request.getId() + 1, 500);
+            assertThat(pointService.getBalance(first.getUserId())).isEqualTo(500);
+            assertThat(transactionRepository.findAll()).hasSize(1);
+            pointService.earnCoffeeChatAccepted(second.getUserId(), first.getUserId(), request.getId() + 2, 500);
+            assertThat(pointService.getBalance(second.getUserId())).isEqualTo(500);
+            assertThat(transactionRepository.findAll()).hasSize(2);
+        } finally {
+            requests.deleteById(request.getId());
+            users.delete(first);
+            users.delete(second);
+        }
+    }
+
     @AfterEach
     void cleanUp() {
         transactionRepository.deleteAll();
