@@ -96,7 +96,7 @@ class GifticonPurchaseServiceTest {
                 "수신자",
                 "recipient@example.com",
                 "다른 메시지"
-        );
+        , null);
         GifticonPurchase existing = existingPurchase(10L, 2, 2000, "수신자", "recipient@example.com", "메시지");
         stubExisting(userId, request.clientRequestId(), existing);
 
@@ -183,14 +183,14 @@ class GifticonPurchaseServiceTest {
                 "수신자",
                 "recipient@example.com",
                 "메시지"
-        );
+        , null);
     }
 
     @Test
     void newPurchaseUsesSignupEmailWhenRecipientIsOmitted() {
         stubNewPurchase("buyer@example.com");
 
-        service.confirm(1L, new ConfirmGifticonPurchaseRequest(10L, 2, 2000, "self", null, null, null));
+        service.confirm(1L, new ConfirmGifticonPurchaseRequest(10L, 2, 2000, "self", null, null, null, "01012345678"));
 
         ArgumentCaptor<GifticonPurchase> saved = ArgumentCaptor.forClass(GifticonPurchase.class);
         verify(purchaseRepository).saveAndFlush(saved.capture());
@@ -204,7 +204,7 @@ class GifticonPurchaseServiceTest {
         stubNewPurchase("buyer@example.com");
 
         service.confirm(1L, new ConfirmGifticonPurchaseRequest(10L, 2, 2000, "gift",
-                "수신자", " recipient@example.com ", "메시지"));
+                "수신자", " recipient@example.com ", "메시지", "010-1234-5678"));
 
         ArgumentCaptor<GifticonPurchase> saved = ArgumentCaptor.forClass(GifticonPurchase.class);
         verify(purchaseRepository).saveAndFlush(saved.capture());
@@ -217,7 +217,7 @@ class GifticonPurchaseServiceTest {
         for (String email : new String[]{null, " ", "invalid-email"}) {
             stubNewPurchase(email);
             CustomException error = assertThrows(CustomException.class, () -> service.confirm(1L,
-                    new ConfirmGifticonPurchaseRequest(10L, 2, 2000, "self", null, null, null)));
+                    new ConfirmGifticonPurchaseRequest(10L, 2, 2000, "self", null, null, null, null)));
             assertSame(GifticonErrorCode.INVALID_RECIPIENT_EMAIL, error.getErrorCode());
         }
         verify(purchaseRepository, never()).saveAndFlush(any());
@@ -237,7 +237,7 @@ class GifticonPurchaseServiceTest {
                 .thenReturn(Optional.of(existing));
 
         var response = service.confirm(1L,
-                new ConfirmGifticonPurchaseRequest(10L, 2, 2000, "self", null, null, null));
+                new ConfirmGifticonPurchaseRequest(10L, 2, 2000, "self", null, null, null, null));
 
         assertEquals(100L, response.purchaseId());
         verify(purchaseRepository, never()).saveAndFlush(any());
@@ -258,6 +258,47 @@ class GifticonPurchaseServiceTest {
         assertSame(GifticonErrorCode.DUPLICATE_REQUEST, error.getErrorCode());
         verify(purchaseRepository, never()).saveAndFlush(any());
         verify(pointService, never()).spendPoint(any(), org.mockito.ArgumentMatchers.anyInt(), any());
+    }
+
+    @Test
+    void missingOrInvalidPhoneDoesNotSaveOrSpendPoints() {
+        stubNewPurchase("buyer@example.com");
+        for (String phone : new String[]{null, " ", "010123", "010abcdefgh", "010123456789"}) {
+            CustomException error = assertThrows(CustomException.class, () -> service.confirm(1L,
+                    new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "phone", null, null, null, phone)));
+            assertSame(GifticonErrorCode.INVALID_RECIPIENT_PHONE, error.getErrorCode());
+        }
+        verify(purchaseRepository, never()).saveAndFlush(any());
+        verifyNoInteractions(pointService);
+    }
+
+    @Test
+    void recipientPhoneIsSavedAsAnOrderSnapshot() {
+        stubNewPurchase("buyer@example.com");
+        service.confirm(1L, new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "phone", null,
+                "recipient@example.com", null, " 010-1234-5678 "));
+        ArgumentCaptor<GifticonPurchase> saved = ArgumentCaptor.forClass(GifticonPurchase.class);
+        verify(purchaseRepository).saveAndFlush(saved.capture());
+        assertEquals("01012345678", saved.getValue().getRecipientPhone());
+        assertEquals("recipient@example.com", saved.getValue().getRecipientEmail());
+        assertEquals("buyer@example.com", saved.getValue().getBuyerEmail());
+    }
+
+    @Test
+    void retryAcceptsEquivalentPhoneButRejectsChangedPhoneWithoutSpendingAgain() {
+        var existing = GifticonPurchase.builder().id(100L)
+                .product(GifticonProduct.builder().id(10L).build())
+                .quantity(1).totalPricePoints(1000)
+                .buyerEmail("buyer@example.com").recipientEmail("buyer@example.com")
+                .recipientPhone("01012345678").requestedAt(LocalDateTime.now()).build();
+        stubExisting(1L, "phone", existing);
+        var same = new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "phone", null, null, null, "010-1234-5678");
+        assertEquals(100L, service.confirm(1L, same).purchaseId());
+        var changed = new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "phone", null, null, null, "01099998888");
+        assertSame(GifticonErrorCode.DUPLICATE_REQUEST,
+                assertThrows(CustomException.class, () -> service.confirm(1L, changed)).getErrorCode());
+        verify(purchaseRepository, never()).saveAndFlush(any());
+        verifyNoInteractions(pointService);
     }
 
     private void stubNewPurchase(String email) {
