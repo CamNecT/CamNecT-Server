@@ -14,9 +14,10 @@ This service onboards an existing, Hibernate-managed schema to Flyway while also
 
 Do not edit an already deployed migration. Add a new sequential migration instead.
 
-## V18: comment content capacity
+## V20: comment content capacity
 
-- `V18__Expand_comment_content.sql` expands `comments.content` from TINYTEXT to TEXT, preserving existing comments and matching the API's 5,000-character limit for multibyte input.
+- `V20__Expand_comment_content.sql` expands `comments.content` from TINYTEXT to TEXT, preserving existing comments and matching the API's 5,000-character limit for multibyte input.
+- V18/V19 are reserved by the alternative gifticon PRs #305/#304. Merge the chosen alternative before deploying V20; #305 uses V18 only (the V19 gap is valid), while #304 uses both. Do not deploy V20 first and add lower pending versions later with out-of-order disabled. If this fix must deploy first, coordinate and renumber all still-unapplied migrations before either rollout.
 - Validate the migration and long Korean/emoji comment creation and editing on MySQL before deployment. H2 tests cover preservation and the SQL change but do not emulate MySQL's TINYTEXT byte limit.
 
 ## V15/V16: report reopening and portfolio subtitles

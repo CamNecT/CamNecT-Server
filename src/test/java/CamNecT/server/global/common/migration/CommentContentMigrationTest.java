@@ -17,7 +17,7 @@ class CommentContentMigrationTest {
                 statement.execute("CREATE TABLE comments (comment_id BIGINT PRIMARY KEY, content TINYTEXT NOT NULL)");
                 statement.execute("INSERT INTO comments VALUES (1, '기존 댓글')");
             }
-            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V18__Expand_comment_content.sql"));
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V20__Expand_comment_content.sql"));
             try (var statement = connection.createStatement(); var rows = statement.executeQuery("SELECT content FROM comments WHERE comment_id = 1")) {
                 assertThat(rows.next()).isTrue();
                 assertThat(rows.getString(1)).isEqualTo("기존 댓글");
