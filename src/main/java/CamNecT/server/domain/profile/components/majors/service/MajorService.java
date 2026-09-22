@@ -27,7 +27,7 @@ public class MajorService {
         }
 
         List<MajorResponse> items = majorRepository
-                .findByInstitution_InstitutionIdOrderByMajorNameKorAsc(institutionId)
+                .findByInstitution_InstitutionIdAndIsActiveTrueOrderByMajorNameKorAsc(institutionId)
                 .stream()
                 .map(MajorResponse::from)
                 .toList();
@@ -42,7 +42,7 @@ public class MajorService {
             throw new CustomException(UserErrorCode.INSTITUTION_NOT_FOUND);
         }
 
-        Majors majors = majorRepository.findByMajorIdAndInstitution_InstitutionId(majorId, institutionId)
+        Majors majors = majorRepository.findByMajorIdAndInstitution_InstitutionIdAndIsActiveTrue(majorId, institutionId)
                 .orElseThrow(() -> new CustomException(UserErrorCode.MAJOR_NOT_FOUND));
 
         return MajorResponse.from(majors);

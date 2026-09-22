@@ -17,8 +17,12 @@ Do not edit an already deployed migration. Add a new sequential migration instea
 ## V18: comment content capacity (priority rollout)
 
 - `V18__Expand_comment_content.sql` expands `comments.content` from TINYTEXT to TEXT, preserving existing comments and matching the API's 5,000-character limit for multibyte input.
-- Deploy this server-only fix first. Before merging the later, mutually exclusive gifticon PRs #304/#305, rebase the chosen PR and renumber its still-unapplied migrations after this V18 (gifticon snapshots to V19, signup-phone restoration to V20 if #304 is chosen). Recheck the latest catalog at merge time; never edit this V18 after deployment. The community upload retry PR follows separately and has no schema migration.
+- Deploy this server-only fix first. Before merging the later, mutually exclusive gifticon PRs #304/#305, rebase the chosen PR and renumber its still-unapplied migrations after the latest migration on main. Recheck the latest catalog at merge time; never edit this V18 after deployment. The community upload retry PR follows separately and has no schema migration.
 - Validate the migration and long Korean/emoji comment creation and editing on MySQL before deployment. H2 tests cover preservation and the SQL change but do not emulate MySQL's TINYTEXT byte limit.
+
+## V19: Konkuk 2026 majors
+
+- `V19__Refresh_konkuk_2026_majors.sql` aligns Konkuk University's Seoul undergraduate catalog with the 2026 admissions list (58 general units and four international-college departments). It retains existing major IDs and user references, marks eight legacy/non-recruitment rows inactive, renames the existing chemical-engineering row, and inserts five missing rows. The majors API must filter `is_active` to hide preserved legacy rows.
 
 ## V15/V16: report reopening and portfolio subtitles
 

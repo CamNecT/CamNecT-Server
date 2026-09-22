@@ -12,9 +12,9 @@ import java.util.Optional;
 public interface MajorRepository extends JpaRepository<Majors, Long> {
 
 
-    List<Majors> findByInstitution_InstitutionIdOrderByMajorNameKorAsc(Long institutionId);
+    List<Majors> findByInstitution_InstitutionIdAndIsActiveTrueOrderByMajorNameKorAsc(Long institutionId);
 
-    Optional<Majors> findByMajorIdAndInstitution_InstitutionId(
+    Optional<Majors> findByMajorIdAndInstitution_InstitutionIdAndIsActiveTrue(
             Long majorId,
             Long institutionId
     );

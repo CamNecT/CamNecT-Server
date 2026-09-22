@@ -72,7 +72,7 @@ public class InstitutionController {
 
     @Operation(
             summary = "특정 대학의 전공 목록 조회",
-            description = "특정 대학에 개설된 모든 전공 리스트를 조회합니다."
+            description = "특정 대학의 활성 전공 리스트를 조회합니다."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),

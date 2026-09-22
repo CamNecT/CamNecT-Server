@@ -194,7 +194,7 @@ public class AdminDocumentVerificationService {
         if (!institutionRepository.existsById(institutionId)) {
             throw new CustomException(UserErrorCode.INSTITUTION_NOT_FOUND);
         }
-        if (majorRepository.findByMajorIdAndInstitution_InstitutionId(majorId, institutionId).isEmpty()) {
+        if (majorRepository.findByMajorIdAndInstitution_InstitutionIdAndIsActiveTrue(majorId, institutionId).isEmpty()) {
             throw new CustomException(UserErrorCode.MAJOR_NOT_FOUND);
         }
 
