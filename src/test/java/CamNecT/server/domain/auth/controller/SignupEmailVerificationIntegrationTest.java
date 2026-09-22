@@ -84,7 +84,7 @@ class SignupEmailVerificationIntegrationTest {
     }
 
     @Test
-    void signupWithoutPhoneAtomicallyCreatesAdminPendingUserAndIncompleteProfile() throws Exception {
+    void signupWithPhoneAtomicallyCreatesAdminPendingUserAndIncompleteProfile() throws Exception {
         String suffix = suffix();
         String email = "verified-" + suffix + "@example.com";
         String username = "verified-" + suffix;
@@ -99,6 +99,7 @@ class SignupEmailVerificationIntegrationTest {
 
         Users user = userRepository.findByEmail(email).orElseThrow();
         assertThat(user.getStatus()).isEqualTo(UserStatus.ADMIN_PENDING);
+        assertThat(user.getPhoneNum()).matches("010[0-9]{8}");
         assertThat(userProfileRepository.findByUserId(user.getUserId()).orElseThrow().isInitialSetupCompleted())
                 .isFalse();
         assertThat(tokenRepository.findById(issued.getId()).orElseThrow().getUsedAt()).isNotNull();
@@ -130,6 +131,10 @@ class SignupEmailVerificationIntegrationTest {
             String username,
             String code
     ) throws Exception {
+        return verifySignupWithPhone(email, username, code, "010" + String.format("%08d", Integer.toUnsignedLong(username.hashCode()) % 100000000));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions verifySignupWithPhone(String email, String username, String code, String phone) throws Exception {
         return mockMvc.perform(post("/api/auth/signup/email/verify")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of(
@@ -138,11 +143,38 @@ class SignupEmailVerificationIntegrationTest {
                         "username", username,
                         "password", "password1",
                         "name", "signup user",
+                        "phoneNum", phone,
                         "agreements", Map.of(
                                 "serviceTerms", true,
                                 "privacyTerms", true
                         )
                 ))));
+    }
+
+    @Test
+    void invalidPhoneIsRejectedBeforeConsumingVerificationCode() throws Exception {
+        String email = "invalid-phone-" + suffix() + "@example.com";
+        var token = tokenRepository.saveAndFlush(EmailVerificationToken.issueForEmail(email, VALID_CODE, 30));
+        for (String phone : new String[]{"", "  ", "010123", "abcdefghijk", "010123456789"}) {
+            verifySignupWithPhone(email, "invalid-" + suffix(), VALID_CODE, phone)
+                    .andExpect(status().isBadRequest());
+        }
+        assertThat(userRepository.findByEmail(email)).isEmpty();
+        assertThat(tokenRepository.findById(token.getId()).orElseThrow().getUsedAt()).isNull();
+    }
+
+    @Test
+    void normalizedDuplicatePhoneIsRejectedWithoutConsumingCode() throws Exception {
+        String first = "phone-first-" + suffix() + "@example.com";
+        String second = "phone-second-" + suffix() + "@example.com";
+        tokenRepository.saveAndFlush(EmailVerificationToken.issueForEmail(first, VALID_CODE, 30));
+        var secondToken = tokenRepository.saveAndFlush(EmailVerificationToken.issueForEmail(second, VALID_CODE, 30));
+        verifySignupWithPhone(first, "phone-first-" + suffix(), VALID_CODE, "010-8765-4321")
+                .andExpect(status().isOk());
+        verifySignupWithPhone(second, "phone-second-" + suffix(), VALID_CODE, "01087654321")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value(41903));
+        assertThat(userRepository.findByEmail(second)).isEmpty();
+        assertThat(tokenRepository.findById(secondToken.getId()).orElseThrow().getUsedAt()).isNull();
     }
 
     private String suffix() {

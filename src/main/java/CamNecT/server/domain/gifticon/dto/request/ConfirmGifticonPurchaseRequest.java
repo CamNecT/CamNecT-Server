@@ -1,6 +1,8 @@
 package CamNecT.server.domain.gifticon.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonAnySetter;
+import CamNecT.server.global.common.util.PhoneNumbers;
+import jakarta.validation.constraints.Pattern;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -13,13 +15,16 @@ public record ConfirmGifticonPurchaseRequest(
         @NotNull Integer spendPoints,
         @NotBlank @Size(max = 100) String clientRequestId,
 
-        // 생략하면 구매자의 가입 이메일로 발송
+        // 수신 이메일 생략 시 구매자의 가입 이메일을 함께 전달
         @Size(max = 100) String recipientName,
         @Schema(description = "수신자 이메일. 생략하거나 빈 문자열이면 구매자의 가입 이메일을 사용합니다.")
         @Email @Size(max = 255) String recipientEmail,
-        @Size(max = 500) String giftMessage
+        @Size(max = 500) String giftMessage,
+        @Schema(description = "수신 휴대전화번호. 생략 시 가입 번호를 사용합니다. 공백·하이픈 제거 후 저장합니다.")
+        @Pattern(regexp = PhoneNumbers.MOBILE_PATTERN) @Size(max = 20) String recipientPhone
 ) {
     public ConfirmGifticonPurchaseRequest {
+        recipientPhone = PhoneNumbers.normalize(recipientPhone);
         recipientEmail = recipientEmail == null || recipientEmail.isBlank() ? null : recipientEmail.trim();
     }
 

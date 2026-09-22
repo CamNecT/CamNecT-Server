@@ -117,12 +117,12 @@ public class AuthController {
      */
     @Operation(
             summary = "회원가입 이메일 인증 + 유저 생성",
-            description = "이메일 인증코드를 검증한 뒤, 회원 정보를 확정하여 유저를 생성합니다."
+            description = "이메일 인증코드를 검증한 뒤, 전화번호를 포함한 회원 정보를 확정하여 유저를 생성합니다."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 41010 비밀번호 정책 위반 / 41020 필수 약관 미동의 / 42030 활성 코드 없음 / 42031 만료·사용된 코드 / 42032 코드 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "41901 이메일 / 41902 아이디 중복 / 41904 DB 유니크 충돌", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 41010 비밀번호 정책 위반 / 41012 전화번호 오류 / 41020 필수 약관 미동의 / 42030 활성 코드 없음 / 42031 만료·사용된 코드 / 42032 코드 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "41901 이메일 / 41902 아이디 중복 / 41903 전화번호 중복 / 41904 DB 유니크 충돌", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "42920 인증코드 시도 횟수 초과", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 사용자·프로필 저장, 임시 토큰 발급 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))

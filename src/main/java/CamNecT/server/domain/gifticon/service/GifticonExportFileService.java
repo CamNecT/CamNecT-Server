@@ -1,6 +1,7 @@
 package CamNecT.server.domain.gifticon.service;
 
 import CamNecT.server.domain.gifticon.model.GifticonPurchase;
+import CamNecT.server.global.common.util.PhoneNumbers;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.CellType;
@@ -28,10 +29,10 @@ public class GifticonExportFileService {
 
     private static final String[] COLUMNS = {
             "purchaseId", "requestedAt",
-            "userId", "buyerName", "buyerEmail",
+            "userId", "buyerName", "buyerEmail", "buyerPhone",
             "productId", "vendorProductCode", "brandName", "productName",
             "unitPricePoints", "quantity", "totalPricePoints",
-            "recipientName", "recipientEmail", "deliveryStatus", "giftMessage"
+            "recipientName", "recipientPhone", "recipientEmail", "deliveryStatus", "giftMessage"
     };
 
     private final GifticonEmailPolicy emailPolicy;
@@ -41,7 +42,7 @@ public class GifticonExportFileService {
         writeAtomically(filePath, rows);
     }
 
-    // 재시도 대기 중인 구형 파일도 현재 이메일 형식으로 재생성한다.
+    // 재시도 대기 중인 구형 파일도 현재 전화번호·이메일 형식으로 재생성한다.
     private boolean hasCurrentSchema(Path filePath) {
         try (Workbook workbook = WorkbookFactory.create(filePath.toFile())) {
             Sheet sheet = workbook.getSheet("purchases");
@@ -128,6 +129,7 @@ public class GifticonExportFileService {
                 columnIndex = writeCell(row, columnIndex, purchase.getUser().getUserId());
                 columnIndex = writeCell(row, columnIndex, purchase.getBuyerName());
                 columnIndex = writeCell(row, columnIndex, purchase.getBuyerEmail());
+                columnIndex = writeCell(row, columnIndex, purchase.getBuyerPhone());
                 columnIndex = writeCell(row, columnIndex, purchase.getProduct().getId());
                 columnIndex = writeCell(row, columnIndex, purchase.getProduct().getVendorProductCode());
                 columnIndex = writeCell(row, columnIndex, purchase.getProduct().getBrandName());
@@ -136,9 +138,10 @@ public class GifticonExportFileService {
                 columnIndex = writeCell(row, columnIndex, purchase.getQuantity());
                 columnIndex = writeCell(row, columnIndex, purchase.getTotalPricePoints());
                 columnIndex = writeCell(row, columnIndex, purchase.getRecipientName());
+                columnIndex = writeCell(row, columnIndex, purchase.getRecipientPhone());
                 columnIndex = writeCell(row, columnIndex, purchase.getRecipientEmail());
                 columnIndex = writeCell(row, columnIndex,
-                        emailPolicy.isValid(purchase.getRecipientEmail()) ? "READY" : "EMAIL_REQUIRED");
+                        deliveryStatus(purchase));
                 writeCell(row, columnIndex, purchase.getGiftMessage());
             }
 
@@ -150,6 +153,14 @@ public class GifticonExportFileService {
                 workbook.write(output);
             }
         }
+    }
+
+    private String deliveryStatus(GifticonPurchase purchase) {
+        boolean phoneValid = PhoneNumbers.isValid(purchase.getRecipientPhone());
+        boolean emailValid = emailPolicy.isValid(purchase.getRecipientEmail());
+        if (!phoneValid && !emailValid) return "CONTACT_REQUIRED";
+        if (!phoneValid) return "PHONE_REQUIRED";
+        return emailValid ? "READY" : "EMAIL_REQUIRED";
     }
 
     private int writeCell(Row row, int columnIndex, Object value) {

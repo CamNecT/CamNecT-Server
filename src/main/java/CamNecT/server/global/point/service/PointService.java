@@ -210,6 +210,11 @@ public class PointService {
     }
 
     @Transactional(readOnly = true)
+    public String getPhoneNum(Long userId) {
+        return userRepository.findByUserId(userId)
+                .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN)).getPhoneNum();
+    }
+
     public String getEmail(Long userId) {
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));

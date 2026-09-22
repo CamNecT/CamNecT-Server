@@ -9,6 +9,7 @@ import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import lombok.RequiredArgsConstructor;
+import CamNecT.server.global.common.util.PhoneNumbers;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -34,14 +35,19 @@ public class SignupService {
         // 비밀번호 정책
         passwordService.validatePassword(req.password());
 
+        if (!PhoneNumbers.isValid(req.phoneNum())) throw new CustomException(AuthErrorCode.INVALID_PHONE_NUMBER);
+
         // 최종 유니크
         if (userRepository.existsByEmail(req.email())) throw new CustomException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         if (userRepository.existsByUsername(req.username())) throw new CustomException(AuthErrorCode.USERNAME_ALREADY_EXISTS);
+
+        if (userRepository.existsByPhoneNum(req.phoneNum())) throw new CustomException(AuthErrorCode.PHONENUM_ALREADY_EXISTS);
 
         Users user = Users.builder()
                 .email(req.email())
                 .username(req.username())
                 .name(req.name())
+                .phoneNum(req.phoneNum())
                 .passwordHash(passwordEncoder.encode(req.password()))
                 .status(UserStatus.ADMIN_PENDING)
                 .build();
