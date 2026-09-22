@@ -1,6 +1,7 @@
 package CamNecT.server.domain.gifticon.controller;
 
 import CamNecT.server.domain.gifticon.dto.request.ConfirmGifticonPurchaseRequest;
+import CamNecT.server.domain.gifticon.dto.request.ConfirmGifticonPhonePurchaseRequest;
 import CamNecT.server.domain.gifticon.dto.response.*;
 import CamNecT.server.domain.gifticon.service.GifticonPurchaseService;
 import CamNecT.server.domain.gifticon.service.GifticonService;
@@ -54,10 +55,11 @@ public class GifticonController {
         return ApiResponse.success(gifticonService.productDetail(productId));
     }
 
-    @Operation(summary = "구매 확정", description = "포인트 차감과 구매요청 저장 후 관리자가 엑셀의 수신자 이메일로 구매·발송합니다. recipientEmail을 생략하면 가입 이메일을 사용합니다.")
+    @Deprecated
+    @Operation(deprecated = true, summary = "구매 확정 (이전 경로)", description = "신규 연동은 /purchases/confirm-with-phone을 사용하세요. 기존 주문 재시도는 허용하지만 새 주문은 전화번호 없으면 47004로 거절합니다. 포인트 차감과 구매요청 저장 후 관리자가 엑셀의 수신 전화번호로 구매·발송하며 이메일도 함께 전달합니다. recipientPhone은 구매마다 입력합니다. recipientEmail을 생략하면 가입 이메일을 사용합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 47001 판매 중이 아닌 상품 / 47002 수량 오류 / 47003 수신 이메일 오류 / 44101 포인트 부족", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 47001 판매 중이 아닌 상품 / 47002 수량 오류 / 47003 수신 이메일 오류 / 47004 수신 전화번호 누락·오류 / 44101 포인트 부족", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 41103 인증 헤더 누락·형식 오류 / 41104 토큰 타입 누락 / 41106 허용되지 않은 토큰 타입", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "47401 상품을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "47901 동일 요청 식별자가 다른 구매 내용에 재사용됨 / 40900 포인트 잔액 동시성 충돌", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
@@ -70,5 +72,23 @@ public class GifticonController {
             @RequestBody @Valid ConfirmGifticonPurchaseRequest req
     ) {
         return ApiResponse.success(purchaseService.confirm(userId, req));
+    }
+
+    @Operation(summary = "수신 전화번호를 입력하여 구매 확정", description = "포인트 차감과 구매요청 저장 후 관리자가 엑셀의 수신 전화번호로 구매·발송하며 이메일도 함께 전달합니다. recipientPhone은 구매마다 입력합니다. recipientEmail을 생략하면 가입 이메일을 사용합니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 47001 판매 중이 아닌 상품 / 47002 수량 오류 / 47003 수신 이메일 오류 / 47004 수신 전화번호 누락·오류 / 44101 포인트 부족", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 41103 인증 헤더 누락·형식 오류 / 41104 토큰 타입 누락 / 41106 허용되지 않은 토큰 타입", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "47401 상품을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "47901 동일 요청 식별자가 다른 구매 내용에 재사용됨 / 40900 포인트 잔액 동시성 충돌", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "44150 포인트 지갑 생성 실패 / 50000 차감 포인트 계산 불일치·구매 저장 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PostMapping("/purchases/confirm-with-phone")
+    public ApiResponse<GifticonPurchaseConfirmResponse> confirmWithPhone(
+            @UserId Long userId,
+            @RequestBody @Valid ConfirmGifticonPhonePurchaseRequest req
+    ) {
+        return ApiResponse.success(purchaseService.confirm(userId, req.toPurchaseRequest()));
     }
 }

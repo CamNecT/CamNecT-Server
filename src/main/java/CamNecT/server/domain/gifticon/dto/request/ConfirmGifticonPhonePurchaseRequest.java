@@ -9,7 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-public record ConfirmGifticonPurchaseRequest(
+public record ConfirmGifticonPhonePurchaseRequest(
         @NotNull Long productId,
         @NotNull Integer quantity,
         @NotNull Integer spendPoints,
@@ -20,12 +20,17 @@ public record ConfirmGifticonPurchaseRequest(
         @Schema(description = "수신자 이메일. 생략하거나 빈 문자열이면 구매자의 가입 이메일을 사용합니다.")
         @Email @Size(max = 255) String recipientEmail,
         @Size(max = 500) String giftMessage,
-        @Schema(description = "수신 휴대전화번호. 공백과 하이픈을 제거하여 저장합니다.")
-        @Pattern(regexp = PhoneNumbers.MOBILE_PATTERN) @Size(max = 20) String recipientPhone
+        @Schema(description = "이번 구매의 수신 휴대전화번호 (필수). 계정에 저장하거나 이전 주문 번호를 재사용하지 않습니다.")
+        @NotBlank @Pattern(regexp = PhoneNumbers.MOBILE_PATTERN) @Size(max = 20) String recipientPhone
 ) {
-    public ConfirmGifticonPurchaseRequest {
+    public ConfirmGifticonPhonePurchaseRequest {
         recipientPhone = PhoneNumbers.normalize(recipientPhone);
         recipientEmail = recipientEmail == null || recipientEmail.isBlank() ? null : recipientEmail.trim();
+    }
+
+    public ConfirmGifticonPurchaseRequest toPurchaseRequest() {
+        return new ConfirmGifticonPurchaseRequest(productId, quantity, spendPoints, clientRequestId,
+                recipientName, recipientEmail, giftMessage, recipientPhone);
     }
 
     // 알 수 없는 수신자 필드를 무시하면 의도하지 않은 주소로 주문될 수 있다.

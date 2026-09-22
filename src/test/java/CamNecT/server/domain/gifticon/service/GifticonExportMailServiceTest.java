@@ -85,7 +85,7 @@ class GifticonExportMailServiceTest {
 
         assertThat(result.successful()).isTrue();
         assertThat(message.getSubject()).contains("batchId=912");
-        assertThat(extractText(message)).contains("Batch ID: <b>912</b>");
+        assertThat(extractText(message)).contains("Batch ID: <b>912</b>", "recipientPhone", "recipientEmail", "PHONE_REQUIRED", "CONTACT_REQUIRED");
         verify(mailSender).send(message);
     }
 
