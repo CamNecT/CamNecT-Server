@@ -54,7 +54,7 @@ public class GifticonController {
         return ApiResponse.success(gifticonService.productDetail(productId));
     }
 
-    @Operation(summary = "구매 확정", description = "포인트 차감과 구매요청 저장 후 관리자가 엑셀의 수신자 이메일로 구매·발송합니다. recipientEmail을 생략하면 가입 이메일을 사용합니다.")
+    @Operation(summary = "구매 확정", description = "legacy 운영에서는 기존 이메일 교환을 유지합니다. verified-phone 전환 후에는 인증된 본인 번호로만 교환하며 미인증 시 403/47301입니다. 번호 변경 시 재인증합니다. recipientPhone 입력은 허용하지 않으며 recipientEmail 생략 시 가입 이메일을 사용합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 47001 판매 중이 아닌 상품 / 47002 수량 오류 / 47003 수신 이메일 오류 / 44101 포인트 부족", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),

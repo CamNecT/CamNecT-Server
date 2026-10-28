@@ -5,6 +5,11 @@ bin
 *.iml
 .idea
 .vscode
+.git
+.env
+.env.*
+**/*.pem
+**/*secrets*
 
 # OS
 .DS_Store

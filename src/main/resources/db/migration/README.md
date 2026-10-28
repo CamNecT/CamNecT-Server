@@ -14,6 +14,13 @@ This service onboards an existing, Hibernate-managed schema to Flyway while also
 
 Do not edit an already deployed migration. Add a new sequential migration instead.
 
+## V21/V22: verified phone and gifticon contact snapshots
+
+- V21 stores account phone verification, hashed one-time challenges and serialized SMS quotas. Existing users start with no phone and no verification.
+- V22 adds nullable order-time buyer/recipient phone snapshots. Existing order contacts are not reconstructed.
+- These migrations supersede the unapplied, conflicting V18/V19 from alternatives #304/#305. The current V18 and V19 checksums remain unchanged.
+- See [phone verification and deployment prerequisites](../../../../../docs/phone-number-removal.md). Do not deploy before SENS and frontend readiness checks pass.
+
 ## V18: comment content capacity (priority rollout)
 
 - `V18__Expand_comment_content.sql` expands `comments.content` from TINYTEXT to TEXT, preserving existing comments and matching the API's 5,000-character limit for multibyte input.

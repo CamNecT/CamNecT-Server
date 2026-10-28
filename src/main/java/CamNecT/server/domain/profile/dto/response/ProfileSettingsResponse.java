@@ -4,6 +4,8 @@ public record ProfileSettingsResponse(
         Long userId,
         String name,
         String profileImageUrl,
-        String email
+        String email,
+        String phoneNum,
+        boolean phoneVerified
 ) {
 }

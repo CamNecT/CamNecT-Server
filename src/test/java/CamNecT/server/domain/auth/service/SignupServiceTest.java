@@ -28,6 +28,8 @@ class SignupServiceTest {
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final PasswordService passwordService = mock(PasswordService.class);
     private SignupService signupService;
+    private final CamNecT.server.domain.verification.phone.PhoneVerificationProperties phoneProperties =
+            new CamNecT.server.domain.verification.phone.PhoneVerificationProperties();
 
     @BeforeEach
     void setUp() {
@@ -35,7 +37,8 @@ class SignupServiceTest {
                 userRepository,
                 userProfileRepository,
                 passwordEncoder,
-                passwordService
+                passwordService,
+                phoneProperties
         );
     }
 
@@ -62,6 +65,7 @@ class SignupServiceTest {
                     .email(user.getEmail())
                     .username(user.getUsername())
                     .name(user.getName())
+                    .phoneNum(user.getPhoneNum())
                     .passwordHash(user.getPasswordHash())
                     .status(user.getStatus())
                     .build();
@@ -70,6 +74,8 @@ class SignupServiceTest {
         Users saved = signupService.signupVerifiedUser(request);
 
         assertThat(saved.getStatus()).isEqualTo(UserStatus.ADMIN_PENDING);
+        assertThat(saved.getPhoneNum()).isEqualTo("01012345678");
+        assertThat(saved.isPhoneVerified()).isFalse();
         verify(userProfileRepository).save(any(UserProfile.class));
     }
 
@@ -95,6 +101,7 @@ class SignupServiceTest {
                 "username",
                 "password123!A",
                 "name",
+                "010-1234-5678",
                 new VerifySignupEmailRequest.Agreements(serviceTerms, privacyTerms)
         );
     }

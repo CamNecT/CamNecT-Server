@@ -36,6 +36,28 @@ public class Users {
     @Column(name = "email", unique = true)
     private String email;
 
+    @Column(name = "phone_num", length = 11)
+    private String phoneNum;
+
+    @Column(name = "phone_verified_at")
+    private LocalDateTime phoneVerifiedAt;
+
+    public boolean isPhoneVerified() {
+        return phoneNum != null && phoneVerifiedAt != null;
+    }
+
+    public boolean changePhone(String normalizedPhone) {
+        if (java.util.Objects.equals(phoneNum, normalizedPhone)) return false;
+        phoneNum = normalizedPhone;
+        phoneVerifiedAt = null;
+        return true;
+    }
+
+    public void verifyPhone(LocalDateTime verifiedAt) {
+        if (phoneNum == null) throw new IllegalStateException("Phone number is required");
+        phoneVerifiedAt = verifiedAt;
+    }
+
     @Builder.Default //
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
@@ -79,5 +101,7 @@ public class Users {
         this.username = username;
         this.email = email;
         this.status = status;
+        this.phoneNum = null;
+        this.phoneVerifiedAt = null;
     }
 }
