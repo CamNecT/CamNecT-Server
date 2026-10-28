@@ -42,7 +42,9 @@ jobs:
           java-version: '21'
           cache: gradle
       - name: Prepare separate migration database
-        run: docker exec -e MYSQL_PWD="$PHONE_MYSQL_PASSWORD" ${{ job.services.mysql.id }} mysql -uroot -e 'CREATE DATABASE phone_migration_test'
+        # Historical V1 compares explicitly unicode_ci tables with the database's default tables.
+        run: |
+          docker exec -e MYSQL_PWD="$PHONE_MYSQL_PASSWORD" ${{ job.services.mysql.id }} mysql -uroot -e 'ALTER DATABASE phone_integration_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE phone_migration_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
       - name: Test application, real MySQL transactions, migrations and deployment checks
         run: |
           chmod +x gradlew
