@@ -23,8 +23,10 @@ def validate(environment):
         return errors
     if mode == 'verified-phone' and not enabled:
         errors.append('PHONE_VERIFICATION_ENABLED must be true: purchases require verification')
-    if mode == 'verified-phone' and str(environment.get('PHONE_FRONTEND_READY', '')).lower() != 'true':
-        errors.append('PHONE_FRONTEND_READY must be true after signup/settings/shop integration is ready')
+    if (mode == 'verified-phone'
+            and str(environment.get('PHONE_FRONTEND_READY', '')).lower() != 'true'
+            and str(environment.get('PHONE_ALLOW_PENDING_FRONTEND', '')).lower() != 'true'):
+        errors.append('PHONE_FRONTEND_READY must be true, or an operator must explicitly approve PHONE_ALLOW_PENDING_FRONTEND')
     credentials = ('SOLAPI_API_KEY', 'SOLAPI_API_SECRET') if provider == 'solapi' else (
         'SENS_ACCESS_KEY', 'SENS_SECRET_KEY', 'SENS_SERVICE_ID')
     sender = str(environment.get('PHONE_SMS_SENDER_NUMBER', environment.get('SENS_SENDER_NUMBER', '')) or '')
@@ -79,6 +81,8 @@ def main():
         print('Legacy rollout: email signup/purchases remain available; SMS enforcement is inactive.')
     else:
         print('Verified-phone configuration passed. Sender approval and live SMS delivery still require verification.')
+        if str(environment.get('PHONE_FRONTEND_READY', '')).lower() != 'true':
+            print('Operator-approved rollout before frontend deployment: older signup/purchase clients may receive validation errors.')
     return 0
 
 

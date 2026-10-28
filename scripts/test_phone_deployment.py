@@ -50,6 +50,18 @@ class DeploymentCheckTest(unittest.TestCase):
         self.assertNotIn('sensitive-do-not-print', str(errors))
         self.assertNotIn('short-secret', str(errors))
 
+    def test_pending_frontend_requires_explicit_operator_override(self):
+        env = self.environment()
+        env['PHONE_FRONTEND_READY'] = 'false'
+        self.assertTrue(check_phone.validate(env))
+        env['PHONE_ALLOW_PENDING_FRONTEND'] = 'true'
+        self.assertEqual([], check_phone.validate(env))
+        env['PHONE_VERIFICATION_ENABLED'] = 'false'
+        self.assertTrue(check_phone.validate(env))
+        env['PHONE_VERIFICATION_ENABLED'] = 'true'
+        env['PHONE_SMS_MONTHLY_LIMIT'] = '51'
+        self.assertTrue(check_phone.validate(env))
+
     def test_compose_error_does_not_leak_output(self):
         with patch('sys.argv', ['check', '--compose', 'test.yml']), \
                 patch.object(check_phone.subprocess, 'run') as run, patch('sys.stderr') as stderr:

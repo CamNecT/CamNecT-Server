@@ -11,6 +11,8 @@
 - `legacy` 모드에서는 기존 이메일 교환을 유지한다. 가입 전화번호 수집, 설정 번호 변경, 샵 OTP 화면을 실제 배포·확인한 뒤에만 `PHONE_FRONTEND_READY=true`, `PHONE_VERIFICATION_ENABLED=true`, `PHONE_ROLLOUT_MODE=verified-phone`으로 전환한다. 키 저장이나 서버 코드 배포만으로 프론트 준비 완료를 선언하지 않는다.
 - 가입 시 SMS를 보내지 않는다. 첫 교환 전 한 번 인증하고 번호가 바뀌면 재인증한다. 기프티콘은 인증된 본인 번호로만 수신한다.
 
+2026-10-29 운영자는 프론트가 곧 배포될 것을 전제로 서버 인증 API와 교환 인증 필수 정책을 먼저 활성화하도록 승인했다. 이 경우에만 `PHONE_FRONTEND_READY=false`를 사실대로 유지하고 `PHONE_ALLOW_PENDING_FRONTEND=true`로 배포 검사 예외를 명시한다. 이 예외는 SMS 키·활성화·월 예산 검증을 생략하지 않는다. 구형 프론트의 번호 없는 가입과 미인증 교환은 서버가 4xx로 거절하며, 프론트 배포 후 READY=true/ALLOW_PENDING=false로 정리한다.
+
 아래 SENS 관련 기록은 이전 공급자 도입 당시의 이력이다. 현재 기본 설정과 비용은 이 절 및 `deploy/phone-verification.env.example`을 기준으로 한다.
 
 # 전화번호 인증 및 기프티콘 수신 연락처
