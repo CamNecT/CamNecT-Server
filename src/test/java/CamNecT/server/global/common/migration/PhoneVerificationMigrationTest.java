@@ -18,7 +18,7 @@ class PhoneVerificationMigrationTest {
                 sql.execute("INSERT INTO gifticon_purchases VALUES (7, 'recipient@example.com')");
             }
             ScriptUtils.executeSqlScript(connection,
-                    new ClassPathResource("db/migration/V20__Add_gifticon_phone_verification.sql"));
+                    new ClassPathResource("db/migration/V21__Add_gifticon_phone_verification.sql"));
             try (var sql = connection.createStatement(); var rows = sql.executeQuery(
                     "SELECT email, phone_num, phone_verified_at FROM users WHERE user_id=1")) {
                 assertThat(rows.next()).isTrue();

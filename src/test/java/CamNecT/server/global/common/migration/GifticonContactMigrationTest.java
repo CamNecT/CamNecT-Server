@@ -14,7 +14,7 @@ class GifticonContactMigrationTest {
              var statement = connection.createStatement()) {
             statement.execute("CREATE TABLE gifticon_purchases (purchase_id BIGINT PRIMARY KEY, buyer_email VARCHAR(255), recipient_email VARCHAR(255), total_price_points INT, export_batch_id BIGINT)");
             statement.execute("INSERT INTO gifticon_purchases VALUES (1, 'buyer@example.com', 'recipient@example.com', 2000, 42)");
-            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V21__Add_gifticon_phone_snapshots.sql"));
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V22__Add_gifticon_phone_snapshots.sql"));
             try (var result = statement.executeQuery("SELECT * FROM gifticon_purchases WHERE purchase_id=1")) {
                 assertThat(result.next()).isTrue();
                 assertThat(result.getString("buyer_phone")).isNull();
