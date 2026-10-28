@@ -758,6 +758,22 @@ public class ChatService {
         eventPublisher.publishEvent(new ChatRoomClosedCommittedEvent(roomId));
     }
 
+    public void exitClosedChatRooms(List<Long> roomIds, Long userId) {
+        accountAccessGuard.requireAccessibleForUpdate(userId);
+        List<ChatRoom> rooms = new ArrayList<>();
+        // Deduplicate and acquire room locks in a consistent order across overlapping batches.
+        for (Long roomId : new TreeSet<>(roomIds)) {
+            ChatRoom room = chatRoomRepository.findByParticipantForUpdate(roomId, userId)
+                    .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
+            if (room.getStatus() != ChatRoom.RoomStatus.CLOSE) {
+                throw new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_CLOSED);
+            }
+            rooms.add(room);
+        }
+        // Validate the entire selection before changing any participant's visibility.
+        rooms.forEach(room -> room.leaveClosedRoom(userId));
+    }
+
     public void exitOfChatRoom(Long roomId, Long userId) {
         accountAccessGuard.requireAccessibleForUpdate(userId);
         ChatRoom room = chatRoomRepository.findByUserIdWithDetailsForUpdate(roomId, userId)
