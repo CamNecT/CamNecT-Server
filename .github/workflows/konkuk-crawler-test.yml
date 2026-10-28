@@ -1,0 +1,37 @@
+name: Konkuk crawler checks
+on:
+  pull_request:
+    paths: ['crawlers/konkuk-job/**', '.github/workflows/konkuk-crawler-test.yml', 'src/**/activity/**', 'src/main/java/CamNecT/server/global/common/config/WebMvcConfig.java', 'src/main/resources/db/migration/**']
+  push:
+    paths: ['crawlers/konkuk-job/**', '.github/workflows/konkuk-crawler-test.yml', 'src/**/activity/**', 'src/main/java/CamNecT/server/global/common/config/WebMvcConfig.java', 'src/main/resources/db/migration/**']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crawlers/konkuk-job
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: crawlers/konkuk-job/src/requirements.txt
+      - run: pip install -r requirements-dev.txt
+      - run: python -m unittest discover -s tests -v
+        env:
+          PYTHONPATH: src
+      - run: cfn-lint template.yaml
+  server-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - run: chmod +x gradlew
+      - run: ./gradlew test --no-daemon

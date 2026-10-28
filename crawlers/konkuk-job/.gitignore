@@ -1,0 +1,6 @@
+.venv/
+.tmp/
+.aws-sam/
+data/
+__pycache__/
+*.pyc
