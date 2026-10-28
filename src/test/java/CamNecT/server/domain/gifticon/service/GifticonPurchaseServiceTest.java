@@ -196,6 +196,8 @@ class GifticonPurchaseServiceTest {
         verify(purchaseRepository).saveAndFlush(saved.capture());
         assertEquals("buyer@example.com", saved.getValue().getBuyerEmail());
         assertEquals("buyer@example.com", saved.getValue().getRecipientEmail());
+        assertEquals("01012345678", saved.getValue().getBuyerPhone());
+        assertEquals("01012345678", saved.getValue().getRecipientPhone());
         verify(pointService).spendPoint(eq(1L), eq(2000), any());
     }
 
@@ -210,6 +212,7 @@ class GifticonPurchaseServiceTest {
         verify(purchaseRepository).saveAndFlush(saved.capture());
         assertEquals("buyer@example.com", saved.getValue().getBuyerEmail());
         assertEquals("recipient@example.com", saved.getValue().getRecipientEmail());
+        assertEquals("01012345678", saved.getValue().getRecipientPhone());
     }
 
     @Test
@@ -260,9 +263,52 @@ class GifticonPurchaseServiceTest {
         verify(pointService, never()).spendPoint(any(), org.mockito.ArgumentMatchers.anyInt(), any());
     }
 
+    @Test
+    void unverifiedPhoneBlocksPurchaseBeforeSavingOrSpending() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(
+                Users.builder().userId(1L).status(UserStatus.ACTIVE).phoneNum("01012345678").build()));
+        CustomException error = assertThrows(CustomException.class, () -> service.confirm(1L,
+                new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "unverified", null, null, null)));
+        assertSame(GifticonErrorCode.PHONE_VERIFICATION_REQUIRED, error.getErrorCode());
+        verify(purchaseRepository, never()).saveAndFlush(any());
+        verifyNoInteractions(pointService, productRepository);
+    }
+
+    @Test
+    void oldAccountWithNoPhoneAlsoRequiresVerification() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(
+                Users.builder().userId(1L).status(UserStatus.ACTIVE).build()));
+        CustomException error = assertThrows(CustomException.class, () -> service.confirm(1L,
+                new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "legacy", null, null, null)));
+        assertSame(GifticonErrorCode.PHONE_VERIFICATION_REQUIRED, error.getErrorCode());
+        verifyNoInteractions(pointService, productRepository);
+    }
+
+    @Test
+    void phoneChangeBlocksNewPurchaseUntilReverified() {
+        Users user = Users.builder().userId(1L).status(UserStatus.ACTIVE)
+                .phoneNum("01012345678").phoneVerifiedAt(LocalDateTime.now()).build();
+        user.changePhone("01099998888");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        CustomException error = assertThrows(CustomException.class, () -> service.confirm(1L,
+                new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "new-purchase", null, null, null)));
+        assertSame(GifticonErrorCode.PHONE_VERIFICATION_REQUIRED, error.getErrorCode());
+        verifyNoInteractions(pointService, productRepository);
+    }
+
+    @Test
+    void verifiedPhoneAllowsMultipleDifferentPurchases() {
+        stubNewPurchase("buyer@example.com");
+        service.confirm(1L, new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "first", null, null, null));
+        service.confirm(1L, new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "second", null, null, null));
+        verify(purchaseRepository, org.mockito.Mockito.times(2)).saveAndFlush(any());
+        verify(pointService, org.mockito.Mockito.times(2)).spendPoint(eq(1L), eq(1000), any());
+    }
+
     private void stubNewPurchase(String email) {
         when(userRepository.findById(1L)).thenReturn(Optional.of(
-                Users.builder().userId(1L).name("구매자").email(email).build()));
+                Users.builder().userId(1L).name("구매자").email(email)
+                        .phoneNum("01012345678").phoneVerifiedAt(LocalDateTime.now()).build()));
         when(productRepository.findById(10L)).thenReturn(Optional.of(
                 GifticonProduct.builder().id(10L).pricePoints(1000).build()));
     }

@@ -1,4 +1,18 @@
 app:
+  phone-verification:
+    enabled: ${PHONE_VERIFICATION_ENABLED:false}
+    access-key: ${SENS_ACCESS_KEY:}
+    secret-key: ${SENS_SECRET_KEY:}
+    service-id: ${SENS_SERVICE_ID:}
+    sender-number: ${SENS_SENDER_NUMBER:}
+    code-secret: ${PHONE_VERIFICATION_CODE_SECRET:}
+    expiration-seconds: 180
+    resend-cooldown-seconds: 60
+    max-attempts: 5
+    daily-per-user: 5
+    daily-per-phone: 5
+    daily-total: ${PHONE_SMS_DAILY_LIMIT:20}
+    monthly-total: ${PHONE_SMS_MONTHLY_LIMIT:50}
   storage:
     type: s3 # local | s3
   local:

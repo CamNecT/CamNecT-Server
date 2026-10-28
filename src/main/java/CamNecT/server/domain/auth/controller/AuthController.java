@@ -117,7 +117,7 @@ public class AuthController {
      */
     @Operation(
             summary = "회원가입 이메일 인증 + 유저 생성",
-            description = "이메일 인증코드를 검증한 뒤, 회원 정보를 확정하여 유저를 생성합니다."
+            description = "이메일 인증코드를 검증한 뒤 유저를 생성합니다. phoneNum은 필수로 수집하되 SMS 인증은 첫 기프티콘 교환 전에 진행합니다."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),

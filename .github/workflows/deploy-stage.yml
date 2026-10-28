@@ -33,6 +33,7 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew test --no-daemon
+          python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Login to Docker Hub
@@ -68,7 +69,7 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
-          source: "docker-compose.stage.yml"
+          source: "docker-compose.stage.yml,scripts/check-phone-deployment.py"
           target: "/home/${{ secrets.USERNAME }}/camnect-stage/"
           overwrite: true
       - name: Deploy STAGE to EC2
@@ -86,6 +87,7 @@ jobs:
               exit 1
             fi
             export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
+            sudo -E python3 scripts/check-phone-deployment.py --compose docker-compose.stage.yml --check-network
             if command -v docker-compose >/dev/null 2>&1; then
               DC="docker-compose"
             else

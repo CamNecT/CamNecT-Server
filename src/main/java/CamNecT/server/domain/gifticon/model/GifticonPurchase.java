@@ -59,6 +59,12 @@ public class GifticonPurchase {
     @Column(name = "buyer_email", length = 255)
     private String buyerEmail;
 
+    @Column(name = "buyer_phone", length = 20)
+    private String buyerPhone;
+
+    @Column(name = "recipient_phone", length = 20)
+    private String recipientPhone;
+
     @Column(name = "recipient_name", length = 100)
     private String recipientName;
 

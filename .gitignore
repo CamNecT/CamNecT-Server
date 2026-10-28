@@ -39,6 +39,7 @@ out/
 ### Environment files ###
 .env
 .env.*
+__pycache__/
 
 ### Docker local volumes / data ###
 db_data/

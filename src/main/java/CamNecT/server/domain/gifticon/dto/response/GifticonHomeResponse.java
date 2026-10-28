@@ -7,7 +7,9 @@ public record GifticonHomeResponse(
         long myPoint,
         String email,
         List<ProductView> products,
-        LocalDateTime lastSyncedAt
+        LocalDateTime lastSyncedAt,
+        String phoneNum,
+        boolean phoneVerified
 ) {
     public record ProductView(
             Long productId,

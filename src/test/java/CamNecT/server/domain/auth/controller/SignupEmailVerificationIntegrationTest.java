@@ -84,7 +84,7 @@ class SignupEmailVerificationIntegrationTest {
     }
 
     @Test
-    void signupWithoutPhoneAtomicallyCreatesAdminPendingUserAndIncompleteProfile() throws Exception {
+    void signupCollectsPhoneWithoutSmsAndCreatesAdminPendingUser() throws Exception {
         String suffix = suffix();
         String email = "verified-" + suffix + "@example.com";
         String username = "verified-" + suffix;
@@ -99,6 +99,8 @@ class SignupEmailVerificationIntegrationTest {
 
         Users user = userRepository.findByEmail(email).orElseThrow();
         assertThat(user.getStatus()).isEqualTo(UserStatus.ADMIN_PENDING);
+        assertThat(user.getPhoneNum()).isEqualTo("01012345678");
+        assertThat(user.isPhoneVerified()).isFalse();
         assertThat(userProfileRepository.findByUserId(user.getUserId()).orElseThrow().isInitialSetupCompleted())
                 .isFalse();
         assertThat(tokenRepository.findById(issued.getId()).orElseThrow().getUsedAt()).isNotNull();
@@ -125,6 +127,18 @@ class SignupEmailVerificationIntegrationTest {
         assertThat(userRepository.findByEmail(secondEmail)).isEmpty();
     }
 
+    @Test
+    void signupRequiresPhoneButDoesNotRequireSmsVerification() throws Exception {
+        String email = "missing-phone-" + suffix() + "@example.com";
+        EmailVerificationToken issued = tokenRepository.saveAndFlush(EmailVerificationToken.issueForEmail(email, VALID_CODE, 30));
+        mockMvc.perform(post("/api/auth/signup/email/verify").contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("email", email, "code", VALID_CODE, "username", "new-" + suffix(),
+                        "password", "password1", "name", "user", "agreements", Map.of("serviceTerms", true, "privacyTerms", true)))))
+                .andExpect(status().isBadRequest());
+        assertThat(userRepository.findByEmail(email)).isEmpty();
+        assertThat(tokenRepository.findById(issued.getId()).orElseThrow().getUsedAt()).isNull();
+    }
+
     private org.springframework.test.web.servlet.ResultActions verifySignup(
             String email,
             String username,
@@ -138,6 +152,7 @@ class SignupEmailVerificationIntegrationTest {
                         "username", username,
                         "password", "password1",
                         "name", "signup user",
+                        "phoneNum", "010-1234-5678",
                         "agreements", Map.of(
                                 "serviceTerms", true,
                                 "privacyTerms", true

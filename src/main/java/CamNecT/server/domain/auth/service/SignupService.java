@@ -6,6 +6,7 @@ import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.domain.verification.phone.PhoneNumbers;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,7 @@ public class SignupService {
                 .email(req.email())
                 .username(req.username())
                 .name(req.name())
+                .phoneNum(PhoneNumbers.normalize(req.phoneNum()))
                 .passwordHash(passwordEncoder.encode(req.password()))
                 .status(UserStatus.ADMIN_PENDING)
                 .build();

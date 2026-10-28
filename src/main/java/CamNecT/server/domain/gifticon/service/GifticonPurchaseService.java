@@ -62,6 +62,10 @@ public class GifticonPurchaseService {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }
 
+        if (!user.isPhoneVerified()) {
+            throw new CustomException(GifticonErrorCode.PHONE_VERIFICATION_REQUIRED);
+        }
+
         GifticonProduct product = productRepository.findById(req.productId())
                 .orElseThrow(() -> new CustomException(GifticonErrorCode.PRODUCT_NOT_FOUND));
 
@@ -96,9 +100,12 @@ public class GifticonPurchaseService {
 
                 .buyerName(user.getName())
                 .buyerEmail(buyerEmail)
+                .buyerPhone(user.getPhoneNum())
 
                 .recipientName(blankToNull(req.recipientName()))
                 .recipientEmail(recipientEmail)
+                // Only the account's verified number can receive a new order.
+                .recipientPhone(user.getPhoneNum())
                 .giftMessage(blankToNull(req.giftMessage()))
                 .requestedAt(LocalDateTime.now())
                 .build();
