@@ -1,0 +1,2 @@
+-r src/requirements.txt
+cfn-lint==1.58.0
