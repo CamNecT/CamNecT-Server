@@ -114,6 +114,7 @@ class SensSmsSenderTest {
 
     private PhoneVerificationProperties configured() {
         var p = new PhoneVerificationProperties();
+        p.setProvider(PhoneVerificationProperties.Provider.SENS);
         p.setEnabled(true);
         p.setAccessKey("test-access");
         p.setSecretKey("test-secret");

@@ -1,11 +1,14 @@
 app:
   phone-verification:
+    provider: ${PHONE_SMS_PROVIDER:solapi}
     rollout-mode: ${PHONE_ROLLOUT_MODE:legacy}
     enabled: ${PHONE_VERIFICATION_ENABLED:false}
     access-key: ${SENS_ACCESS_KEY:}
     secret-key: ${SENS_SECRET_KEY:}
     service-id: ${SENS_SERVICE_ID:}
-    sender-number: ${SENS_SENDER_NUMBER:}
+    solapi-api-key: ${SOLAPI_API_KEY:}
+    solapi-api-secret: ${SOLAPI_API_SECRET:}
+    sender-number: ${PHONE_SMS_SENDER_NUMBER:${SENS_SENDER_NUMBER:}}
     code-secret: ${PHONE_VERIFICATION_CODE_SECRET:}
     expiration-seconds: 180
     resend-cooldown-seconds: 60
