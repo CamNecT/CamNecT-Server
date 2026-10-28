@@ -10,13 +10,19 @@ spec.loader.exec_module(check_phone)
 
 class DeploymentCheckTest(unittest.TestCase):
     def environment(self):
-        return dict(PHONE_VERIFICATION_ENABLED='true', PHONE_FRONTEND_READY='true',
+        return dict(PHONE_ROLLOUT_MODE='verified-phone', PHONE_VERIFICATION_ENABLED='true', PHONE_FRONTEND_READY='true',
                     SENS_ACCESS_KEY='test-access', SENS_SECRET_KEY='sensitive-do-not-print',
                     SENS_SERVICE_ID='ncp:sms:kr:test:camnect', SENS_SENDER_NUMBER='0212345678',
                     PHONE_VERIFICATION_CODE_SECRET='x' * 32)
 
     def test_complete_configuration(self):
         self.assertEqual([], check_phone.validate(self.environment()))
+
+    def test_legacy_rollout_requires_no_sms_credentials(self):
+        self.assertEqual([], check_phone.validate({}))
+        self.assertEqual([], check_phone.validate({'PHONE_ROLLOUT_MODE': 'legacy'}))
+        self.assertTrue(check_phone.validate({'PHONE_ROLLOUT_MODE': 'typo'}))
+        self.assertTrue(check_phone.validate({'PHONE_ROLLOUT_MODE': 'legacy', 'PHONE_VERIFICATION_ENABLED': 'true'}))
 
     def test_missing_and_placeholder_configuration_never_echoes_secrets(self):
         environment = self.environment()

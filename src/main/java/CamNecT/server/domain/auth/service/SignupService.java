@@ -7,6 +7,7 @@ import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.domain.verification.phone.PhoneNumbers;
+import CamNecT.server.domain.verification.phone.PhoneVerificationProperties;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class SignupService {
     private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final PasswordService passwordService;
+    private final PhoneVerificationProperties phoneProperties;
 
     @Transactional
     public Users signupVerifiedUser(VerifySignupEmailRequest req) {
@@ -39,11 +41,17 @@ public class SignupService {
         if (userRepository.existsByEmail(req.email())) throw new CustomException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
         if (userRepository.existsByUsername(req.username())) throw new CustomException(AuthErrorCode.USERNAME_ALREADY_EXISTS);
 
+        String phone = req.phoneNum();
+        if (phoneProperties.isPhoneFlowActive() || (phone != null && !phone.isBlank())) {
+            phone = PhoneNumbers.normalize(phone);
+        } else {
+            phone = null; // Old clients remain compatible during the email-only rollout.
+        }
         Users user = Users.builder()
                 .email(req.email())
                 .username(req.username())
                 .name(req.name())
-                .phoneNum(PhoneNumbers.normalize(req.phoneNum()))
+                .phoneNum(phone)
                 .passwordHash(passwordEncoder.encode(req.password()))
                 .status(UserStatus.ADMIN_PENDING)
                 .build();

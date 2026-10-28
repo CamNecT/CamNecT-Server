@@ -158,6 +158,8 @@ public class GifticonExportFileService {
     private String deliveryStatus(GifticonPurchase purchase) {
         boolean phoneValid = PhoneNumbers.isValid(purchase.getRecipientPhone());
         boolean emailValid = emailPolicy.isValid(purchase.getRecipientEmail());
+        // Null phone identifies email-only orders, including orders created before this rollout.
+        if (purchase.getRecipientPhone() == null) return emailValid ? "EMAIL_ONLY" : "EMAIL_REQUIRED";
         if (!phoneValid && !emailValid) return "CONTACT_REQUIRED";
         if (!phoneValid) return "PHONE_REQUIRED";
         return emailValid ? "READY" : "EMAIL_REQUIRED";

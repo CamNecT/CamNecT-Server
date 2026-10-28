@@ -72,6 +72,7 @@ public class GifticonExportMailService {
             String text = """
                     기프티콘 구매요청 엑셀 파일을 전달드립니다.
                     deliveryStatus가 READY인 주문은 recipientPhone 번호로 구매·발송해 주세요. recipientEmail도 함께 제공합니다.
+                    EMAIL_ONLY인 주문은 기존처럼 recipientEmail 주소로 발송해 주세요. 현재 계정 번호로 바꾸지 마세요.
                     PHONE_REQUIRED / EMAIL_REQUIRED / CONTACT_REQUIRED인 주문은 누락된 수신 연락처 확인 전 발송을 보류해 주세요.
                     buyerPhone과 buyerEmail은 구매자 문의용이며 수신 연락처로 대신 사용하지 마세요.
 
@@ -91,6 +92,7 @@ public class GifticonExportMailService {
                         <li>파일명: <b>%s</b></li>
                       </ul>
                       <p>deliveryStatus가 READY인 주문은 recipientPhone 번호로 구매·발송해 주세요. recipientEmail도 함께 제공합니다.</p>
+                      <p>EMAIL_ONLY인 주문은 기존처럼 recipientEmail 주소로 발송해 주세요. 현재 계정 번호로 바꾸지 마세요.</p>
                       <p>PHONE_REQUIRED / EMAIL_REQUIRED / CONTACT_REQUIRED인 주문은 누락된 수신 연락처 확인 전 발송을 보류해 주세요.</p>
                       <p>buyerPhone과 buyerEmail은 구매자 문의용이며 수신 연락처로 대신 사용하지 마세요.</p>
                     </div>

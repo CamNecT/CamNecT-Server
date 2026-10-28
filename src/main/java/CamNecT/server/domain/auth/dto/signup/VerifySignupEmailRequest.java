@@ -9,7 +9,7 @@ public record VerifySignupEmailRequest(
         @NotBlank @Size(max = 50) String username,
         @NotBlank String password,
         @NotBlank @Size(max = 100) String name,
-        @NotBlank @Size(max = 20) String phoneNum,
+        @Size(max = 20) String phoneNum,
         @NotNull Agreements agreements
 ) {
     public record Agreements(

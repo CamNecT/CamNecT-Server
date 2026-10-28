@@ -38,6 +38,7 @@ class SignupEmailVerificationIntegrationTest {
     @Autowired UserRepository userRepository;
     @Autowired UserProfileRepository userProfileRepository;
     @Autowired EmailVerificationTokenRepository tokenRepository;
+    @Autowired CamNecT.server.domain.verification.phone.PhoneVerificationProperties phoneProperties;
 
     @Test
     void unverifiedSignupExistsOnlyAsEmailTokenAndCannotLogin() throws Exception {
@@ -129,6 +130,8 @@ class SignupEmailVerificationIntegrationTest {
 
     @Test
     void signupRequiresPhoneButDoesNotRequireSmsVerification() throws Exception {
+        phoneProperties.setRolloutMode(CamNecT.server.domain.verification.phone.PhoneVerificationProperties.RolloutMode.VERIFIED_PHONE);
+        try {
         String email = "missing-phone-" + suffix() + "@example.com";
         EmailVerificationToken issued = tokenRepository.saveAndFlush(EmailVerificationToken.issueForEmail(email, VALID_CODE, 30));
         mockMvc.perform(post("/api/auth/signup/email/verify").contentType(MediaType.APPLICATION_JSON)
@@ -137,6 +140,20 @@ class SignupEmailVerificationIntegrationTest {
                 .andExpect(status().isBadRequest());
         assertThat(userRepository.findByEmail(email)).isEmpty();
         assertThat(tokenRepository.findById(issued.getId()).orElseThrow().getUsedAt()).isNull();
+        } finally {
+            phoneProperties.setRolloutMode(CamNecT.server.domain.verification.phone.PhoneVerificationProperties.RolloutMode.LEGACY);
+        }
+    }
+
+    @Test
+    void legacyRolloutAcceptsSignupFromExistingClientWithoutPhone() throws Exception {
+        String email = "legacy-phone-" + suffix() + "@example.com";
+        tokenRepository.saveAndFlush(EmailVerificationToken.issueForEmail(email, VALID_CODE, 30));
+        mockMvc.perform(post("/api/auth/signup/email/verify").contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of("email", email, "code", VALID_CODE, "username", "legacy-" + suffix(),
+                                "password", "password1", "name", "user", "agreements", Map.of("serviceTerms", true, "privacyTerms", true)))))
+                .andExpect(status().isOk());
+        assertThat(userRepository.findByEmail(email).orElseThrow().getPhoneNum()).isNull();
     }
 
     private org.springframework.test.web.servlet.ResultActions verifySignup(

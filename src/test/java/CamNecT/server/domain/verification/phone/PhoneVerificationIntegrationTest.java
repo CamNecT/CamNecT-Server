@@ -31,6 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(properties = {
+        "app.phone-verification.rollout-mode=verified-phone",
         "app.phone-verification.enabled=true",
         "app.phone-verification.access-key=test-access",
         "app.phone-verification.secret-key=test-secret",

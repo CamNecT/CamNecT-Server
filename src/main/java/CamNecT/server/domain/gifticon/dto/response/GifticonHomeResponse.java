@@ -9,7 +9,8 @@ public record GifticonHomeResponse(
         List<ProductView> products,
         LocalDateTime lastSyncedAt,
         String phoneNum,
-        boolean phoneVerified
+        boolean phoneVerified,
+        boolean phoneVerificationRequired
 ) {
     public record ProductView(
             Long productId,

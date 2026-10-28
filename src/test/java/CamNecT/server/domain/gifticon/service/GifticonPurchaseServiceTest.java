@@ -48,12 +48,15 @@ class GifticonPurchaseServiceTest {
 
     private ValidatorFactory validatorFactory;
     private GifticonPurchaseService service;
+    private final CamNecT.server.domain.verification.phone.PhoneVerificationProperties phoneProperties =
+            new CamNecT.server.domain.verification.phone.PhoneVerificationProperties();
 
     @BeforeEach
     void setUp() {
         validatorFactory = Validation.buildDefaultValidatorFactory();
+        phoneProperties.setRolloutMode(CamNecT.server.domain.verification.phone.PhoneVerificationProperties.RolloutMode.VERIFIED_PHONE);
         service = new GifticonPurchaseService(productRepository, purchaseRepository, userRepository,
-                pointService, userReportPenaltyService, new GifticonEmailPolicy(validatorFactory.getValidator()));
+                pointService, userReportPenaltyService, new GifticonEmailPolicy(validatorFactory.getValidator()), phoneProperties);
     }
 
     @AfterEach
@@ -303,6 +306,21 @@ class GifticonPurchaseServiceTest {
         service.confirm(1L, new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "second", null, null, null));
         verify(purchaseRepository, org.mockito.Mockito.times(2)).saveAndFlush(any());
         verify(pointService, org.mockito.Mockito.times(2)).spendPoint(eq(1L), eq(1000), any());
+    }
+
+    @Test
+    void legacyRolloutKeepsEmailPurchasesAndDoesNotUseAnUnverifiedPhone() {
+        phoneProperties.setRolloutMode(CamNecT.server.domain.verification.phone.PhoneVerificationProperties.RolloutMode.LEGACY);
+        stubNewPurchase("buyer@example.com");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(Users.builder().userId(1L)
+                .status(UserStatus.ACTIVE).name("buyer").email("buyer@example.com").phoneNum("01099998888").build()));
+        service.confirm(1L, new ConfirmGifticonPurchaseRequest(10L, 1, 1000, "legacy", null, null, null));
+        ArgumentCaptor<GifticonPurchase> saved = ArgumentCaptor.forClass(GifticonPurchase.class);
+        verify(purchaseRepository).saveAndFlush(saved.capture());
+        assertEquals("buyer@example.com", saved.getValue().getRecipientEmail());
+        org.junit.jupiter.api.Assertions.assertNull(saved.getValue().getRecipientPhone());
+        org.junit.jupiter.api.Assertions.assertNull(saved.getValue().getBuyerPhone());
+        verify(pointService).spendPoint(eq(1L), eq(1000), any());
     }
 
     private void stubNewPurchase(String email) {

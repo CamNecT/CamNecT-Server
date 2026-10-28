@@ -12,6 +12,7 @@ import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.domain.verification.phone.PhoneVerificationProperties;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.GifticonErrorCode;
@@ -34,6 +35,7 @@ public class GifticonPurchaseService {
     private final PointService pointService;
     private final UserReportPenaltyService userReportPenaltyService;
     private final GifticonEmailPolicy emailPolicy;
+    private final PhoneVerificationProperties phoneProperties;
 
     @Transactional
     public GifticonPurchaseConfirmResponse confirm(Long userId, ConfirmGifticonPurchaseRequest req) {
@@ -62,7 +64,7 @@ public class GifticonPurchaseService {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }
 
-        if (!user.isPhoneVerified()) {
+        if (phoneProperties.isPhoneFlowActive() && !user.isPhoneVerified()) {
             throw new CustomException(GifticonErrorCode.PHONE_VERIFICATION_REQUIRED);
         }
 
@@ -100,12 +102,12 @@ public class GifticonPurchaseService {
 
                 .buyerName(user.getName())
                 .buyerEmail(buyerEmail)
-                .buyerPhone(user.getPhoneNum())
+                .buyerPhone(phoneProperties.isPhoneFlowActive() ? user.getPhoneNum() : null)
 
                 .recipientName(blankToNull(req.recipientName()))
                 .recipientEmail(recipientEmail)
                 // Only the account's verified number can receive a new order.
-                .recipientPhone(user.getPhoneNum())
+                .recipientPhone(phoneProperties.isPhoneFlowActive() ? user.getPhoneNum() : null)
                 .giftMessage(blankToNull(req.giftMessage()))
                 .requestedAt(LocalDateTime.now())
                 .build();

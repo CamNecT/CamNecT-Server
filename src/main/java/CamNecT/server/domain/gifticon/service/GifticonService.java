@@ -5,6 +5,7 @@ import CamNecT.server.domain.gifticon.dto.response.GifticonProductDetailResponse
 import CamNecT.server.domain.gifticon.model.GifticonProduct;
 import CamNecT.server.domain.gifticon.repository.GifticonProductRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
+import CamNecT.server.domain.verification.phone.PhoneVerificationProperties;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.global.common.exception.CustomException;
@@ -29,6 +30,7 @@ public class GifticonService {
     private final PointService pointService;
     private final GifticonVendorClient vendorClient;
     private final UserRepository userRepository;
+    private final PhoneVerificationProperties phoneProperties;
 
     @Value("${app.gifticon.vendor.enabled:false}")
     private boolean vendorEnabled;
@@ -65,7 +67,7 @@ public class GifticonService {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
         return new GifticonHomeResponse(myPoint, myEmail, views, lastSyncedAt,
-                user.getPhoneNum(), user.isPhoneVerified());
+                user.getPhoneNum(), user.isPhoneVerified(), phoneProperties.isPhoneFlowActive());
     }
 
     public GifticonProductDetailResponse productDetail(Long productId) {

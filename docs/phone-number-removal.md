@@ -1,12 +1,19 @@
 # 전화번호 인증 및 기프티콘 수신 연락처
 
-> 아래 V13 내용은 과거 전환 이력입니다. 현재 정책은 V20 전화번호 인증과 V21 구매 연락처 스냅샷입니다. 인증된 본인 번호로 기프티콘을 발송하고 이메일은 참고 연락처로 함께 전달합니다.
+> 아래 V13 내용은 과거 전환 이력입니다. V20/V21은 전화번호 인증과 주문 연락처 저장을 준비합니다. 기본 `legacy` 모드에서는 기존 이메일 교환을 유지하고 SMS를 보내지 않습니다. SENS와 프론트 준비 후 `verified-phone` 모드로 전환하면 인증된 본인 번호로만 교환합니다.
+
+### 단계적 활성화
+
+- 이번 배포는 `PHONE_ROLLOUT_MODE=legacy`, `PHONE_VERIFICATION_ENABLED=false`로 운영합니다. 두 값 모두 기본값이므로 기존 환경 파일에 추가하지 않아도 이메일 교환이 유지됩니다.
+- 가입 요청에 `phoneNum`이 있으면 정규화하여 미인증 번호로 저장합니다. 기존 프론트 호환을 위해 legacy에서는 생략할 수 있습니다. 가입 과정에서 SMS는 발송하지 않습니다.
+- legacy 구매는 인증 여부와 무관하게 기존 이메일 정책을 사용하며 주문 전화번호는 NULL로 저장합니다. 관리자 XLSX의 `EMAIL_ONLY` 주문은 저장된 수신 이메일로 처리합니다. 기존 주문도 같은 규칙을 적용하며 현재 계정 번호로 덮어쓰지 않습니다.
+- 아래 인증 필수 정책은 `PHONE_ROLLOUT_MODE=verified-phone` 활성화 이후 적용합니다. 전환하려면 SMS 설정과 프론트 준비가 모두 필요합니다.
 
 ## V20: 첫 기프티콘 교환 시 전화번호 인증
 
 ### 정책과 기존 회원
 
-- 회원가입은 이메일 인증으로 완료한다. `POST /api/auth/signup/email/verify`에 `phoneNum`을 필수로 추가한다. 가입 단계에는 SMS를 보내지 않는다.
+- 회원가입은 이메일 인증으로 완료한다. `POST /api/auth/signup/email/verify`의 `phoneNum`은 verified-phone 모드에서 필수다. 가입 단계에는 SMS를 보내지 않는다.
 - 국내 `010` 번호만 받는다. `01012345678`, `010-1234-5678`, `+82 10-1234-5678`은 `01012345678`로 저장한다.
 - 새 기프티콘 교환은 현재 계정 전화번호가 인증된 경우만 허용한다. 미인증이면 `403 / 47301`이며 구매 저장과 포인트 차감 전에 차단한다.
 - 한 번 인증하면 만료 없이 유지한다. 번호를 바꾸면 즉시 미인증 상태로 돌아가며, 새 번호 인증 후 다시 교환할 수 있다. 같은 정규화 번호를 다시 저장하면 인증을 유지한다.
@@ -24,12 +31,12 @@
 
 | 메서드 / 경로 | 요청 | 응답의 `data` |
 | --- | --- | --- |
-| `GET /api/profile/me/phone` | 없음 | `phoneNum`, `phoneVerified`, `phoneVerifiedAt` |
+| `GET /api/profile/me/phone` | 없음 | `phoneNum`, `phoneVerified`, `phoneVerifiedAt`, `phoneVerificationRequired`, `smsAvailable` |
 | `PUT /api/profile/me/phone` | `{"phoneNum":"01012345678"}` | 저장 후 전화번호·인증 상태 |
 | `POST /api/profile/me/phone/verification/send` | 본문 없음 | `challengeId`, `expiresInSeconds:180`, `resendAfterSeconds:60` |
 | `POST /api/profile/me/phone/verification/confirm` | `{"challengeId":"발송 응답의 UUID","code":"123456"}` | 인증된 전화번호·인증 상태 |
 
-`GET /api/profile/me/settings`, `GET /api/gifticons/home`에도 `phoneNum`, `phoneVerified`가 추가된다. `phoneVerified=false`이면 교환 전에 인증 화면을 연다. 전화번호가 없거나 변경할 때 PUT → send → confirm 순서로 처리한다. 번호가 이미 저장되어 있으면 send부터 시작한다. 코드 인증 성공 후 기존 구매 확정 API를 호출한다. 서버가 최종 인증 상태를 검사하므로 프론트 플래그만으로 교환할 수 없다.
+`GET /api/profile/me/settings`, `GET /api/gifticons/home`에도 `phoneNum`, `phoneVerified`가 추가된다. 샵 응답의 `phoneVerificationRequired=true`이면서 `phoneVerified=false`일 때만 교환 전에 인증 화면을 연다. legacy에서는 기존 이메일 교환 화면을 유지한다. 전화번호가 없거나 변경할 때 PUT → send → confirm 순서로 처리한다. 번호가 이미 저장되어 있으면 send부터 시작한다. 코드 인증 성공 후 기존 구매 확정 API를 호출한다. 서버가 최종 인증 상태를 검사한다.
 
 | HTTP / 코드 | 의미 |
 | --- | --- |
@@ -60,7 +67,7 @@ MySQL REPEATABLE READ에서 사용자 접근 검사로 생성된 이전 스냅�
 
 - #304의 가입 시 번호 수집은 현재 이메일 가입 + 미인증 번호 저장 정책으로 대체한다. 인증되지 않은 번호를 다른 회원이 먼저 입력해 가입을 막는 일을 피하려고 과거 PR의 가입 번호 UNIQUE 제약은 가져오지 않는다.
 - #305의 구매마다 전화번호 입력 및 `confirm-with-phone` API는 채택하지 않는다. 기존 `/purchases/confirm`에서 인증된 본인 번호를 사용한다.
-- 두 PR의 공통인 관리자 XLSX 전화번호·이메일 전달을 통합한다. `buyerPhone`과 `recipientPhone`을 문자열로 내보내 앞자리 0을 유지한다. `READY` 주문은 수신 번호로 발송한다. `PHONE_REQUIRED` / `EMAIL_REQUIRED` / `CONTACT_REQUIRED`는 관리자 확인 전 발송 보류다.
+- 두 PR의 공통인 관리자 XLSX 전화번호·이메일 전달을 통합한다. `buyerPhone`과 `recipientPhone`을 문자열로 내보내 앞자리 0을 유지한다. `READY` 주문은 수신 번호로, `EMAIL_ONLY` 주문은 수신 이메일로 발송한다. `PHONE_REQUIRED` / `EMAIL_REQUIRED` / `CONTACT_REQUIRED`는 관리자 확인 전 발송 보류다.
 - 이미 제출한 배치는 다시 발송하지 않는다. 재시도 대기 중인 구형 XLSX만 새로운 연락처 열로 재생성한다. 이전 주문의 삭제된 전화번호는 추정하여 채우지 않는다.
 - main의 V18(댓글), V19(학과)를 보존하고 전화번호 인증은 V20, 주문 연락처는 V21로 추가한다. 이전 PR의 V18/V19는 적용하지 않는다.
 
@@ -72,6 +79,7 @@ MySQL REPEATABLE READ에서 사용자 접근 검사로 생성된 이전 스냅�
 2. 서버 환경 파일에 아래 값을 주입한다. 실제 키는 저장소나 프론트에 넣지 않는다. OTP 비밀키는 JWT/SENS 키와 별도로 충분히 무작위인 32자 이상 값을 생성한다.
 
 ```dotenv
+PHONE_ROLLOUT_MODE=verified-phone
 PHONE_VERIFICATION_ENABLED=true
 PHONE_FRONTEND_READY=true
 SENS_ACCESS_KEY=<server-only>
@@ -87,9 +95,9 @@ PHONE_SMS_MONTHLY_LIMIT=50
 4. 가입 화면의 필수 전화번호 입력, 설정의 번호 변경, 샵의 인증 상태 표시·인증 화면을 서버와 함께 배포한다. 프론트 소스 변경은 이 서버 저장소 작업에 포함하지 않는다.
 5. 승인된 테스트 번호로 실발송·확인 후 새 교환 차단/허용, 번호 변경 후 재차단, 기존 주문 재시도, 탈퇴를 확인한다.
 
-`PHONE_VERIFICATION_ENABLED=false`가 기본값이며 **SMS 발송을 끄는 설정이지 교환 인증을 우회하는 설정이 아니다.** SENS 설정 없이 배포하면 미인증 회원의 새 교환이 막힌다. 프론트와 SENS 준비를 마친 후 배포해야 한다. 비밀키를 교체하면 기존 OTP가 무효화되고 번호별 HMAC 제한 키도 바뀌므로, 창을 고려해 교체한다. 계정·전역 상한은 유지된다.
+기본 `legacy` 모드와 `PHONE_VERIFICATION_ENABLED=false`에서는 SENS 없이 배포할 수 있고 기존 이메일 교환을 유지한다. `verified-phone` 모드에서 SMS가 꺼져 있으면 배포 검사와 앱 시작 검증이 실패하여 잘못된 활성화를 차단한다. 비밀키를 교체하면 기존 OTP가 무효화되고 번호별 HMAC 제한 키도 바뀌므로, 창을 고려해 교체한다. 계정·전역 상한은 유지된다.
 
-환경변수 샘플은 `deploy/phone-verification.env.example`에 있다. 전체 `.env.prod`를 교체하지 않고 기존 파일에 필요한 키만 추가한다. prod/stage 배포 워크플로는 컨테이너 교체 전에 `scripts/check-phone-deployment.py`를 실행한다. Compose가 해석한 실제 컨테이너 환경에서 활성화, 필수 키, 발신번호 형식, 예산, `PHONE_FRONTEND_READY=true`를 확인하며 비밀 값은 출력하지 않는다. 이 플래그는 앱 인증을 우회하지 않고 배포 준비 확인에만 쓰인다. `--check-network`는 SENS TLS 연결만 확인하며 문자를 보내거나 키의 유효성·발신번호 승인을 확인하지 않는다.
+환경변수 샘플은 `deploy/phone-verification.env.example`에 있다. 전체 `.env.prod`를 교체하지 않고 기존 파일에 필요한 키만 추가한다. prod/stage 배포 워크플로는 컨테이너 교체 전에 `scripts/check-phone-deployment.py`를 실행한다. Compose가 해석한 실제 환경에서 rollout 모드를 확인하고, verified-phone에서는 SMS 활성화·필수 키·발신번호 형식·예산·`PHONE_FRONTEND_READY=true`를 검사한다. 비밀 값은 출력하지 않는다. `--check-network`는 SMS가 켜진 경우 SENS TLS 연결만 확인하며 문자를 보내거나 키의 유효성·발신번호 승인을 확인하지 않는다.
 
 ```bash
 # 운영: 기존 배포 사용자 및 DOCKER_USERNAME 환경에서 실행

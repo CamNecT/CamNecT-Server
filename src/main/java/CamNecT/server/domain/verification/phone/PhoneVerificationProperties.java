@@ -14,6 +14,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties("app.phone-verification")
 public class PhoneVerificationProperties {
+    public enum RolloutMode { LEGACY, VERIFIED_PHONE }
+    private RolloutMode rolloutMode = RolloutMode.LEGACY;
     private boolean enabled = false;
     private String accessKey = "";
     private String secretKey = "";
@@ -30,9 +32,16 @@ public class PhoneVerificationProperties {
 
     @PostConstruct
     void validateCredentials() {
+        if (isPhoneFlowActive() && !enabled) {
+            throw new IllegalStateException("Verified-phone rollout requires SMS to be enabled");
+        }
         if (enabled && (accessKey.isBlank() || secretKey.isBlank() || serviceId.isBlank()
                 || !senderNumber.matches("[0-9]{8,15}") || codeSecret.length() < 32)) {
             throw new IllegalStateException("SENS credentials, registered sender and a 32+ character OTP secret are required");
         }
+    }
+
+    public boolean isPhoneFlowActive() {
+        return rolloutMode == RolloutMode.VERIFIED_PHONE;
     }
 }

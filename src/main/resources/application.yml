@@ -1,5 +1,6 @@
 app:
   phone-verification:
+    rollout-mode: ${PHONE_ROLLOUT_MODE:legacy}
     enabled: ${PHONE_VERIFICATION_ENABLED:false}
     access-key: ${SENS_ACCESS_KEY:}
     secret-key: ${SENS_SECRET_KEY:}

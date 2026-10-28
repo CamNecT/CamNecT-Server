@@ -127,8 +127,8 @@ class GifticonEmailExportFileServiceTest {
         try (var workbook = WorkbookFactory.create(filePath.toFile())) {
             var sheet = workbook.getSheet("purchases");
             assertThat(sheet.getRow(1).getCell(14).getStringCellValue()).isEmpty();
-            assertThat(sheet.getRow(1).getCell(16).getStringCellValue()).isEqualTo("PHONE_REQUIRED");
-            assertThat(sheet.getRow(2).getCell(16).getStringCellValue()).isEqualTo("CONTACT_REQUIRED");
+            assertThat(sheet.getRow(1).getCell(16).getStringCellValue()).isEqualTo("EMAIL_ONLY");
+            assertThat(sheet.getRow(2).getCell(16).getStringCellValue()).isEqualTo("EMAIL_REQUIRED");
         }
     }
 

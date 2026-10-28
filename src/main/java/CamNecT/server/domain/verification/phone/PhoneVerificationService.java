@@ -30,7 +30,8 @@ public class PhoneVerificationService {
     private final TransactionTemplate transactions;
     private final Clock clock;
 
-    public record PhoneStatus(String phoneNum, boolean phoneVerified, LocalDateTime phoneVerifiedAt) {}
+    public record PhoneStatus(String phoneNum, boolean phoneVerified, LocalDateTime phoneVerifiedAt,
+                              boolean phoneVerificationRequired, boolean smsAvailable) {}
     public record SendResponse(String challengeId, int expiresInSeconds, int resendAfterSeconds) {}
 
     @Transactional(readOnly = true)
@@ -172,7 +173,8 @@ public class PhoneVerificationService {
     private LocalDateTime now() { return LocalDateTime.ofInstant(clock.instant(), BILLING_ZONE); }
 
     private PhoneStatus statusOf(Users user) {
-        return new PhoneStatus(user.getPhoneNum(), user.isPhoneVerified(), user.getPhoneVerifiedAt());
+        return new PhoneStatus(user.getPhoneNum(), user.isPhoneVerified(), user.getPhoneVerifiedAt(),
+                properties.isPhoneFlowActive(), properties.isEnabled());
     }
 
     private record VerificationResult(PhoneStatus status, PhoneErrorCode error) {}

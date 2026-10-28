@@ -28,6 +28,8 @@ class SignupServiceTest {
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final PasswordService passwordService = mock(PasswordService.class);
     private SignupService signupService;
+    private final CamNecT.server.domain.verification.phone.PhoneVerificationProperties phoneProperties =
+            new CamNecT.server.domain.verification.phone.PhoneVerificationProperties();
 
     @BeforeEach
     void setUp() {
@@ -35,7 +37,8 @@ class SignupServiceTest {
                 userRepository,
                 userProfileRepository,
                 passwordEncoder,
-                passwordService
+                passwordService,
+                phoneProperties
         );
     }
 

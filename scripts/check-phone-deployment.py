@@ -12,9 +12,15 @@ import sys
 
 def validate(environment):
     errors = []
-    if str(environment.get('PHONE_VERIFICATION_ENABLED', '')).lower() != 'true':
+    mode = str(environment.get('PHONE_ROLLOUT_MODE', 'legacy')).lower()
+    if mode not in ('legacy', 'verified-phone'):
+        return ['PHONE_ROLLOUT_MODE must be legacy or verified-phone']
+    enabled = str(environment.get('PHONE_VERIFICATION_ENABLED', 'false')).lower() == 'true'
+    if mode == 'legacy' and not enabled:
+        return errors
+    if mode == 'verified-phone' and not enabled:
         errors.append('PHONE_VERIFICATION_ENABLED must be true: purchases require verification')
-    if str(environment.get('PHONE_FRONTEND_READY', '')).lower() != 'true':
+    if mode == 'verified-phone' and str(environment.get('PHONE_FRONTEND_READY', '')).lower() != 'true':
         errors.append('PHONE_FRONTEND_READY must be true after signup/settings/shop integration is ready')
     for key in ('SENS_ACCESS_KEY', 'SENS_SECRET_KEY', 'SENS_SERVICE_ID', 'SENS_SENDER_NUMBER',
                 'PHONE_VERIFICATION_CODE_SECRET'):
@@ -53,7 +59,7 @@ def main():
         print('ERROR: ' + error, file=sys.stderr)
     if errors:
         return 1
-    if args.check_network:
+    if args.check_network and str(environment.get('PHONE_VERIFICATION_ENABLED', 'false')).lower() == 'true':
         try:
             with socket.create_connection(('sens.apigw.ntruss.com', 443), timeout=5) as raw:
                 with ssl.create_default_context().wrap_socket(raw, server_hostname='sens.apigw.ntruss.com'):
@@ -61,7 +67,10 @@ def main():
         except OSError:
             print('ERROR: SENS DNS/TLS connectivity failed', file=sys.stderr)
             return 1
-    print('Phone deployment configuration passed. Sender approval and live SMS delivery still require verification.')
+    if str(environment.get('PHONE_ROLLOUT_MODE', 'legacy')).lower() == 'legacy':
+        print('Legacy rollout: email signup/purchases remain available; SMS enforcement is inactive.')
+    else:
+        print('Verified-phone configuration passed. Sender approval and live SMS delivery still require verification.')
     return 0
 
 
