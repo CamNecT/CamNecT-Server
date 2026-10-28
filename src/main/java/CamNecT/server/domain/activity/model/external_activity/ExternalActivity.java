@@ -54,6 +54,10 @@ public class ExternalActivity {
     @Column(name = "apply_end_date")
     private LocalDate applyEndDate;
 
+    /** Exact imported deadline, stored in UTC. Null when the source provides only a date. */
+    @Column(name = "apply_end_at")
+    private java.time.Instant applyEndAt;
+
     @Column(name = "result_announce_date")
     private LocalDate resultAnnounceDate;
 
@@ -87,6 +91,7 @@ public class ExternalActivity {
     }
 
     public void updateAdmin(AdminActivityRequest request) {
+        this.applyEndAt = null;
         this.title = request.title();
         this.category = request.category();
         this.organizer = request.organizer();
@@ -101,5 +106,11 @@ public class ExternalActivity {
 
     public void close() {
         this.status = ActivityStatus.CLOSED;
+    }
+
+    public void applyImported(AdminActivityRequest request, java.time.Instant deadline, ActivityStatus status) {
+        updateAdmin(request);
+        this.applyEndAt = deadline;
+        this.status = status;
     }
 }

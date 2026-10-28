@@ -23,6 +23,7 @@ public class ExternalActivityDto {
     private final String thumbnailUrl;
     private final LocalDate applyStartDate;
     private final LocalDate applyEndDate;
+    private final java.time.Instant applyEndAt;
     private final LocalDate resultAnnounceDate;
     private final String officialUrl;
     private final ActivityStatus status;
@@ -44,6 +45,7 @@ public class ExternalActivityDto {
                 .thumbnailUrl(entity.getThumbnailKey())
                 .applyStartDate(entity.getApplyStartDate())
                 .applyEndDate(entity.getApplyEndDate())
+                .applyEndAt(entity.getApplyEndAt())
                 .resultAnnounceDate(entity.getResultAnnounceDate())
                 .officialUrl(entity.getOfficialUrl())
                 .status(entity.getStatus())
@@ -65,6 +67,7 @@ public class ExternalActivityDto {
                 .thumbnailUrl(thumbnailUrl)
                 .applyStartDate(applyStartDate)
                 .applyEndDate(applyEndDate)
+                .applyEndAt(applyEndAt)
                 .resultAnnounceDate(resultAnnounceDate)
                 .officialUrl(officialUrl)
                 .status(status)
