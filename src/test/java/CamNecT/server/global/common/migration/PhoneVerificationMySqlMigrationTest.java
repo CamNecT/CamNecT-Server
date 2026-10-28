@@ -16,7 +16,7 @@ class PhoneVerificationMySqlMigrationTest {
         String url = System.getenv("PHONE_MYSQL_MIGRATION_URL");
         String user = System.getenv("PHONE_MYSQL_USERNAME");
         String password = System.getenv("PHONE_MYSQL_PASSWORD");
-        Flyway.configure().dataSource(url, user, password).target("19").load().migrate();
+        Flyway.configure().dataSource(url, user, password).target("20").load().migrate();
         try (var connection = DriverManager.getConnection(url, user, password);
              var sql = connection.createStatement()) {
             sql.execute("INSERT INTO users (user_id,created_at,updated_at,email,name,password_hash,role,status,username) "
@@ -28,6 +28,7 @@ class PhoneVerificationMySqlMigrationTest {
         }
         var flyway = Flyway.configure().dataSource(url, user, password).load();
         assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("22");
         flyway.validate();
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         try (var connection = DriverManager.getConnection(url, user, password);
