@@ -33,9 +33,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "app.phone-verification.rollout-mode=verified-phone",
         "app.phone-verification.enabled=true",
-        "app.phone-verification.access-key=test-access",
-        "app.phone-verification.secret-key=test-secret",
-        "app.phone-verification.service-id=test-service",
+        "app.phone-verification.provider=solapi",
+        "app.phone-verification.solapi-api-key=test-access",
+        "app.phone-verification.solapi-api-secret=test-secret",
         "app.phone-verification.sender-number=01000000000",
         "app.phone-verification.code-secret=test-code-secret-with-at-least-32-characters",
         "app.phone-verification.cleanup-delay-ms=3600000"

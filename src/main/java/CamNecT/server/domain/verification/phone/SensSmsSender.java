@@ -3,6 +3,7 @@ package CamNecT.server.domain.verification.phone;
 import CamNecT.server.global.common.exception.CustomException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.net.URI;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
+@ConditionalOnProperty(prefix = "app.phone-verification", name = "provider", havingValue = "sens")
 public class SensSmsSender implements SmsSender {
     private final PhoneVerificationProperties properties;
     private final ObjectMapper mapper;
