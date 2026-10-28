@@ -19,6 +19,13 @@ Parameters:
     Type: String
     Default: DISABLED
     AllowedValues: [ENABLED, DISABLED]
+  ReservedConcurrency:
+    Type: Number
+    Default: 0
+    AllowedValues: [0, 1]
+    Description: Use 1 only when the account has more than 10 concurrent executions; 0 uses the account pool.
+Conditions:
+  ReserveExecution: !Equals [!Ref ReservedConcurrency, 1]
 Rules:
   CorrectAccount:
     Assertions:
@@ -91,7 +98,7 @@ Resources:
       Architectures: [arm64]
       MemorySize: 256
       Timeout: 600
-      ReservedConcurrentExecutions: 1
+      ReservedConcurrentExecutions: !If [ReserveExecution, 1, !Ref 'AWS::NoValue']
       EventInvokeConfig:
         MaximumRetryAttempts: 0
       Environment:

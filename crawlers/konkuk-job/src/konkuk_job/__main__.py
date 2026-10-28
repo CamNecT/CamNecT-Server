@@ -9,7 +9,7 @@ from .publisher import from_environment
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Konkuk job board review queue; no service DB writes')
+    parser = argparse.ArgumentParser(description='Konkuk job board archive and signed CamNecT activity publication')
     parser.add_argument('--data-dir', default='data/local')
     parser.add_argument('--max-articles', type=int, default=20)
     parser.add_argument('--max-pages', type=int, default=20)
