@@ -16,6 +16,7 @@ public enum CoffeeChatErrorCode implements BaseErrorCode {
     RECEIVER_COFFEECHAT_DISABLED(HttpStatus.BAD_REQUEST, 48004, "상대방이 커피챗 요청을 받지 않는 상태입니다."),
     COFFEE_CHAT_CLOSED(HttpStatus.BAD_REQUEST, 48005, "이미 닫힌 채팅방입니다."),
     INVALID_CLIENT_MESSAGE_ID(HttpStatus.BAD_REQUEST, 48006, "clientMessageId는 올바른 UUID 형식이어야 합니다."),
+    CHATROOM_NOT_CLOSED(HttpStatus.BAD_REQUEST, 48007, "종료된 채팅방만 일괄 퇴장할 수 있습니다."),
 
     // 483xx - 권한 없음 (Forbidden)
     REQUEST_ACCESS_DENIED(HttpStatus.FORBIDDEN, 48301, "본인의 요청만 처리(수락/거절)할 수 있습니다."),

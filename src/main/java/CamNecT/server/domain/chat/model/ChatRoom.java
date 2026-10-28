@@ -1,6 +1,8 @@
 package CamNecT.server.domain.chat.model;
 
 import CamNecT.server.domain.users.model.Users;
+import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import CamNecT.server.global.tag.model.Tag;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -101,13 +103,23 @@ public class ChatRoom {
 
     // 채팅방 나가기
     public void leave(Long userId) {
+        markExited(userId);
+        this.status = RoomStatus.CLOSE;
+    }
+
+    public void leaveClosedRoom(Long userId) {
+        if (this.status != RoomStatus.CLOSE) {
+            throw new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_CLOSED);
+        }
+        markExited(userId);
+    }
+
+    private void markExited(Long userId) {
         if (this.requester.getUserId().equals(userId)) {
             this.requesterExited = true;
         } else if (this.receiver.getUserId().equals(userId)) {
             this.receiverExited = true;
         }
-
-        this.status = RoomStatus.CLOSE;
     }
 
     public boolean isVisibleTo(Long userId) {

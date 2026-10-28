@@ -1,6 +1,7 @@
 package CamNecT.server.domain.chat.controller;
 
 import CamNecT.server.domain.chat.dto.room.ChatRoomListDetailDto;
+import CamNecT.server.domain.chat.dto.room.ChatRoomBulkExitRequest;
 import CamNecT.server.domain.chat.dto.room.ChatRoomListResponseDto;
 import CamNecT.server.domain.chat.dto.room.ChatRoomWithDetailDto;
 import CamNecT.server.domain.chat.model.ChatRequest;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.transaction.annotation.Transactional;
@@ -92,6 +94,20 @@ public class ChatRoomController {
     @PatchMapping("/room/{roomId}/close")
     public ApiResponse<Void> closeRoom(@Parameter(description = "채팅방 ID") @PathVariable @Positive Long roomId, @UserId Long userId) {
         chatService.closeChatRoom(roomId, userId);
+        return ApiResponse.success(null);
+    }
+
+    @Operation(summary = "종료된 채팅방 일괄 나가기", description = "종료된 채팅방 1~100개에서 본인만 퇴장합니다. 중복 ID와 이미 퇴장한 방은 성공 처리합니다. 진행 중인 방, 존재하지 않는 방 또는 본인이 참여하지 않은 방이 포함되면 전체 요청을 취소합니다. 채팅방·요청을 종료하거나 ROOM_CLOSED 이벤트를 다시 발행하지 않습니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "전체 퇴장 성공 (이미 퇴장한 방 포함)", useReturnTypeSchema = true),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 방 ID 목록 검증 실패 / 48007 종료되지 않은 채팅방 포함", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 정보가 없거나 유효하지 않음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "접근이 제한된 사용자", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "48402 채팅방이 없거나 참여자가 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PatchMapping("/rooms/exit")
+    public ApiResponse<Void> exitClosedRooms(@Valid @RequestBody ChatRoomBulkExitRequest request, @UserId Long userId) {
+        chatService.exitClosedChatRooms(request.roomIds(), userId);
         return ApiResponse.success(null);
     }
 

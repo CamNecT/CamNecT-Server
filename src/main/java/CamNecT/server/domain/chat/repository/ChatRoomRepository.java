@@ -64,6 +64,16 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     @Query("select r from ChatRoom r join fetch r.requester join fetch r.receiver where r.id = :roomId")
     Optional<ChatRoom> findByIdForUpdate(@Param("roomId") Long roomId);
 
+    // Include already-exited participants so bulk exit retries are idempotent.
+    // Lock only the room; joining participant rows would also lock the other user's account.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        select r from ChatRoom r
+        where r.id = :roomId
+          and (r.requester.userId = :userId or r.receiver.userId = :userId)
+    """)
+    Optional<ChatRoom> findByParticipantForUpdate(@Param("roomId") Long roomId, @Param("userId") Long userId);
+
     @Query("""
         select (count(r) > 0)
         from ChatRoom r
