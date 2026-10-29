@@ -82,7 +82,7 @@ def main():
     else:
         print('Verified-phone configuration passed. Sender approval and live SMS delivery still require verification.')
         if str(environment.get('PHONE_FRONTEND_READY', '')).lower() != 'true':
-            print('Operator-approved rollout before frontend deployment: older signup/purchase clients may receive validation errors.')
+            print('Operator-approved rollout before frontend deployment: older purchase clients may receive validation errors.')
     return 0
 
 

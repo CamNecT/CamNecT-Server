@@ -117,7 +117,7 @@ public class AuthController {
      */
     @Operation(
             summary = "회원가입 이메일 인증 + 유저 생성",
-            description = "이메일 인증코드를 검증한 뒤 유저를 생성합니다. phoneNum을 보내면 미인증 번호로 저장합니다. legacy 운영 중에는 생략 가능하며 verified-phone 전환 후에는 필수입니다. SMS 인증은 가입 시 진행하지 않습니다."
+            description = "이메일 인증코드를 검증한 뒤 유저를 생성합니다. 가입 시 전화번호를 수집하거나 SMS를 발송하지 않습니다. 전화번호는 가입 후 마이페이지 PUT /api/profile/me/phone으로 등록·변경하고 기프티콘 첫 교환 전에 인증합니다."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
