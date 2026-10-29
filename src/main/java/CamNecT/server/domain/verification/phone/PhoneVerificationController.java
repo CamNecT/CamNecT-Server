@@ -30,7 +30,7 @@ public class PhoneVerificationController {
         return ApiResponse.success(service.status(userId));
     }
 
-    @Operation(summary = "전화번호 등록·변경", description = "변경 즉시 인증이 해제됩니다. 같은 번호를 다시 저장하면 기존 인증이 유지됩니다.")
+    @Operation(summary = "마이페이지 전화번호 등록·변경", description = "첫 등록 또는 번호 변경 시 미인증으로 저장하며 문자는 보내지 않습니다. 기프티콘 교환 전에 별도 발송·확인 API로 인증합니다. 같은 정규화 번호를 다시 저장하면 기존 인증을 유지합니다.")
     @PutMapping
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "전화번호 저장 성공", useReturnTypeSchema = true)
     public ApiResponse<PhoneVerificationService.PhoneStatus> update(

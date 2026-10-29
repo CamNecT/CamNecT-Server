@@ -1,5 +1,6 @@
 package CamNecT.server.domain.auth.controller;
 
+import CamNecT.server.domain.verification.phone.SmsSender;
 import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
@@ -15,11 +16,13 @@ import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -32,6 +35,9 @@ class SignupEmailVerificationIntegrationTest {
 
     private static final String VALID_CODE = "123456";
     private static final String WRONG_CODE = "000000";
+
+    @MockitoBean
+    SmsSender smsSender;
 
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
@@ -85,7 +91,7 @@ class SignupEmailVerificationIntegrationTest {
     }
 
     @Test
-    void signupCollectsPhoneWithoutSmsAndCreatesAdminPendingUser() throws Exception {
+    void signupUsesOnlyEmailAndCreatesAdminPendingUserWithoutPhone() throws Exception {
         String suffix = suffix();
         String email = "verified-" + suffix + "@example.com";
         String username = "verified-" + suffix;
@@ -100,7 +106,8 @@ class SignupEmailVerificationIntegrationTest {
 
         Users user = userRepository.findByEmail(email).orElseThrow();
         assertThat(user.getStatus()).isEqualTo(UserStatus.ADMIN_PENDING);
-        assertThat(user.getPhoneNum()).isEqualTo("01012345678");
+        assertThat(user.getPhoneNum()).isNull();
+        verifyNoInteractions(smsSender);
         assertThat(user.isPhoneVerified()).isFalse();
         assertThat(userProfileRepository.findByUserId(user.getUserId()).orElseThrow().isInitialSetupCompleted())
                 .isFalse();
@@ -129,17 +136,18 @@ class SignupEmailVerificationIntegrationTest {
     }
 
     @Test
-    void signupRequiresPhoneButDoesNotRequireSmsVerification() throws Exception {
+    void verifiedPhoneRolloutStillAllowsEmailOnlySignup() throws Exception {
         phoneProperties.setRolloutMode(CamNecT.server.domain.verification.phone.PhoneVerificationProperties.RolloutMode.VERIFIED_PHONE);
         try {
-        String email = "missing-phone-" + suffix() + "@example.com";
-        EmailVerificationToken issued = tokenRepository.saveAndFlush(EmailVerificationToken.issueForEmail(email, VALID_CODE, 30));
-        mockMvc.perform(post("/api/auth/signup/email/verify").contentType(MediaType.APPLICATION_JSON)
-                .content(json(Map.of("email", email, "code", VALID_CODE, "username", "new-" + suffix(),
-                        "password", "password1", "name", "user", "agreements", Map.of("serviceTerms", true, "privacyTerms", true)))))
-                .andExpect(status().isBadRequest());
-        assertThat(userRepository.findByEmail(email)).isEmpty();
-        assertThat(tokenRepository.findById(issued.getId()).orElseThrow().getUsedAt()).isNull();
+            String email = "missing-phone-" + suffix() + "@example.com";
+            EmailVerificationToken issued = tokenRepository.saveAndFlush(EmailVerificationToken.issueForEmail(email, VALID_CODE, 30));
+            mockMvc.perform(post("/api/auth/signup/email/verify").contentType(MediaType.APPLICATION_JSON)
+                    .content(json(Map.of("email", email, "code", VALID_CODE, "username", "new-" + suffix(),
+                            "password", "password1", "name", "user", "agreements", Map.of("serviceTerms", true, "privacyTerms", true)))))
+                    .andExpect(status().isOk());
+            assertThat(userRepository.findByEmail(email).orElseThrow().getPhoneNum()).isNull();
+            verifyNoInteractions(smsSender);
+            assertThat(tokenRepository.findById(issued.getId()).orElseThrow().getUsedAt()).isNotNull();
         } finally {
             phoneProperties.setRolloutMode(CamNecT.server.domain.verification.phone.PhoneVerificationProperties.RolloutMode.LEGACY);
         }
@@ -156,6 +164,21 @@ class SignupEmailVerificationIntegrationTest {
         assertThat(userRepository.findByEmail(email).orElseThrow().getPhoneNum()).isNull();
     }
 
+    @Test
+    void legacySignupPhoneFieldIsIgnoredAndMustBeRegisteredInMyPage() throws Exception {
+        String email = "ignored-phone-" + suffix() + "@example.com";
+        tokenRepository.saveAndFlush(EmailVerificationToken.issueForEmail(email, VALID_CODE, 30));
+        mockMvc.perform(post("/api/auth/signup/email/verify").contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("email", email, "code", VALID_CODE, "username", "ignored-" + suffix(),
+                        "password", "password1", "name", "user", "phoneNum", "01012345678",
+                        "agreements", Map.of("serviceTerms", true, "privacyTerms", true)))))
+                .andExpect(status().isOk());
+        Users user = userRepository.findByEmail(email).orElseThrow();
+        assertThat(user.getPhoneNum()).isNull();
+        assertThat(user.isPhoneVerified()).isFalse();
+        verifyNoInteractions(smsSender);
+    }
+
     private org.springframework.test.web.servlet.ResultActions verifySignup(
             String email,
             String username,
@@ -169,7 +192,6 @@ class SignupEmailVerificationIntegrationTest {
                         "username", username,
                         "password", "password1",
                         "name", "signup user",
-                        "phoneNum", "010-1234-5678",
                         "agreements", Map.of(
                                 "serviceTerms", true,
                                 "privacyTerms", true

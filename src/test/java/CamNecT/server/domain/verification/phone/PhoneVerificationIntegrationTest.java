@@ -354,6 +354,7 @@ class PhoneVerificationIntegrationTest {
         mvc.perform(put("/api/profile/me/phone").header("Authorization", header)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"phoneNum\":\"010-1234-5678\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.phoneVerified").value(false));
+        verifyNoInteractions(sender); // Saving a number does not send an SMS.
         String body = mvc.perform(post("/api/profile/me/phone/verification/send").header("Authorization", header))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.expiresInSeconds").value(180))
                 .andReturn().getResponse().getContentAsString();
