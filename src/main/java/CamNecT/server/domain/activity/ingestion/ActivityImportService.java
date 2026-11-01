@@ -7,6 +7,7 @@ import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityRepository;
 import CamNecT.server.domain.users.model.UserRole;
 import CamNecT.server.domain.users.model.UserStatus;
+import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.ErrorCode;
@@ -49,17 +50,9 @@ public class ActivityImportService {
                         .toLocalDate().equals(request.applyEndDate())))
             throw new CustomException(ErrorCode.BAD_REQUEST);
         // One configured author row serializes imports, including the first insertion of a source ID.
-        Long authorId = properties.authorUserId();
-        if (authorId == null) {
-            authorId = users.findByUsername(properties.authorUsername())
-                    .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN)).getUserId();
-        }
-        var author = users.findByIdForUpdate(authorId)
-                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN));
-        if (author.getRole() != UserRole.ADMIN || author.getStatus() != UserStatus.ACTIVE)
-            throw new CustomException(ErrorCode.FORBIDDEN);
+        var author = lockAuthor();
         String sourceId = "KONKUK_JOB_4084#" + request.articleId();
-        var entry = imports.findById(sourceId).orElse(null);
+        var entry = imports.findByIdForUpdate(sourceId).orElse(null);
         ExternalActivity activity = entry == null ? null : activities.findByIdForUpdate(entry.getActivityId()).orElse(null);
         if (entry != null) {
             if (activity == null) return new Result(entry.getActivityId(), "DELETED", entry.getSourceRevision());
@@ -73,41 +66,70 @@ public class ActivityImportService {
         boolean created = activity == null;
         boolean same = !created && entry.getContentHash().equals(request.contentHash());
         if (same) {
-            boolean expired = activity.getApplyEndAt() != null ? !activity.getApplyEndAt().isAfter(Instant.now()) :
-                    activity.getApplyEndDate() != null && activity.getApplyEndDate().isBefore(LocalDate.now(ZoneId.of("Asia/Seoul")));
-            if (expired) activity.close();
+            if (expired(activity.getApplyEndDate(), activity.getApplyEndAt(), Instant.now())) activity.close();
             entry.applied(request.revision(), request.contentHash(), managedHash(activity), entry.getThumbnailHash());
             return new Result(activity.getActivityId(), "UNCHANGED", request.revision());
         }
-        byte[] thumbnail = same ? null : validateThumbnail(request.thumbnail());
+        byte[] thumbnail = validateThumbnail(request.thumbnail());
         if (created) {
             activity = activities.save(ExternalActivity.builder().user(author).category(ActivityCategory.EXTERNAL)
                     .title(request.title()).thumbnailKey("기본이미지").build());
             entry = new ActivityImport(sourceId, activity.getActivityId());
         }
-        if (!same) {
-            String oldKey = activity.getThumbnailKey();
-            String imageHash = request.thumbnail() == null ? null : request.thumbnail().sha256();
-            if (!Objects.equals(imageHash, entry.getThumbnailHash())) {
-                String newKey = thumbnail == null ? "기본이미지" : files.save(
-                        "activity/imports/konkuk-4084/" + request.articleId(),
-                        new ImageFile(thumbnail, request.thumbnail().contentType()));
-                activity.updateThumbnailKey(newKey);
-                cleanupAfterTransaction(newKey, oldKey);
-            }
+        String oldKey = activity.getThumbnailKey();
+        String imageHash = request.thumbnail() == null ? null : request.thumbnail().sha256();
+        if (!Objects.equals(imageHash, entry.getThumbnailHash())) {
+            String newKey = thumbnail == null ? "기본이미지" : files.save(
+                    "activity/imports/konkuk-4084/" + request.articleId(),
+                    new ImageFile(thumbnail, request.thumbnail().contentType()));
+            activity.updateThumbnailKey(newKey);
+            cleanupAfterTransaction(newKey, oldKey);
         }
         var payload = new AdminActivityRequest(ActivityCategory.EXTERNAL, request.title(), List.of(),
                 request.organizer(), null, request.applyStartDate(), request.applyEndDate(), null,
                 "https://job.konkuk.ac.kr/bbs/job/4084/" + request.articleId() + "/artclView.do",
                 null, request.title(), request.content());
         Instant deadline = request.applyEndAt() == null ? null : request.applyEndAt().toInstant();
-        boolean closed = deadline != null ? !deadline.isAfter(Instant.now()) :
-                request.applyEndDate() != null && request.applyEndDate().isBefore(LocalDate.now(ZoneId.of("Asia/Seoul")));
-        activity.applyImported(payload, deadline, closed ? ActivityStatus.CLOSED : ActivityStatus.OPEN);
-        entry.applied(request.revision(), request.contentHash(), managedHash(activity),
-                request.thumbnail() == null ? null : request.thumbnail().sha256());
+        activity.applyImported(payload, deadline, expired(request.applyEndDate(), deadline, Instant.now())
+                ? ActivityStatus.CLOSED : ActivityStatus.OPEN);
+        entry.applied(request.revision(), request.contentHash(), managedHash(activity), imageHash);
         imports.save(entry);
-        return new Result(activity.getActivityId(), created ? "CREATED" : same ? "UNCHANGED" : "UPDATED", request.revision());
+        return new Result(activity.getActivityId(), created ? "CREATED" : "UPDATED", request.revision());
+    }
+
+    // Same lock order as ingestion: author, mapping, activity. Read the mapping only
+    // after obtaining the author lock so a concurrent import cannot leave a stale hash.
+    @Transactional
+    public boolean expireImported(String sourceId, Instant now) {
+        if (!properties.enabled()) return false;
+        lockAuthor();
+        var entry = imports.findByIdForUpdate(sourceId).orElse(null);
+        if (entry == null) return false;
+        var activity = activities.findByIdForUpdate(entry.getActivityId()).orElse(null);
+        if (activity == null || activity.getStatus() != ActivityStatus.OPEN
+                || !entry.getManagedHash().equals(managedHash(activity))
+                || !expired(activity.getApplyEndDate(), activity.getApplyEndAt(), now)) return false;
+        activity.close();
+        entry.refreshManagedHash(managedHash(activity));
+        return true;
+    }
+
+    static boolean expired(LocalDate date, Instant deadline, Instant now) {
+        return deadline != null ? !deadline.isAfter(now)
+                : date != null && date.isBefore(now.atZone(ZoneId.of("Asia/Seoul")).toLocalDate());
+    }
+
+    private Users lockAuthor() {
+        Long authorId = properties.authorUserId();
+        if (authorId == null) {
+            authorId = users.findByUsername(properties.authorUsername())
+                    .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN)).getUserId();
+        }
+        var author = users.findByIdForUpdate(authorId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FORBIDDEN));
+        if (author.getRole() != UserRole.ADMIN || author.getStatus() != UserStatus.ACTIVE)
+            throw new CustomException(ErrorCode.FORBIDDEN);
+        return author;
     }
 
     private String managedHash(ExternalActivity activity) {

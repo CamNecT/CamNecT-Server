@@ -2,7 +2,7 @@ import hashlib
 import json
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from .parser import SOURCE, content_hash
@@ -17,8 +17,17 @@ def encode(value):
 
 
 class Store:
-    def save(self, record, raw_html):
+    def record_failure(self, article_id, phase, error):
+        previous = self.get_failure(article_id) or {}
+        attempts = min(int(previous.get('attempts', 0)) + 1, 32)
+        retry = datetime.now(timezone.utc) + timedelta(hours=min(24, 6 * 2 ** min(attempts - 1, 2)))
+        self.put_failure(article_id, {'attempts': attempts, 'phase': phase,
+                                     'error': str(error)[:300], 'nextRetryAt': retry.isoformat()})
+
+    def save(self, record, raw_html, expected_meta=None):
         old = self.get(record['articleId'])
+        if expected_meta is not None and old != expected_meta:
+            raise RuntimeError('Source changed before save; inspect before retrying')
         digest, timestamp = content_hash(record), now()
         changed = old is None or old['contentHash'] != digest
         version = int(old['version']) + int(changed) if old else 1
@@ -59,11 +68,25 @@ class LocalStore(Store):
                 article_id TEXT NOT NULL, version INTEGER NOT NULL, snapshot_key TEXT NOT NULL,
                 PRIMARY KEY(article_id, version));
             CREATE TABLE IF NOT EXISTS publications (article_id TEXT PRIMARY KEY, receipt TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS failures (article_id TEXT PRIMARY KEY, metadata TEXT NOT NULL);
         ''')
 
     def get(self, article_id):
         row = self.db.execute('SELECT metadata FROM articles WHERE article_id=?', (article_id,)).fetchone()
         return json.loads(row[0]) if row else None
+
+    def get_failure(self, article_id):
+        row = self.db.execute('SELECT metadata FROM failures WHERE article_id=?', (article_id,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    def put_failure(self, article_id, failure):
+        with self.db:
+            self.db.execute('INSERT OR REPLACE INTO failures VALUES (?,?)', (article_id, encode(failure).decode()))
+
+    def clear_failure(self, article_id):
+        # Empty state avoids requiring DynamoDB DeleteItem permission in production.
+        if self.get_failure(article_id):
+            self.put_failure(article_id, {})
 
     def read_bytes(self, key):
         path = (self.root / key).resolve()
@@ -120,6 +143,17 @@ class AwsStore(Store):
         result = self.table.get_item(Key={'pk': f'{SOURCE}#{article_id}'}, ConsistentRead=True)
         item = result.get('Item')
         return json.loads(item['metadata']) if item else None
+
+    def get_failure(self, article_id):
+        item = self.table.get_item(Key={'pk': f'FAILURE#{SOURCE}#{article_id}'}, ConsistentRead=True).get('Item')
+        return json.loads(item['failure']) if item else None
+
+    def put_failure(self, article_id, failure):
+        self.table.put_item(Item={'pk': f'FAILURE#{SOURCE}#{article_id}', 'failure': encode(failure).decode()})
+
+    def clear_failure(self, article_id):
+        if self.get_failure(article_id):
+            self.put_failure(article_id, {})
 
     def read_bytes(self, key):
         if not key.startswith(('blobs/', 'revisions/')) or '..' in key:

@@ -29,4 +29,9 @@ public class ActivityImport {
         this.thumbnailHash = thumbnailHash;
         this.updatedAt = Instant.now();
     }
+
+    public void refreshManagedHash(String managedHash) {
+        this.managedHash = managedHash;
+        this.updatedAt = Instant.now();
+    }
 }

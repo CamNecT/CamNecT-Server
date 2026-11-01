@@ -15,7 +15,9 @@ MAPPING_VERSION = 1
 
 
 class PublishError(RuntimeError):
-    pass
+    def __init__(self, message, fatal=False):
+        super().__init__(message)
+        self.fatal = fatal
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -68,11 +70,14 @@ class Publisher:
             raise ValueError('Publication signing secret must be at least 32 characters')
         self.url, self.secret = base_url.rstrip('/') + PATH, secret
         self.opener = opener or build_opener(NoRedirect())
+        self.deadline = None
 
     def publish(self, record, meta, store):
         payload = make_payload(record, int(meta['version']), store)
         body = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode()
         for attempt in range(3):
+            if self.deadline is not None and time.monotonic() + 30 >= self.deadline:
+                raise PublishError('Publication time budget exhausted', fatal=True)
             timestamp = str(int(time.time()))
             signature = hmac.new(self.secret.encode(),
                 f'{timestamp}\nPOST\n{PATH}\n{hashlib.sha256(body).hexdigest()}'.encode(), hashlib.sha256).hexdigest()
@@ -80,11 +85,22 @@ class Publisher:
                 'X-Crawler-Timestamp': timestamp, 'X-Crawler-Signature': signature})
             try:
                 with self.opener.open(request, timeout=30) as response:
-                    result = json.loads(response.read(64000))
+                    try:
+                        result = json.loads(response.read(64000))
+                    except (ValueError, UnicodeError) as exc:
+                        raise PublishError('Invalid publication JSON', fatal=True) from exc
+                if not isinstance(result, dict) or not isinstance(result.get('data'), dict):
+                    raise PublishError('Invalid publication response shape', fatal=True)
                 data = result.get('data', {})
                 if result.get('status') != 200 or data.get('status') not in (
-                        'CREATED', 'UPDATED', 'UNCHANGED', 'MANUAL_OVERRIDE', 'DELETED', 'STALE') or not data.get('activityId'):
-                    raise PublishError('Unexpected publication response')
+                        'CREATED', 'UPDATED', 'UNCHANGED', 'MANUAL_OVERRIDE', 'DELETED', 'STALE') or (
+                        type(data.get('activityId')) is not int or data['activityId'] <= 0):
+                    raise PublishError('Unexpected publication response', fatal=True)
+                if data['status'] == 'STALE':
+                    raise PublishError('Server revision is ahead; restore source state before retrying')
+                if data['status'] in ('CREATED', 'UPDATED', 'UNCHANGED') and (
+                        type(data.get('revision')) is not int or data['revision'] != payload['revision']):
+                    raise PublishError('Publication revision mismatch', fatal=True)
                 receipt = {'sourceVersion': meta['version'], 'payloadHash': payload['contentHash'],
                            'destination': self.url,
                            'activityId': data['activityId'], 'status': data['status'], 'publishedAt': timestamp}
@@ -92,10 +108,11 @@ class Publisher:
                 return receipt
             except HTTPError as exc:
                 if exc.code not in (409, 429, 500, 502, 503, 504) or attempt == 2:
-                    raise PublishError(f'Publication HTTP {exc.code}') from exc
+                    raise PublishError(f'Publication HTTP {exc.code}',
+                                       fatal=exc.code in (401, 403, 429) or exc.code >= 500) from exc
             except (URLError, TimeoutError) as exc:
                 if attempt == 2:
-                    raise PublishError('Publication connection failed') from exc
+                    raise PublishError('Publication connection failed', fatal=True) from exc
             time.sleep(2 ** attempt)
         raise PublishError('No publication result')
 

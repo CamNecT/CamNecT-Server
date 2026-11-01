@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 from .parser import BLOCK_MARKERS, LIST_URL, SourceBlocked, SourceError, parse_detail, parse_list
 from .storage import now
 from .http import PayloadTooLarge
+from .publisher import PublishError
 
 
 def collect_listing(client, max_pages=20):
@@ -83,21 +84,36 @@ def run(client, store, max_articles=20, max_pages=20, seconds=480, publisher=Non
         raise ValueError('Invalid crawl limits')
     started = time.monotonic()
     client.deadline = started + seconds
+    if publisher:
+        publisher.deadline = client.deadline
     summary = {'runId': uuid.uuid4().hex, 'startedAt': now(), 'status': 'RUNNING',
                'discovered': 0, 'processed': 0, 'created': 0, 'updated': 0, 'unchanged': 0,
-               'articleErrors': [], 'published': 0, 'publicationResults': {}}
+               'articleErrors': [], 'publicationErrors': [], 'deferred': 0,
+               'published': 0, 'publicationResults': {}}
     try:
         client.load_robots()
         articles, pages = collect_listing(client, max_pages)
         summary.update(discovered=len(articles), pages=pages)
         # Oldest or unseen first, so a capped recurring run eventually revisits every post.
+        failures = {article_id: store.get_failure(article_id) for article_id in articles}
         def priority(article_id):
             meta = store.get(article_id)
             receipt = store.get_publication(article_id) if publisher else None
             pending = publisher is not None and (not receipt or not meta or receipt.get('destination') != publisher.url
                                                 or receipt['sourceVersion'] != meta['version'])
-            return (0 if pending else 1, meta['lastSeenAt'] if meta else '', -int(article_id))
-        ids = sorted(articles, key=priority)
+            # A poison record cannot consume every slot ahead of healthy/new records.
+            return (1 if failures[article_id] else 0, 0 if pending else 1,
+                    meta['lastSeenAt'] if meta else '', -int(article_id))
+        eligible = [i for i in articles if not failures[i] or failures[i]['nextRetryAt'] <= now()]
+        summary['deferred'] = len(articles) - len(eligible)
+        ids = sorted(eligible, key=priority)
+        # Reserve one slot for an eligible retry so a busy board cannot starve repairs.
+        retries = [i for i in ids if failures[i]]
+        if retries and len(ids) > max_articles:
+            chosen = ids[:max_articles]
+            if not any(failures[i] for i in chosen):
+                chosen[-1] = retries[0]
+            ids = chosen
         budget = {'bytes': 0}
         for article_id in ids[:max_articles]:
             if time.monotonic() - started > seconds:
@@ -111,19 +127,28 @@ def run(client, store, max_articles=20, max_pages=20, seconds=480, publisher=Non
                 raise
             except SourceError as exc:
                 summary['articleErrors'].append({'articleId': article_id, 'error': str(exc)})
+                store.record_failure(article_id, 'source', exc)
                 continue
             result = store.save(record, raw)
             summary[result] += 1
             summary['processed'] += 1
             if publisher:
-                receipt = publisher.publish(record, store.get(article_id), store)
+                try:
+                    receipt = publisher.publish(record, store.get(article_id), store)
+                except PublishError as exc:
+                    if exc.fatal:
+                        raise
+                    store.record_failure(article_id, 'publication', exc)
+                    summary['publicationErrors'].append({'articleId': article_id, 'error': str(exc)})
+                    continue
                 summary['published'] += 1
                 status = receipt['status']
                 summary['publicationResults'][status] = summary['publicationResults'].get(status, 0) + 1
+            store.clear_failure(article_id)
         summary.update(status='SUCCESS', mediaBytes=budget['bytes'],
                        remaining=len(articles) - summary['processed'])
-        if summary['articleErrors']:
-            raise SourceError(f"{len(summary['articleErrors'])} article(s) failed; see run report")
+        if summary['articleErrors'] or summary['publicationErrors']:
+            raise SourceError('Some articles failed; healthy articles completed; see run report')
     except Exception as exc:
         summary.update(status='FAILED', errorType=type(exc).__name__, error=str(exc))
         raise

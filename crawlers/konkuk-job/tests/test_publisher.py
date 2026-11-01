@@ -15,6 +15,74 @@ from test_crawler import detail, listing
 
 
 class PublisherTests(unittest.TestCase):
+    def test_poison_post_is_isolated_backed_off_and_recovers(self):
+        class FakeClient:
+            def load_robots(self): pass
+            def html(self, url, fields=None):
+                return (listing(('2', '3')), b'list') if url == LIST_URL else (detail(url.split('/')[-2]), b'html')
+        publisher = Mock(url='https://api.camnect.site/api/internal/activity-imports/konkuk-job')
+        def publish(record, meta, store):
+            if record['articleId'] == '3':
+                raise PublishError('Publication HTTP 400')
+            receipt = {'sourceVersion': meta['version'], 'destination': publisher.url, 'status': 'CREATED', 'activityId': 42}
+            store.save_publication(record['articleId'], receipt)
+            return receipt
+        publisher.publish.side_effect = publish
+        from konkuk_job.parser import SourceError
+        with self.assertRaises(SourceError):
+            run(FakeClient(), self.store, publisher=publisher)
+        self.assertIsNotNone(self.store.get_publication('2'))
+        self.assertIsNone(self.store.get_publication('3'))
+        self.assertEqual(1, self.store.get_failure('3')['attempts'])
+        result = run(FakeClient(), self.store, publisher=publisher)
+        self.assertEqual(1, result['deferred'])
+        self.assertEqual(1, result['published'])
+        failure = self.store.get_failure('3')
+        failure['nextRetryAt'] = '2000-01-01T00:00:00+00:00'
+        self.store.put_failure('3', failure)
+        publisher.publish.side_effect = lambda record, meta, store: {'status': 'UNCHANGED'}
+        result = run(FakeClient(), self.store, publisher=publisher, max_articles=1)
+        self.assertEqual(1, result['published'])
+        self.assertEqual({}, self.store.get_failure('3'))
+
+    def test_invalid_publication_json_has_no_receipt(self):
+        for body in (b'<html>gateway error</html>', b'[]', b'{"status":200,"data":null}'):
+            response = self.response()
+            response.read.return_value = body
+            opener = Mock()
+            opener.open.return_value = response
+            with self.assertRaises(PublishError) as error:
+                Publisher('https://api.camnect.site', 'x' * 32, opener=opener).publish(self.record, self.meta, self.store)
+            self.assertTrue(error.exception.fatal)
+            self.assertIsNone(self.store.get_publication('1'))
+
+    def test_stale_revision_and_wrong_acknowledgement_never_mark_delivered(self):
+        for data in ({'status': 'STALE', 'activityId': 42, 'revision': 9001},
+                     {'status': 'UNCHANGED', 'activityId': 42, 'revision': 1},
+                     {'status': 'CREATED', 'activityId': True, 'revision': 1001}):
+            response = self.response()
+            response.read.return_value = json.dumps({'status': 200, 'data': data}).encode()
+            opener = Mock()
+            opener.open.return_value = response
+            with self.assertRaises(PublishError):
+                Publisher('https://api.camnect.site', 'x' * 32, opener=opener).publish(self.record, self.meta, self.store)
+            self.assertIsNone(self.store.get_publication('1'))
+
+    def test_time_budget_prevents_new_publication_request(self):
+        opener = Mock()
+        publisher = Publisher('https://api.camnect.site', 'x' * 32, opener=opener)
+        publisher.deadline = 0
+        with self.assertRaises(PublishError):
+            publisher.publish(self.record, self.meta, self.store)
+        opener.open.assert_not_called()
+
+    def test_start_only_payload_preserves_start_and_unknown_end_notice(self):
+        record = parse_detail(detail(body='<p>모집기간: 2026. 10. 19.(월)부터</p>'), '1')
+        payload = make_payload(record, 2, self.store)
+        self.assertEqual('2026-10-19', payload['applyStartDate'])
+        self.assertIsNone(payload['applyEndDate'])
+        self.assertIn('신청기간은 원문에서 확인', payload['content'])
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.store = LocalStore(self.tmp.name)

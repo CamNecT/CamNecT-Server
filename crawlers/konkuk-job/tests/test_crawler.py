@@ -29,6 +29,41 @@ def detail(article_id='1', body='<p>접수기간</p><p>~ 2026. 10. 30. (금) 18:
 
 
 class ParserTests(unittest.TestCase):
+    def test_start_only_is_not_a_deadline_regression_1210375(self):
+        for text in ('모집기간: 2026. 10. 19.(월)부터', '신청 시작: 2026.10.19',
+                     '접수기간: 2026.10.19부터 선착순 마감'):
+            value, reasons = application_dates(text)
+            if '선착순 마감' in text:
+                self.assertIsNone(value['candidate'])
+            else:
+                self.assertEqual('2026-10-19', value['candidate']['startDate'])
+                self.assertIsNone(value['candidate']['endDate'])
+                self.assertIsNone(value['candidate']['endAt'])
+                self.assertIn('APPLICATION_END_DATE_UNKNOWN', reasons)
+
+    def test_ambiguous_and_invalid_dates_are_not_auto_closed(self):
+        for text in ('모집기간: 2026.10.19', '모집기간: 10.01 ~ 2026.10.30',
+                     '접수기간: 2026.11.02 ~ 2026.10.30',
+                     '접수기간: 2026.10.30 18:00 ~ 2026.10.30 17:00',
+                     '신청마감: 2026.10.30 18:3', '신청마감: 2026.10.30 24:00',
+                     '신청마감: 2026.10.30 오후 18:00', '신청마감: 2026.10.30 정오',
+                     '신청마감: 2026.10.30 6 PM', '신청기간: 상시 모집'):
+            with self.subTest(text=text):
+                value, reasons = application_dates(text)
+                self.assertIsNone(value['candidate'])
+                self.assertTrue(reasons)
+
+    def test_explicit_deadline_and_twelve_hour_clock(self):
+        for clock, expected in [('오후 6시 30분', '18:30'), ('오전 12시', '00:00'),
+                                ('오후 12시', '12:00'), ('18:00', '18:00')]:
+            value, _ = application_dates('신청 마감: 2026.10.30 ' + clock + '까지')
+            self.assertEqual('2026-10-30T' + expected + ':00+09:00', value['candidate']['endAt'])
+
+    def test_complete_range_and_separate_training_period(self):
+        value, _ = application_dates('모집기간: 2026.10.01부터 2026.10.30까지\n교육기간: 2026.11.01 ~ 2026.11.30')
+        self.assertEqual('2026-10-01', value['candidate']['startDate'])
+        self.assertEqual('2026-10-30', value['candidate']['endDate'])
+
     def test_dedup_and_pagination_form(self):
         parsed = parse_list(listing(pages=4))
         self.assertEqual({'1', '2'}, set(parsed['articles']))

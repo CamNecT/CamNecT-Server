@@ -29,7 +29,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 @ActiveProfiles("test")
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "app.activity-import.expiry-enabled=false")
 class ActivityImportIntegrationTest {
     private static final String SECRET = "integration-test-only-signing-key-123456789";
     @Autowired TestRestTemplate http;
@@ -39,6 +40,7 @@ class ActivityImportIntegrationTest {
     @Autowired UserRepository users;
     @Autowired UserProfileRepository profiles;
     @Autowired ActivityService service;
+    @Autowired ActivityImportService importService;
     @Autowired CamNecT.server.global.jwt.util.JwtUtil jwt;
     @Autowired CamNecT.server.global.jwt.service.TokenSessionService sessions;
     @Autowired PlatformTransactionManager transactionManager;
@@ -169,6 +171,86 @@ class ActivityImportIntegrationTest {
         expired.put("applyEndDate", "2020-10-30"); expired.put("applyEndAt", "2020-10-30T18:00:00+09:00");
         post(expired);
         assertThat(activities.findById(id).orElseThrow().getStatus().name()).isEqualTo("CLOSED");
+    }
+
+    @Test void expiryWorksWithoutSourceReplayAndRemainsManaged() throws Exception {
+        var original = payload(1);
+        long id = post(original).getBody().at("/data/activityId").asLong();
+        String source = "KONKUK_JOB_4084#1210911";
+        Instant before = Instant.parse("2030-10-30T08:59:59Z");
+        Instant boundary = Instant.parse("2030-10-30T09:00:00Z");
+        assertThat(importService.expireImported(source, before)).isFalse();
+        assertThat(imports.findExpiredCandidates("", boundary, LocalDate.of(2030, 10, 30), PageRequest.of(0, 100)))
+                .containsExactly(source);
+        assertThat(importService.expireImported(source, boundary)).isTrue();
+        assertThat(importService.expireImported(source, boundary)).isFalse();
+        assertThat(activities.findById(id).orElseThrow().getStatus().name()).isEqualTo("CLOSED");
+        assertThat(post(original).getBody().at("/data/status").asText()).isEqualTo("UNCHANGED");
+        var extension = payload(2);
+        extension.put("applyEndDate", "2032-10-30");
+        extension.put("applyEndAt", "2032-10-30T18:00:00+09:00");
+        assertThat(post(extension).getBody().at("/data/status").asText()).isEqualTo("UPDATED");
+        assertThat(activities.findById(id).orElseThrow().getStatus().name()).isEqualTo("OPEN");
+    }
+
+    @Test void dateOnlyExpiresAtKoreanMidnightAndUnknownDatesStayUnchanged() throws Exception {
+        var dateOnly = payload(1);
+        dateOnly.remove("applyEndAt");
+        post(dateOnly);
+        String source = "KONKUK_JOB_4084#1210911";
+        assertThat(importService.expireImported(source, Instant.parse("2030-10-30T14:59:59Z"))).isFalse();
+        assertThat(importService.expireImported(source, Instant.parse("2030-10-30T15:00:00Z"))).isTrue();
+        var unknown = payload(2);
+        unknown.remove("applyEndDate"); unknown.remove("applyEndAt");
+        unknown.put("applyStartDate", "2026-10-19");
+        post(unknown);
+        assertThat(importService.expireImported(source, Instant.parse("2035-01-01T00:00:00Z"))).isFalse();
+        var activity = activities.findById(imports.findById(source).orElseThrow().getActivityId()).orElseThrow();
+        assertThat(activity.getApplyStartDate()).isEqualTo(LocalDate.of(2026, 10, 19));
+        assertThat(activity.getApplyEndDate()).isNull();
+        assertThat(activity.getStatus().name()).isEqualTo("OPEN");
+    }
+
+    @Test void expiryDoesNotOverwriteManualEditsOrDeletedActivities() throws Exception {
+        long id = post(payload(1)).getBody().at("/data/activityId").asLong();
+        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                activities.findByIdForUpdate(id).orElseThrow().updateThumbnailKey("manually-edited.png"));
+        String source = "KONKUK_JOB_4084#1210911";
+        assertThat(importService.expireImported(source, Instant.parse("2031-01-01T00:00:00Z"))).isFalse();
+        assertThat(activities.findById(id).orElseThrow().getStatus().name()).isEqualTo("OPEN");
+        assertThat(post(payload(2)).getBody().at("/data/status").asText()).isEqualTo("MANUAL_OVERRIDE");
+        activities.deleteById(id);
+        assertThat(importService.expireImported(source, Instant.parse("2031-01-01T00:00:00Z"))).isFalse();
+        assertThat(imports.findById(source)).isPresent();
+    }
+
+    @Test void concurrentExtensionAndExpiryPreserveTheLatestDeadline() throws Exception {
+        long id = post(payload(1)).getBody().at("/data/activityId").asLong();
+        var extension = payload(2);
+        extension.put("applyEndDate", "2032-10-30");
+        extension.put("applyEndAt", "2032-10-30T18:00:00+09:00");
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var expiry = pool.submit(() -> importService.expireImported("KONKUK_JOB_4084#1210911", Instant.parse("2031-01-01T00:00:00Z")));
+            var update = pool.submit(() -> post(extension));
+            expiry.get(30, TimeUnit.SECONDS);
+            assertThat(update.get(30, TimeUnit.SECONDS).getBody().at("/data/status").asText()).isEqualTo("UPDATED");
+        }
+        assertThat(activities.findById(id).orElseThrow().getStatus().name()).isEqualTo("OPEN");
+        assertThat(post(extension).getBody().at("/data/status").asText()).isEqualTo("UNCHANGED");
+    }
+
+    @Test void rejectsInconsistentAndReversedDatesWithoutChangingStoredActivity() throws Exception {
+        long id = post(payload(1)).getBody().at("/data/activityId").asLong();
+        var invalid = payload(2);
+        invalid.put("applyStartDate", "2031-01-01");
+        assertThat(post(invalid).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        invalid = payload(2);
+        invalid.remove("applyEndDate");
+        assertThat(post(invalid).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        invalid = payload(2);
+        invalid.put("applyEndAt", "2030-10-31T18:00:00+09:00");
+        assertThat(post(invalid).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(activities.findById(id).orElseThrow().getApplyEndDate()).isEqualTo(LocalDate.of(2030, 10, 30));
     }
 
     @Test void resolvesConfiguredCamnectUsernameAndNeverPromotesANormalUser() throws Exception {

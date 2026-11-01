@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Isolated SNS to Discord bridge for the Camnect crawler alarm
+Parameters:
+  ExpectedAccountId:
+    Type: String
+    Default: '117088935250'
+    AllowedPattern: '[0-9]{12}'
+  CrawlerAlarmArn:
+    Type: String
+    AllowedPattern: 'arn:aws:cloudwatch:ap-northeast-2:117088935250:alarm:.+'
+  DiscordWebhookSecretArn:
+    Type: String
+    AllowedPattern: 'arn:aws:secretsmanager:ap-northeast-2:117088935250:secret:camnect/konkuk-job/discord-webhook-.+'
+  DiscordChannelId:
+    Type: String
+    Default: '1426565454343831572'
+    AllowedValues: ['1426565454343831572']
+Rules:
+  CorrectAccount:
+    Assertions:
+      - Assert: !Equals [!Ref 'AWS::AccountId', !Ref ExpectedAccountId]
+        AssertDescription: Deploy only to the crawler AWS account.
+Resources:
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+  AlarmTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref AlarmTopic]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref AlarmTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref 'AWS::AccountId'
+              ArnEquals:
+                aws:SourceArn: !Ref CrawlerAlarmArn
+  FailedDeliveries:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+  FailedDeliveriesPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref FailedDeliveries]
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt FailedDeliveries.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref AlarmTopic
+  Notifier:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: konkuk_job.discord_alert.handler
+      Runtime: python3.13
+      Architectures: [arm64]
+      MemorySize: 128
+      Timeout: 30
+      Environment:
+        Variables:
+          EXPECTED_ACCOUNT_ID: !Ref ExpectedAccountId
+          ALARM_TOPIC_ARN: !Ref AlarmTopic
+          CRAWLER_ALARM_ARN: !Ref CrawlerAlarmArn
+          DISCORD_WEBHOOK_SECRET_ARN: !Ref DiscordWebhookSecretArn
+          DISCORD_CHANNEL_ID: !Ref DiscordChannelId
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref DiscordWebhookSecretArn
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt FailedDeliveries.Arn
+      EventInvokeConfig:
+        MaximumRetryAttempts: 2
+        MaximumEventAgeInSeconds: 3600
+        DestinationConfig:
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt FailedDeliveries.Arn
+  NotifierPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Notifier
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref AlarmTopic
+      SourceAccount: !Ref 'AWS::AccountId'
+  AlarmSubscription:
+    Type: AWS::SNS::Subscription
+    DependsOn: [NotifierPermission, FailedDeliveriesPolicy]
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: lambda
+      Endpoint: !GetAtt Notifier.Arn
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt FailedDeliveries.Arn
+  NotifierLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${Notifier}'
+      RetentionInDays: 30
+Outputs:
+  AlarmTopicArn:
+    Value: !Ref AlarmTopic
+  NotifierFunctionName:
+    Value: !Ref Notifier
+  FailedDeliveriesQueueUrl:
+    Value: !Ref FailedDeliveries

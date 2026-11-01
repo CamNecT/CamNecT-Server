@@ -79,9 +79,9 @@ DATE = re.compile(
     r'(?P<year>20\d{2})\s*[.년/-]\s*(?P<month>\d{1,2})\s*[.월/-]\s*'
     r'(?P<day>\d{1,2})(?:\s*[.일])?'
     r'(?:\s*\([월화수목금토일](?:요일)?\))?'
-    r'(?:\s*(?P<hour>\d{1,2})\s*[:시]\s*(?P<minute>\d{2})?(?:분)?)?'
+    r'(?:\s*(?P<meridiem>오전|오후)?\s*(?P<hour>\d{1,2})\s*[:시]\s*(?P<minute>\d{2})?(?:분)?)?'
 )
-APPLY_LABEL = re.compile(r'(?:모집|접수|신청)\s*(?:기간|마감)')
+APPLY_LABEL = re.compile(r'(?:모집|접수|신청)\s*(?:기간|마감|시작|개시|종료)')
 KST = timezone(timedelta(hours=9))
 
 
@@ -96,10 +96,16 @@ def application_dates(text):
         if not DATE.search(line) and index + 1 < len(lines):
             evidence += ' ' + lines[index + 1]
         dates = []
-        for match in DATE.finditer(evidence):
+        matches = list(DATE.finditer(evidence))
+        for match in matches:
             try:
+                hour = int(match['hour'] or 0)
+                if match['meridiem']:
+                    if not 1 <= hour <= 12:
+                        raise ValueError('Invalid 12-hour clock')
+                    hour = hour % 12 + (12 if match['meridiem'] == '오후' else 0)
                 dt = datetime(int(match['year']), int(match['month']), int(match['day']),
-                              int(match['hour'] or 0), int(match['minute'] or 0), tzinfo=KST)
+                              hour, int(match['minute'] or 0), tzinfo=KST)
             except ValueError:
                 issues.append('INVALID_DATE')
                 continue
@@ -110,12 +116,38 @@ def application_dates(text):
         if len(dates) > 2:
             issues.append('AMBIGUOUS_DATE_RANGE')
             continue
-        # If a range has an abbreviated second date, do not mistake the first for its end.
-        if len(dates) == 1 and re.search(r'[~～∼–]', evidence[DATE.search(evidence).end():]):
+        # A partial date/time outside the recognized tokens must never silently turn
+        # a range into a deadline, or 18:3 into 18:00. Keep the original as evidence.
+        rest = re.sub(r'^\s*\d+[.)]\s*', '', DATE.sub('', evidence))
+        if re.search(r'\d\s*(?:[.월/:시]|일)|오전|오후|정오|자정|AM|PM', rest, re.I):
             issues.append('AMBIGUOUS_DATE_RANGE')
             continue
-        candidates.append({'startDate': dates[0]['date'] if len(dates) == 2 else None,
-                           'endDate': dates[-1]['date'], 'endAt': dates[-1]['at'],
+        if any(re.match(r'\d', evidence[m.end():]) for m in matches):
+            issues.append('INVALID_DATE')
+            continue
+        start, end = None, None
+        if len(dates) == 2:
+            between = evidence[matches[0].end():matches[1].start()]
+            if not re.search(r'[~～∼–—-]|부터', between):
+                issues.append('AMBIGUOUS_DATE_RANGE')
+                continue
+            start, end = dates
+            if start['date'] > end['date'] or (start['at'] and end['at'] and start['at'] > end['at']):
+                issues.append('REVERSED_DATE_RANGE')
+                continue
+        else:
+            before, after = evidence[:matches[0].start()], evidence[matches[0].end():]
+            starts = bool(re.search(r'부터|시작|개시', after) or re.search(r'시작|개시', before))
+            ends = bool(re.search(r'까지|마감|종료', after) or re.search(r'마감|종료|[~～∼]', before))
+            if starts and not ends:
+                start = dates[0]
+            elif ends and not starts and not re.search(r'[~～∼–—-]', after):
+                end = dates[0]
+            else:
+                issues.append('AMBIGUOUS_APPLICATION_DATE')
+                continue
+        candidates.append({'startDate': start['date'] if start else None,
+                           'endDate': end['date'] if end else None, 'endAt': end['at'] if end else None,
                            'evidence': evidence})
     unique = {(c['startDate'], c['endDate'], c['endAt']) for c in candidates}
     selected = candidates[0] if len(unique) == 1 and not issues else None
@@ -123,6 +155,8 @@ def application_dates(text):
         issues.append('CONFLICTING_APPLICATION_DATES')
     if selected is None:
         issues.append('APPLICATION_DATE_REVIEW')
+    elif selected['endDate'] is None:
+        issues.append('APPLICATION_END_DATE_UNKNOWN')
     return {'candidate': selected, 'evidence': candidates}, issues
 
 

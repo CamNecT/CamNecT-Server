@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Konkuk job board crawler with signed automatic CamNeCT activity publication
 Parameters:
+  AlarmTopicArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:aws:sns:ap-northeast-2:[0-9]{12}:[A-Za-z0-9_-]+$'
+    Description: Existing SNS topic with confirmed subscribers; empty leaves notifications disconnected.
   CamnectApiBaseUrl:
     Type: String
     Default: 'https://api.camnect.site'
@@ -25,6 +30,7 @@ Parameters:
     AllowedValues: [0, 1]
     Description: Use 1 only when the account has more than 10 concurrent executions; 0 uses the account pool.
 Conditions:
+  HasAlarmTopic: !Not [!Equals [!Ref AlarmTopicArn, '']]
   ReserveExecution: !Equals [!Ref ReservedConcurrency, 1]
 Rules:
   CorrectAccount:
@@ -140,6 +146,8 @@ Resources:
     Type: AWS::CloudWatch::Alarm
     Properties:
       AlarmDescription: Inspect crawler logs and archived run reports; source may have blocked requests.
+      AlarmActions: !If [HasAlarmTopic, [!Ref AlarmTopicArn], !Ref 'AWS::NoValue']
+      OKActions: !If [HasAlarmTopic, [!Ref AlarmTopicArn], !Ref 'AWS::NoValue']
       Namespace: AWS/Lambda
       MetricName: Errors
       Dimensions:
