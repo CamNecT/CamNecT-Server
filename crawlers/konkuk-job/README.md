@@ -68,6 +68,7 @@ PYTHONPATH=src .venv/bin/python -m konkuk_job --data-dir data/local --max-articl
 - 수집기 권한은 해당 테이블 Get/Put, 해당 버킷 Get/Put, 지정된 서명키 Secret 읽기로 제한한다. 서비스 DB 자격 증명을 사용하지 않는다.
 - S3/DynamoDB는 스택 삭제 시 보존. 실행 기록은 90일, CloudWatch 로그는 30일 보관한다.
 - 오류 Alarm의 `AlarmTopicArn`에 구독 확인된 기존 SNS 토픽을 연결할 수 있다. 빈 값이면 실제 알림은 전송되지 않는다. 오류와 정상 복귀를 모두 통지한다.
+- Discord 연결은 별도 `notifications.yaml`과 [알림 운영 문서](DISCORD_ALERTS.md)를 사용한다. 웹후크 URL은 Secrets Manager에만 저장하고 전용 Lambda가 SNS 경보를 변환한다.
 - 동시 변경은 조건부 쓰기로 거절하고, 네트워크/수집 실패를 성공으로 기록하지 않는다.
 
 AWS CLI와 SAM CLI를 준비하고 **새 계정 프로파일**로 확인한 후 실행한다. 이 문서는 배포 완료를 의미하지 않는다.

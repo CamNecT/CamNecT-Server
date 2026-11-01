@@ -23,7 +23,7 @@ jobs:
       - run: python -m unittest discover -s tests -v
         env:
           PYTHONPATH: src
-      - run: cfn-lint template.yaml
+      - run: cfn-lint template.yaml notifications.yaml
   server-integration:
     runs-on: ubuntu-latest
     steps:
