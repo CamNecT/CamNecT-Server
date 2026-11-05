@@ -10,6 +10,7 @@ from .publisher import from_environment
 
 def main():
     parser = argparse.ArgumentParser(description='Konkuk job board archive and signed CamNecT activity publication')
+    parser.add_argument('--board', choices=('job', 'student'), default='job')
     parser.add_argument('--data-dir', default='data/local')
     parser.add_argument('--max-articles', type=int, default=20)
     parser.add_argument('--max-pages', type=int, default=20)
@@ -18,9 +19,10 @@ def main():
     parser.add_argument('--publish-only', action='store_true', help='Deliver saved articles without crawling again')
     parser.add_argument('--allow-local-api', action='store_true', help='Allow HTTP only for loopback integration tests')
     args = parser.parse_args()
-    store = LocalStore(args.data_dir)
+    student = args.board == 'student'
+    store = LocalStore(args.data_dir + '/student' if student else args.data_dir)
     try:
-        publisher = from_environment(args.allow_local_api)
+        publisher = from_environment(args.allow_local_api, student=student)
         if args.publish_only:
             if not publisher:
                 raise ValueError('CAMNECT_API_BASE_URL and CAMNECT_IMPORT_SECRET are required')
@@ -31,7 +33,8 @@ def main():
                 results[receipt['status']] = results.get(receipt['status'], 0) + 1
             print(json.dumps({'publicationResults': results}))
         elif not args.export_only:
-            print(json.dumps(run(HttpClient(), store, args.max_articles, args.max_pages, args.seconds, publisher),
+            print(json.dumps(run(HttpClient(host='www.konkuk.ac.kr' if student else 'job.konkuk.ac.kr'), store,
+                                 args.max_articles, args.max_pages, args.seconds, publisher, student=student),
                              ensure_ascii=False, indent=2))
         print(json.dumps({'exported': store.export(), 'file': str(store.root / 'review-queue.json')}))
     except Exception as exc:
