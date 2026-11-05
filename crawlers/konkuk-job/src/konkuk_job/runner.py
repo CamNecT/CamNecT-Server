@@ -79,7 +79,7 @@ def media_type(raw):
     return None
 
 
-def run(client, store, max_articles=20, max_pages=20, seconds=480, publisher=None):
+def run(client, store, max_articles=20, max_pages=20, seconds=480, publisher=None, student=False):
     if not 1 <= max_articles <= 100 or not 1 <= max_pages <= 100 or seconds <= 0:
         raise ValueError('Invalid crawl limits')
     started = time.monotonic()
@@ -87,12 +87,16 @@ def run(client, store, max_articles=20, max_pages=20, seconds=480, publisher=Non
     if publisher:
         publisher.deadline = client.deadline
     summary = {'runId': uuid.uuid4().hex, 'startedAt': now(), 'status': 'RUNNING',
-               'discovered': 0, 'processed': 0, 'created': 0, 'updated': 0, 'unchanged': 0,
+               'board': 'student' if student else 'job', 'discovered': 0, 'processed': 0, 'created': 0, 'updated': 0, 'unchanged': 0,
                'articleErrors': [], 'publicationErrors': [], 'deferred': 0,
                'published': 0, 'publicationResults': {}}
     try:
         client.load_robots()
-        articles, pages = collect_listing(client, max_pages)
+        if student:
+            from .student import student_listing
+            articles, pages = student_listing(client, store=store), 1
+        else:
+            articles, pages = collect_listing(client, max_pages)
         summary.update(discovered=len(articles), pages=pages)
         # Oldest or unseen first, so a capped recurring run eventually revisits every post.
         failures = {article_id: store.get_failure(article_id) for article_id in articles}
@@ -121,8 +125,9 @@ def run(client, store, max_articles=20, max_pages=20, seconds=480, publisher=Non
                 break
             try:
                 html, raw = client.html(articles[article_id])
-                record = parse_detail(html, article_id)
-                collect_media(record, client, store, budget)
+                record = parse_detail(html, article_id, student=student)
+                if not student:
+                    collect_media(record, client, store, budget)
             except SourceBlocked:
                 raise
             except SourceError as exc:

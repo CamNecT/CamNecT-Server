@@ -91,15 +91,42 @@ class ActivityImportIntegrationTest {
     }
 
     private ResponseEntity<JsonNode> post(Map<String, Object> payload, String secret, long timestamp) throws Exception {
+        return postTo(payload, secret, timestamp, ActivityImportAuth.PATH, ActivityImportAuth.PATH);
+    }
+
+    private ResponseEntity<JsonNode> postTo(Map<String, Object> payload, String secret, long timestamp,
+                                            String path, String signedPath) throws Exception {
         byte[] body = mapper.writeValueAsBytes(payload);
-        String message = timestamp + "\nPOST\n" + ActivityImportAuth.PATH + "\n" + ActivityImportAuth.sha256(body);
+        String message = timestamp + "\nPOST\n" + signedPath + "\n" + ActivityImportAuth.sha256(body);
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Crawler-Timestamp", Long.toString(timestamp));
         headers.set("X-Crawler-Signature", HexFormat.of().formatHex(mac.doFinal(message.getBytes(StandardCharsets.UTF_8))));
-        return http.postForEntity(ActivityImportAuth.PATH, new HttpEntity<>(body, headers), JsonNode.class);
+        return http.postForEntity(path, new HttpEntity<>(body, headers), JsonNode.class);
+    }
+
+    @Test void isolatesBoardsAndAppliesStudentDeadlineExtensionWithoutDuplication() throws Exception {
+        assertThat(post(payload(1)).getStatusCode()).isEqualTo(HttpStatus.OK);
+        String path = ActivityImportAuth.STUDENT_PATH;
+        long now = Instant.now().getEpochSecond();
+        var student = payload(1);
+        student.remove("thumbnail");
+        assertThat(postTo(student, SECRET, now, path, ActivityImportAuth.PATH).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        var created = postTo(student, SECRET, now, path, path);
+        assertThat(created.getBody().at("/data/status").asText()).isEqualTo("CREATED");
+        long id = created.getBody().at("/data/activityId").asLong();
+        assertThat(activities.findById(id).orElseThrow().getOfficialUrl()).isEqualTo(
+                "https://www.konkuk.ac.kr/bbs/konkuk/238/1210911/artclView.do");
+        assertThat(postTo(student, SECRET, now, path, path).getBody().at("/data/status").asText()).isEqualTo("UNCHANGED");
+        var extended = payload(2);
+        extended.remove("thumbnail");
+        extended.put("applyEndDate", "2030-11-02");
+        extended.put("applyEndAt", "2030-11-02T09:00:00+09:00");
+        assertThat(postTo(extended, SECRET, now, path, path).getBody().at("/data/status").asText()).isEqualTo("UPDATED");
+        assertThat(activities.findById(id).orElseThrow().getApplyEndAt()).isEqualTo(Instant.parse("2030-11-02T00:00:00Z"));
+        assertThat(activities.count()).isEqualTo(2);
     }
 
     @Test void publishesIntoRealActivityListAndDetailWithThumbnailAndExactDeadline() throws Exception {

@@ -109,3 +109,11 @@ aws lambda invoke --function-name <FunctionName> --payload '{}' \
 `python -m konkuk_job.repair --function-name <함수명> --expected-code-sha256 <배포 코드 해시>`는 기본 읽기 전용 미리보기다. `--apply`를 붙이면 검증된 원문 ID 1210375→활동 38, 1210911→활동 23만 복구한다. 계정·배포 해시·등록 대상·원문 해시·날짜 근거를 확인하고, 기존 S3/DynamoDB 버전 보관과 서명된 게시 API를 사용한다. 직접 SQL로 status만 바꾸면 관리자 수정으로 오인될 수 있으므로 이 절차를 사용한다.
 
 이미 적용된 복구도 재실행할 수 있으며, 게시 중 오류가 발생하면 신규 원문 버전은 미전달 상태로 보존된다. 관리자가 수정·삭제한 글은 강제 복구하지 않는다. 저장된 원문으로 복구하므로 실행 전 현재 원문과 사고 원인이 동일한지 확인한다.
+
+## 학생공지 RSS (238)
+
+기존 취업팀 HTML 수집과 함께 6시간마다 처리한다. 학생공지는 [공식 피드](https://www.konkuk.ac.kr/bbs/konkuk/238/rssList.do?row=50) 50건에서 최근 30일 활동 제목을 선별하고 원문을 확인한다. 발견한 글은 게시일로부터 90일까지 재조회한다. 한 실행에 최대 8건을 순환하며, RSS에서 빠져도 삭제하거나 마감하지 않는다. 제목 필터가 있으므로 전수 등록이나 과거 전체 목록의 복원은 보장하지 않는다.
+
+학생공지는 제목·출처·원문 링크와 확인된 신청기한을 활동으로 게시한다. 본문·첨부·포스터는 재게시하지 않는다. RSS 게시일과 고정 종료일은 마감 근거가 아니다. 같은 신청 범위에 시작 연도가 명시되고 축약 종료일의 요일이 일치할 때만 같은 해로 인정한다. 날짜만 있으면 `applyEndAt=null`, 근거가 없으면 날짜도 null이다. 원문 근거는 아카이브에 남긴다. 외부 OCR·모델 API는 사용하지 않는다.
+
+로컬 확인: 게시용 환경 변수 없이 `PYTHONPATH=src python -m konkuk_job --board student --data-dir data/local`. 수신 경로는 `/api/internal/activity-imports/konkuk-student`로, 취업팀 서명을 재사용할 수 없다. 서버를 먼저 배포하고 기존 Lambda에 같은 버전의 수집기를 배포한다. `{"board":"student"}`로 호출해 `boards.student.publicationResults`와 활동 ID를 확인한다. 기본 이벤트는 두 게시판을 실행한다.

@@ -40,7 +40,7 @@ public class ActivityImportService {
     public record Result(Long activityId, String status, long revision) {}
 
     @Transactional
-    public Result ingest(ActivityImportRequest request) {
+    public Result ingest(ActivityImportRequest request, boolean student) {
         if (!properties.enabled())
             throw new CustomException(ErrorCode.FORBIDDEN);
         if (request.content().getBytes(StandardCharsets.UTF_8).length > 60_000 ||
@@ -51,7 +51,8 @@ public class ActivityImportService {
             throw new CustomException(ErrorCode.BAD_REQUEST);
         // One configured author row serializes imports, including the first insertion of a source ID.
         var author = lockAuthor();
-        String sourceId = "KONKUK_JOB_4084#" + request.articleId();
+        String sourceId = (student ? "KONKUK_STUDENT_238#" : "KONKUK_JOB_4084#") + request.articleId();
+        if (student && request.thumbnail() != null) throw new CustomException(ErrorCode.BAD_REQUEST);
         var entry = imports.findByIdForUpdate(sourceId).orElse(null);
         ExternalActivity activity = entry == null ? null : activities.findByIdForUpdate(entry.getActivityId()).orElse(null);
         if (entry != null) {
@@ -87,7 +88,7 @@ public class ActivityImportService {
         }
         var payload = new AdminActivityRequest(ActivityCategory.EXTERNAL, request.title(), List.of(),
                 request.organizer(), null, request.applyStartDate(), request.applyEndDate(), null,
-                "https://job.konkuk.ac.kr/bbs/job/4084/" + request.articleId() + "/artclView.do",
+                (student ? "https://www.konkuk.ac.kr/bbs/konkuk/238/" : "https://job.konkuk.ac.kr/bbs/job/4084/") + request.articleId() + "/artclView.do",
                 null, request.title(), request.content());
         Instant deadline = request.applyEndAt() == null ? null : request.applyEndAt().toInstant();
         activity.applyImported(payload, deadline, expired(request.applyEndDate(), deadline, Instant.now())
