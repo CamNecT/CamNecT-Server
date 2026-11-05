@@ -81,7 +81,7 @@ DATE = re.compile(
     r'(?:\s*\(\s*[월화수목금토일](?:요일)?\s*\))?'
     r'(?:\s*(?P<meridiem>오전|오후)?\s*(?P<hour>\d{1,2})\s*[:시]\s*(?P<minute>\d{2})?(?:분)?)?'
 )
-APPLY_LABEL = re.compile(r'(?:모집|접수|신청|지원)\s*(?:기간|마감|시작|개시|종료|기한)')
+APPLY_LABEL = re.compile(r'(?:모집|접수|신청|지원|응모)\s*(?:기간|마감|시작|개시|종료|기한)')
 KST = timezone(timedelta(hours=9))
 
 
@@ -100,7 +100,8 @@ def application_dates(text, *, abbreviated=False):
         if not label:
             continue
         evidence = line[label.start():]
-        if not DATE.search(line) and index + 1 < len(lines):
+        if (not DATE.search(line) and index + 1 < len(lines)
+                and not re.search(r"미정|추후|선착순|상시|예산 소진", evidence)):
             if NEXT_DATE.match(lines[index + 1]):
                 evidence += ' ' + lines[index + 1]
         original = evidence
@@ -125,6 +126,9 @@ def application_dates(text, *, abbreviated=False):
                     hour = hour % 12 + (12 if match['meridiem'] == '오후' else 0)
                 dt = datetime(int(match['year']), int(match['month']), int(match['day']),
                               hour, int(match['minute'] or 0), tzinfo=KST)
+                weekday = re.search(r'\(\s*([월화수목금토일])(?:요일)?\s*\)', match[0])
+                if abbreviated and weekday and weekday[1] != '월화수목금토일'[dt.weekday()]:
+                    raise ValueError('Calendar weekday disagrees with the source')
             except ValueError:
                 issues.append('INVALID_DATE')
                 continue

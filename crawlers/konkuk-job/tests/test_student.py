@@ -68,10 +68,11 @@ class StudentTests(unittest.TestCase):
             return application_dates(text, abbreviated=True)[0]['candidate']
         self.assertEqual(parse('접수 기간 및 제출 서류\n기간: 2026. 10. 20.(화) ~ 11. 10.(화) 17:00까지')['endAt'],
                          '2026-11-10T17:00:00+09:00')
+        self.assertEqual(parse('응모 마감\n2026.11.10(화) 23시 59분까지')['endAt'], '2026-11-10T23:59:00+09:00')
         self.assertIsNone(parse('신청 기간: ~ 2026. 11. 8.(일)')['endAt'])
         for text in ('교육 일시: 2026.11.26 13:00 / 선착순 20명', '지원 마감: 추후 공지\n면접 일자: 2026.11.30',
                      '접수 마감: 미정 / 교육일: 2026.11.30', '접수 기한: 2026.10.20(화) ~ 11.10(수)',
                      '접수 기간: 2026.12.20 ~ 1.10(일)', '지원 마감: 2026.11.09\n신청 종료: 2026.11.16',
-                     '공모전(~11/10 화)'):
+                     '공모전(~11/10 화)', '지원 마감: 미정\n2026.11.30 행사 개최', '지원 마감: 2026.11.10(수)'):
             with self.subTest(text=text):
                 self.assertIsNone(parse(text))
