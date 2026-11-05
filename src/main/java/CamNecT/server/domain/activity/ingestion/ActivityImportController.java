@@ -28,6 +28,8 @@ public class ActivityImportController {
     }
 
     @PostMapping(value = ActivityImportAuth.STUDENT_PATH, consumes = MediaType.APPLICATION_JSON_VALUE)
+    @io.swagger.v3.oas.annotations.Operation(summary = "건국대 학생공지 자동 등록", description = "학생공지 경로 전용 HMAC 서명이 필요합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "학생공지 반영 결과", useReturnTypeSchema = true)
     public ApiResponse<ActivityImportService.Result> ingestStudent(HttpServletRequest request) throws IOException {
         return ingest(request, true);
     }
