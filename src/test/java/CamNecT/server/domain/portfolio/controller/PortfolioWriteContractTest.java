@@ -117,6 +117,7 @@ class PortfolioWriteContractTest {
         var skills = Collections.nCopies(10, "가".repeat(50));
         var body = validBody();
         body.put("techStack", skills);
+        body.put("projectTitle", "가".repeat(20));
         if (operation.equals("create")) body.put("thumbnailKey", "temp/thumbnail.png");
         MockHttpServletRequestBuilder request = operation.equals("create")
                 ? post("/api/portfolio/1") : patch("/api/portfolio/1/10");
@@ -156,6 +157,7 @@ class PortfolioWriteContractTest {
                 Arguments.of("techStack", Collections.singletonList(null)),
                 Arguments.of("subtitle", "가".repeat(51)),
                 Arguments.of("projectTitle", " "),
+                Arguments.of("projectTitle", "가".repeat(21)),
                 Arguments.of("startedAt", null),
                 Arguments.of("endedAt", "2026-07-31")
         );
