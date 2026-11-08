@@ -77,7 +77,7 @@ public class ActivityCommentService {
         comment.deleteSoft();
     }
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public ToggleCommentLikeResponse toggleLike(Long userId, Long commentId) {
         requireUser(userId);
         accountAccessGuard.requireAccessibleForUpdate(userId);
