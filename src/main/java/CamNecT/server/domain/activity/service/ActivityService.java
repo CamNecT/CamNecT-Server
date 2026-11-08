@@ -14,6 +14,8 @@ import CamNecT.server.domain.activity.model.external_activity.ExternalActivityAt
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivityBookmark;
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivityTag;
 import CamNecT.server.domain.activity.model.recruitment.TeamRecruitment;
+import CamNecT.server.domain.activity.repository.comment.ActivityCommentRepository;
+import CamNecT.server.domain.activity.repository.comment.ActivityCommentLikeRepository;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityAttachmentRepository;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityBookmarkRepository;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityRepository;
@@ -60,6 +62,8 @@ public class ActivityService {
     private static final String DEFAULT_THUMB = "기본이미지";
 
     private final ExternalActivityRepository activityRepository;
+    private final ActivityCommentRepository activityCommentRepository;
+    private final ActivityCommentLikeRepository activityCommentLikeRepository;
     private final ExternalActivityTagRepository activityTagRepository;
     private final ExternalActivityAttachmentRepository activityAttachmentRepository;
     private final ExternalActivityBookmarkRepository activityBookmarkRepository;
@@ -516,6 +520,9 @@ public class ActivityService {
         activityBookmarkRepository.deleteAllByActivityId(activityId);  // 북마크 삭제
         activityAttachmentRepository.deleteAllByActivityId(activityId); // 첨부파일 삭제
 
+        activityCommentLikeRepository.deleteByActivityId(activityId);
+        activityCommentRepository.deleteRepliesByActivityId(activityId);
+        activityCommentRepository.deleteRootsByActivityId(activityId);
         activityRepository.delete(activity);
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
     }
