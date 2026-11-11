@@ -8,6 +8,7 @@ import CamNecT.server.domain.activity.dto.request.AdminActivityRequest;
 import CamNecT.server.domain.activity.dto.response.ActivityDetailResponse;
 import CamNecT.server.domain.activity.dto.response.ActivityPreviewResponse;
 import CamNecT.server.domain.activity.model.enums.ActivityCategory;
+import CamNecT.server.global.tag.dto.TagDto;
 import CamNecT.server.domain.activity.model.enums.ActivityStatus;
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivityAttachment;
@@ -520,7 +521,7 @@ public class ActivityService {
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ActivityDetailResponse getActivityDetail(Long userId, Long activityId) {
         if (userId == null) throw new CustomException(ActivityErrorCode.USER_NOT_FOUND);
         // 1. 메인 활동 조회
@@ -586,9 +587,8 @@ public class ActivityService {
                     .toList();
         }
         // 4. 태그 리스트 조회
-        List<Long> tagIds = activityTagRepository.findAllByActivity_ActivityId(activityId).stream()
-                .map(t -> t.getTag().getId())
-                .toList();
+        List<TagDto> tags = activityTagRepository.findTagsForDetail(activityId);
+        List<Long> tagIds = tags.stream().map(TagDto::id).toList();
 
         // 5. 팀원 공고 리스트 조회
         List<TeamRecruitment> recruitmentList =
@@ -614,6 +614,8 @@ public class ActivityService {
         // 8. 북마크 여부 조회
         boolean isBookmarked = activityBookmarkRepository.existsByUser_UserIdAndActivity_ActivityId(userId, activityId);
 
+        activityRepository.incrementViews(activityId);
+
         // 9. Response 생성
         return new ActivityDetailResponse(
                 isMine,
@@ -621,6 +623,7 @@ public class ActivityService {
                 activityDto,
                 attachmentDtos,
                 tagIds,
+                tags,
                 recruitmentDtoList,
                 bookmarkCount,
                 isBookmarked

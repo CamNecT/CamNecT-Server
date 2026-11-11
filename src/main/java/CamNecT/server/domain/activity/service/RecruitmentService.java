@@ -84,6 +84,7 @@ public class RecruitmentService {
         return recruitmentRepository.save(recruitment);
     }
 
+    @Transactional
     public RecruitmentDetailResponse getRecruitmentDetail(Long currentUserId, Long recruitmentId) {
         requireAuthenticatedUser(currentUserId);
 
@@ -102,6 +103,7 @@ public class RecruitmentService {
         boolean isBookmarked = bookmarkRepository.existsByUserIdAndRecruitId(currentUserId, recruitmentId);
         boolean isMine = recruitment.getUserId().equals(currentUserId);
 
+        recruitmentRepository.incrementViews(recruitmentId);
         return new RecruitmentDetailResponse(
                 author,
                 recruitment,

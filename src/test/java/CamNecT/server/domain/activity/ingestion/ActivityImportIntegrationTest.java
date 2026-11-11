@@ -140,8 +140,11 @@ class ActivityImportIntegrationTest {
         var detail = service.getActivityDetail(authorId, id);
         assertThat(detail.activity().getApplyEndAt()).isEqualTo(Instant.parse("2030-10-30T09:00:00Z"));
         assertThat(detail.author().userId()).isEqualTo(authorId);
+        assertThat(activities.findById(id).orElseThrow().getViewCount()).isEqualTo(1);
         var response = readAsUser("/api/activity/" + id);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(activities.findById(id).orElseThrow().getViewCount()).isEqualTo(2);
+        assertThat(response.getBody().at("/data/activity").has("viewCount")).isFalse();
         assertThat(response.getBody().at("/data/activity/thumbnailUrl").asText()).startsWith("https://cdn.camnect.site/");
         String key = activities.findById(id).orElseThrow().getThumbnailKey();
         assertThat(Files.exists(Path.of("build/test-uploads").resolve(key))).isTrue();
