@@ -23,6 +23,7 @@ import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepo
 import CamNecT.server.domain.community.dto.AuthorDto;
 import CamNecT.server.domain.community.service.AuthorAssembler;
 import CamNecT.server.domain.home.dto.HomeResponse;
+import CamNecT.server.domain.preview.GuestActivitySummary;
 import CamNecT.server.domain.users.model.UserRole;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
@@ -521,14 +522,11 @@ public class ActivityService {
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
     }
 
-    @Transactional
-    public CamNecT.server.domain.preview.GuestActivityDetail getGuestActivityDetail(Long activityId) {
-        ExternalActivity activity = activityRepository.findById(activityId)
-                .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-        var result = CamNecT.server.domain.preview.GuestActivityDetail.from(activity,
-                thumbnailUrlOrNull(activity.getThumbnailKey()), activityTagRepository.findTagsForDetail(activityId));
-        activityRepository.incrementViews(activityId);
-        return result;
+    public Slice<GuestActivitySummary> getGuestActivities(
+            ActivityCategory category, String title, Pageable pageable) {
+        return activityRepository.findGuestActivities(category, title, pageable)
+                .map(row -> new GuestActivitySummary(
+                        row.getActivityId(), row.getTitle(), thumbnailUrlOrNull(row.getThumbnailKey())));
     }
 
     @Transactional

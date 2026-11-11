@@ -1,6 +1,5 @@
 package CamNecT.server.domain.preview;
 
-import CamNecT.server.domain.activity.dto.response.ActivityPreviewResponse;
 import CamNecT.server.domain.activity.model.enums.ActivityCategory;
 import CamNecT.server.domain.activity.service.ActivityService;
 import CamNecT.server.domain.community.model.enums.BoardCode;
@@ -47,18 +46,11 @@ public class GuestPreviewController {
     @PublicPreview
     @GetMapping("/activities")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true)
-    @Operation(summary = "공개 활동 목록")
-    public ApiResponse<Slice<ActivityPreviewResponse>> activities(@RequestParam(required = false) ActivityCategory category,
+    @Operation(summary = "공개 활동 목록", description = "카테고리와 제목으로 검색하며 최신순으로 반환합니다.")
+    public ApiResponse<Slice<GuestActivitySummary>> activities(@RequestParam(required = false) ActivityCategory category,
+            @RequestParam(required = false) String title,
             @RequestParam(defaultValue = "0") @Min(0) int page, @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
-        return ApiResponse.success(activities.getActivities(null, category, null, null, "LATEST", PageRequest.of(page, size)));
-    }
-
-    @PublicPreview
-    @GetMapping("/activities/{id}")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true)
-    @Operation(summary = "공개 활동 상세")
-    public ApiResponse<GuestActivityDetail> activity(@PathVariable @Positive Long id) {
-        return ApiResponse.success(activities.getGuestActivityDetail(id));
+        return ApiResponse.success(activities.getGuestActivities(category, title, PageRequest.of(page, size)));
     }
 
     public record AlumniCount(long count) {}
