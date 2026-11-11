@@ -137,7 +137,7 @@ class ActivityImportIntegrationTest {
         var listing = service.getActivities(authorId, ActivityCategory.EXTERNAL, null, null, "LATEST", PageRequest.of(0, 10));
         assertThat(listing.getContent()).hasSize(1);
         assertThat(listing.getContent().getFirst().activityId()).isEqualTo(id);
-        var detail = service.getActivityDetail(authorId, id);
+        var detail = service.getActivityDetail(authorId, id, true);
         assertThat(detail.activity().getApplyEndAt()).isEqualTo(Instant.parse("2030-10-30T09:00:00Z"));
         assertThat(detail.author().userId()).isEqualTo(authorId);
         assertThat(activities.findById(id).orElseThrow().getViewCount()).isEqualTo(1);
@@ -316,7 +316,7 @@ class ActivityImportIntegrationTest {
         assertThat(listed.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(listed.getBody().at("/data/content").size()).isEqualTo(49);
         for (var item : activities.findAll()) {
-            assertThat(service.getActivityDetail(authorId, item.getActivityId()).activity().getOfficialUrl()).contains("job.konkuk.ac.kr");
+            assertThat(service.getActivityDetail(authorId, item.getActivityId(), true).activity().getOfficialUrl()).contains("job.konkuk.ac.kr");
         }
         // A complete second delivery must be idempotent through the real HTTP boundary.
         process = builder.start();
