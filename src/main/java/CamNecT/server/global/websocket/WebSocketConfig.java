@@ -61,6 +61,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
+        // Finish handling each frame before this session delivers its next one.
+        // Keep preSend failures on the transport call stack for STOMP ERROR frames.
+        registration.executor(Runnable::run);
         registration.interceptors(chatStompInterceptor);
     }
 }
