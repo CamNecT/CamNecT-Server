@@ -29,10 +29,13 @@ def make_payload(record, revision, store):
     candidate = record['applicationDates']['candidate'] or {}
     links = list(dict.fromkeys([record['sourceUrl']] + record['externalLinks'] + record['images'] +
                                [a['url'] for a in record['attachments']]))
-    suffix = '\n\n원문 및 관련 자료\n' + '\n'.join(links)
+    student = record.get('source') == 'KONKUK_STUDENT_238'
+    if student:
+        links = [record['sourceUrl']]
+    suffix = ('출처: 건국대학교 학생공지\n' if student else '\n\n원문 및 관련 자료\n') + '\n'.join(links)
     notice = '' if candidate.get('endDate') else '신청기간은 원문에서 확인해 주세요.\n\n'
     # MySQL TEXT is a byte limit; preserve links and disclose any truncated body.
-    text = notice + record['bodyText']
+    text = notice + ('' if student else record['bodyText'])
     marker = '\n(전체 내용은 원문 참고)'
     if len(suffix.encode('utf-16-le')) > 38000 or len(suffix.encode()) > 57000:
         raise PublishError('Source links exceed activity content capacity')
@@ -45,7 +48,7 @@ def make_payload(record, revision, store):
                'organizer': organizer[1].encode('utf-16-le')[:200].decode('utf-16-le', errors='ignore') if organizer else None,
                'applyStartDate': candidate.get('startDate'), 'applyEndDate': candidate.get('endDate'),
                'applyEndAt': candidate.get('endAt'), 'thumbnail': None}
-    for media in record['media']:
+    for media in ([] if student else record['media']):
         if media['status'] == 'DOWNLOADED' and media.get('mime') in ('image/jpeg', 'image/png', 'image/webp'):
             raw = store.read_bytes(media['blobKey'])
             if hashlib.sha256(raw).hexdigest() != media['sha256']:
@@ -61,14 +64,15 @@ def make_payload(record, revision, store):
 
 
 class Publisher:
-    def __init__(self, base_url, secret, allow_local=False, opener=None):
+    def __init__(self, base_url, secret, allow_local=False, opener=None, student=False):
         p = urlsplit(base_url)
         local = allow_local and p.scheme == 'http' and p.hostname in ('127.0.0.1', 'localhost')
         if not (p.scheme == 'https' or local) or not p.hostname or p.username or p.password or p.query or p.fragment or p.path not in ('', '/'):
             raise ValueError('Publication base URL must be an HTTPS origin (or explicit local test origin)')
         if len(secret) < 32:
             raise ValueError('Publication signing secret must be at least 32 characters')
-        self.url, self.secret = base_url.rstrip('/') + PATH, secret
+        self.path = '/api/internal/activity-imports/konkuk-student' if student else PATH
+        self.url, self.secret = base_url.rstrip('/') + self.path, secret
         self.opener = opener or build_opener(NoRedirect())
         self.deadline = None
 
@@ -80,7 +84,7 @@ class Publisher:
                 raise PublishError('Publication time budget exhausted', fatal=True)
             timestamp = str(int(time.time()))
             signature = hmac.new(self.secret.encode(),
-                f'{timestamp}\nPOST\n{PATH}\n{hashlib.sha256(body).hexdigest()}'.encode(), hashlib.sha256).hexdigest()
+                f'{timestamp}\nPOST\n{self.path}\n{hashlib.sha256(body).hexdigest()}'.encode(), hashlib.sha256).hexdigest()
             request = Request(self.url, data=body, headers={'Content-Type': 'application/json',
                 'X-Crawler-Timestamp': timestamp, 'X-Crawler-Signature': signature})
             try:
@@ -117,9 +121,9 @@ class Publisher:
         raise PublishError('No publication result')
 
 
-def from_environment(allow_local=False):
+def from_environment(allow_local=False, *, student=False):
     base = os.environ.get('CAMNECT_API_BASE_URL', '')
     secret = os.environ.get('CAMNECT_IMPORT_SECRET', '')
     if not base and not secret:
         return None
-    return Publisher(base, secret, allow_local)
+    return Publisher(base, secret, allow_local, student=student)

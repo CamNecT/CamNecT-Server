@@ -30,7 +30,7 @@ def public_url(value, base=BASE):
     if parts.scheme not in ('http', 'https') or not parts.hostname or parts.username or parts.password:
         return None
     # Only our source host is upgraded. External destinations are recorded, never fetched.
-    scheme = 'https' if parts.hostname == 'job.konkuk.ac.kr' else parts.scheme
+    scheme = 'https' if parts.hostname in ('job.konkuk.ac.kr', 'www.konkuk.ac.kr') else parts.scheme
     return urlunsplit((scheme, parts.netloc, parts.path, parts.query, ''))
 
 
@@ -78,23 +78,43 @@ def body_text(node):
 DATE = re.compile(
     r'(?P<year>20\d{2})\s*[.년/-]\s*(?P<month>\d{1,2})\s*[.월/-]\s*'
     r'(?P<day>\d{1,2})(?:\s*[.일])?'
-    r'(?:\s*\([월화수목금토일](?:요일)?\))?'
+    r'(?:\s*\(\s*[월화수목금토일](?:요일)?\s*\))?'
     r'(?:\s*(?P<meridiem>오전|오후)?\s*(?P<hour>\d{1,2})\s*[:시]\s*(?P<minute>\d{2})?(?:분)?)?'
 )
-APPLY_LABEL = re.compile(r'(?:모집|접수|신청)\s*(?:기간|마감|시작|개시|종료)')
+APPLY_LABEL = re.compile(r'(?:모집|접수|신청|지원|응모)\s*(?:기간|마감|시작|개시|종료|기한)')
 KST = timezone(timedelta(hours=9))
 
 
-def application_dates(text):
+# Allow a shortened range end only when it carries a weekday that corroborates
+# the explicit start year. Never borrow a year from today's date or the RSS item.
+SHORT_END = re.compile(r'(?P<sep>[~～∼–—]\s*)(?P<m>\d{1,2})\s*[.월/]\s*(?P<d>\d{1,2})[.일]?\s*\(\s*(?P<w>[월화수목금토일])\s*\)')
+NEXT_DATE = re.compile(r'^\s*(?:기간\s*[:：]\s*)?[~～∼\s:：-]*20\d{2}')
+OTHER_FIELD = re.compile(r'(?:교육|행사|발표|면접|시험|운영|파견|활동)\s*(?:일시|일정|기간|일자|일|날짜)\s*[:：]?')
+
+def application_dates(text, *, abbreviated=False):
     """Conservative candidates with evidence; no invented years or midnight deadlines."""
     lines = text.splitlines()
     candidates, issues = [], []
     for index, line in enumerate(lines):
-        if not APPLY_LABEL.search(line):
+        label = APPLY_LABEL.search(line)
+        if not label:
             continue
-        evidence = line
-        if not DATE.search(line) and index + 1 < len(lines):
-            evidence += ' ' + lines[index + 1]
+        evidence = line[label.start():]
+        if (not DATE.search(line) and index + 1 < len(lines)
+                and not re.search(r"미정|추후|선착순|상시|예산 소진", evidence)):
+            if NEXT_DATE.match(lines[index + 1]):
+                evidence += ' ' + lines[index + 1]
+        original = evidence
+        evidence = OTHER_FIELD.split(evidence, maxsplit=1)[0]
+        if abbreviated and (short := SHORT_END.search(evidence)):
+            start_token = DATE.search(evidence[:short.start()])
+            if start_token and not evidence[start_token.end():short.start()].strip():
+                try:
+                    end = datetime(int(start_token['year']), int(short['m']), int(short['d']))
+                except ValueError:
+                    end = None
+                if end and '월화수목금토일'[end.weekday()] == short['w']:
+                    evidence = evidence[:short.start('m')] + start_token['year'] + '.' + evidence[short.start('m'):]
         dates = []
         matches = list(DATE.finditer(evidence))
         for match in matches:
@@ -106,6 +126,9 @@ def application_dates(text):
                     hour = hour % 12 + (12 if match['meridiem'] == '오후' else 0)
                 dt = datetime(int(match['year']), int(match['month']), int(match['day']),
                               hour, int(match['minute'] or 0), tzinfo=KST)
+                weekday = re.search(r'\(\s*([월화수목금토일])(?:요일)?\s*\)', match[0])
+                if abbreviated and weekday and weekday[1] != '월화수목금토일'[dt.weekday()]:
+                    raise ValueError('Calendar weekday disagrees with the source')
             except ValueError:
                 issues.append('INVALID_DATE')
                 continue
@@ -138,7 +161,7 @@ def application_dates(text):
         else:
             before, after = evidence[:matches[0].start()], evidence[matches[0].end():]
             starts = bool(re.search(r'부터|시작|개시', after) or re.search(r'시작|개시', before))
-            ends = bool(re.search(r'까지|마감|종료', after) or re.search(r'마감|종료|[~～∼]', before))
+            ends = bool(re.search(r'까지|마감|종료', after) or re.search(r'마감|종료|기한|[~～∼]', before))
             if starts and not ends:
                 start = dates[0]
             elif ends and not starts and not re.search(r'[~～∼–—-]', after):
@@ -148,7 +171,7 @@ def application_dates(text):
                 continue
         candidates.append({'startDate': start['date'] if start else None,
                            'endDate': end['date'] if end else None, 'endAt': end['at'] if end else None,
-                           'evidence': evidence})
+                           'evidence': original})
     unique = {(c['startDate'], c['endDate'], c['endAt']) for c in candidates}
     selected = candidates[0] if len(unique) == 1 and not issues else None
     if len(unique) > 1:
@@ -160,20 +183,24 @@ def application_dates(text):
     return {'candidate': selected, 'evidence': candidates}, issues
 
 
-def parse_detail(html, article_id):
+def parse_detail(html, article_id, *, student=False):
     soup = soup_for(html)
     title, body = soup.select_one('.view-title'), soup.select_one('.view-con')
     identity = soup.select_one('.view-num dd')
     if not title or body is None or not identity or compact(identity.get_text()) != article_id:
         raise SourceError(f'Unexpected detail layout or identity for {article_id}')
+    base = 'https://www.konkuk.ac.kr' if student else BASE
     text = body_text(body)
-    images = sorted({url for i in body.select('img[src]') if (url := public_url(i['src']))})
+    images = sorted({url for i in body.select('img[src]') if (url := public_url(i['src'], base))})
     attachments = sorted({(url, compact(a.get_text())) for a in soup.select('.view-file a[href]')
-                          if (url := public_url(a['href']))})
-    links = sorted({url for a in body.select('a[href]') if (url := public_url(a['href']))})
+                          if (url := public_url(a['href'], base))})
+    links = sorted({url for a in body.select('a[href]') if (url := public_url(a['href'], base))})
     if not compact(title.get_text()) or not (text or images or attachments):
         raise SourceError('Empty detail content needs inspection')
-    dates, reasons = application_dates(text)
+    dates, reasons = application_dates(text, abbreviated=student)
+    board = "238" if student else "4084"
+    source = "KONKUK_STUDENT_238" if student else SOURCE
+    section = "konkuk" if student else "job"
     if images or attachments:
         reasons.append('MEDIA_REVIEW')
     if len(text) < 200 and images:
@@ -184,8 +211,8 @@ def parse_detail(html, article_id):
     published = metadata('.view-util .write dd')
     if not published:
         raise SourceError('Publication date missing')
-    return {'schemaVersion': 1, 'source': SOURCE, 'boardId': '4084', 'articleId': article_id,
-            'sourceUrl': f'{BASE}/bbs/job/4084/{article_id}/artclView.do',
+    return {'schemaVersion': 1, 'source': source, 'boardId': board, 'articleId': article_id,
+            'sourceUrl': f'{base}/bbs/{section}/{board}/{article_id}/artclView.do',
             'title': compact(title.get_text()), 'publisher': metadata('.view-util .writer dd'),
             'publishedAtRaw': published, 'modifiedAtRaw': metadata('.view-util .modify dd'),
             'bodyText': text, 'images': images,

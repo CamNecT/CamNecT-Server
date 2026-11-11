@@ -71,6 +71,13 @@ class LocalStore(Store):
             CREATE TABLE IF NOT EXISTS failures (article_id TEXT PRIMARY KEY, metadata TEXT NOT NULL);
         ''')
 
+    def get_watch(self):
+        path = self.root / 'student-watch.json'
+        return json.loads(path.read_bytes()) if path.exists() else {}
+
+    def save_watch(self, previous, current):
+        self.put_bytes('student-watch.json', encode(current))
+
     def get(self, article_id):
         row = self.db.execute('SELECT metadata FROM articles WHERE article_id=?', (article_id,)).fetchone()
         return json.loads(row[0]) if row else None
@@ -136,20 +143,31 @@ class LocalStore(Store):
 
 
 class AwsStore(Store):
-    def __init__(self, table, bucket, s3):
+    def __init__(self, table, bucket, s3, source=SOURCE):
+        self.source = source
         self.table, self.bucket, self.s3 = table, bucket, s3
 
+    def get_watch(self):
+        item = self.table.get_item(Key={'pk': f'WATCH#{self.source}'}, ConsistentRead=True).get('Item')
+        return json.loads(item['watch']) if item else {}
+
+    def save_watch(self, previous, current):
+        self.table.put_item(Item={'pk': f'WATCH#{self.source}', 'watch': encode(current).decode()},
+                            ConditionExpression='attribute_not_exists(pk) OR #w = :before',
+                            ExpressionAttributeNames={'#w': 'watch'},
+                            ExpressionAttributeValues={':before': encode(previous).decode()})
+
     def get(self, article_id):
-        result = self.table.get_item(Key={'pk': f'{SOURCE}#{article_id}'}, ConsistentRead=True)
+        result = self.table.get_item(Key={'pk': f'{self.source}#{article_id}'}, ConsistentRead=True)
         item = result.get('Item')
         return json.loads(item['metadata']) if item else None
 
     def get_failure(self, article_id):
-        item = self.table.get_item(Key={'pk': f'FAILURE#{SOURCE}#{article_id}'}, ConsistentRead=True).get('Item')
+        item = self.table.get_item(Key={'pk': f'FAILURE#{self.source}#{article_id}'}, ConsistentRead=True).get('Item')
         return json.loads(item['failure']) if item else None
 
     def put_failure(self, article_id, failure):
-        self.table.put_item(Item={'pk': f'FAILURE#{SOURCE}#{article_id}', 'failure': encode(failure).decode()})
+        self.table.put_item(Item={'pk': f'FAILURE#{self.source}#{article_id}', 'failure': encode(failure).decode()})
 
     def clear_failure(self, article_id):
         if self.get_failure(article_id):
@@ -166,11 +184,11 @@ class AwsStore(Store):
         return data
 
     def get_publication(self, article_id):
-        item = self.table.get_item(Key={'pk': f'PUBLISH#{SOURCE}#{article_id}'}, ConsistentRead=True).get('Item')
+        item = self.table.get_item(Key={'pk': f'PUBLISH#{self.source}#{article_id}'}, ConsistentRead=True).get('Item')
         return json.loads(item['receipt']) if item else None
 
     def save_publication(self, article_id, receipt):
-        self.table.put_item(Item={'pk': f'PUBLISH#{SOURCE}#{article_id}', 'receipt': encode(receipt).decode()})
+        self.table.put_item(Item={'pk': f'PUBLISH#{self.source}#{article_id}', 'receipt': encode(receipt).decode()})
 
     def put_bytes(self, key, value):
         from botocore.exceptions import ClientError
@@ -188,6 +206,6 @@ class AwsStore(Store):
             kwargs = {'ConditionExpression': '#metadata = :previous',
                       'ExpressionAttributeNames': {'#metadata': 'metadata'},
                       'ExpressionAttributeValues': {':previous': encode(old).decode()}}
-        self.table.put_item(Item={'pk': f"{SOURCE}#{meta['articleId']}",
+        self.table.put_item(Item={'pk': f"{self.source}#{meta['articleId']}",
                                   'lastSeenAt': meta['lastSeenAt'],
                                   'metadata': encode(meta).decode()}, **kwargs)
