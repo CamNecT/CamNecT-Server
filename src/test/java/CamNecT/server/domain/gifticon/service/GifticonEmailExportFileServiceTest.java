@@ -14,6 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -94,11 +95,14 @@ class GifticonEmailExportFileServiceTest {
     void retryKeepsAnExistingEmailSpreadsheet() throws Exception {
         var filePath = exportDir.resolve("email.xlsx");
         service.writeAtomically(filePath, List.of(purchase(1L, "recipient@example.com")));
+        Files.setLastModifiedTime(filePath, FileTime.fromMillis(1_700_000_000_000L));
+        FileTime originalModified = Files.getLastModifiedTime(filePath);
         byte[] original = Files.readAllBytes(filePath);
 
         service.ensureFile(filePath, List.of());
 
         assertThat(Files.readAllBytes(filePath)).isEqualTo(original);
+        assertThat(Files.getLastModifiedTime(filePath)).isEqualTo(originalModified);
     }
 
     @Test

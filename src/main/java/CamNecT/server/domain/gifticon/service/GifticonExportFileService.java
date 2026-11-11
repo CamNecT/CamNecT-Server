@@ -44,7 +44,7 @@ public class GifticonExportFileService {
 
     // 재시도 대기 중인 구형 파일도 현재 전화번호·이메일 형식으로 재생성한다.
     private boolean hasCurrentSchema(Path filePath) {
-        try (Workbook workbook = WorkbookFactory.create(filePath.toFile())) {
+        try (Workbook workbook = WorkbookFactory.create(filePath.toFile(), null, true)) {
             Sheet sheet = workbook.getSheet("purchases");
             Row header = sheet == null ? null : sheet.getRow(0);
             if (header == null || header.getLastCellNum() != COLUMNS.length) return false;
