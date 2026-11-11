@@ -530,7 +530,7 @@ public class ActivityService {
     }
 
     @Transactional
-    public ActivityDetailResponse getActivityDetail(Long userId, Long activityId) {
+    public ActivityDetailResponse getActivityDetail(Long userId, Long activityId, boolean countView) {
         if (userId == null) throw new CustomException(ActivityErrorCode.USER_NOT_FOUND);
         // 1. 메인 활동 조회
         ExternalActivity activity = activityRepository.findById(activityId)
@@ -622,7 +622,9 @@ public class ActivityService {
         // 8. 북마크 여부 조회
         boolean isBookmarked = activityBookmarkRepository.existsByUser_UserIdAndActivity_ActivityId(userId, activityId);
 
-        activityRepository.incrementViews(activityId);
+        if (countView) {
+            activityRepository.incrementViews(activityId);
+        }
 
         // 9. Response 생성
         return new ActivityDetailResponse(

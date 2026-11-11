@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
@@ -58,9 +59,10 @@ public class RecruitmentController {
     @GetMapping("/{recruitmentId}")
     public ApiResponse<RecruitmentDetailResponse> getRecruitmentDetail(
             @UserId Long userId,
-            @PathVariable @Positive Long recruitmentId
+            @PathVariable @Positive Long recruitmentId,
+            HttpServletRequest request
     ) {
-        return ApiResponse.success(recruitmentService.getRecruitmentDetail(userId, recruitmentId));
+        return ApiResponse.success(recruitmentService.getRecruitmentDetail(userId, recruitmentId, "GET".equals(request.getMethod())));
     }
 
     @Operation(summary = "팀원 모집글 수정", description = "팀원 모집글을 수정합니다. 작성자만 수정할 수 있습니다.")
