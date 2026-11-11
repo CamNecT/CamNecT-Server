@@ -26,9 +26,12 @@ class PhoneVerificationMySqlMigrationTest {
             sql.execute("INSERT INTO gifticon_purchases (purchase_id,buyer_email,buyer_name,client_request_id,quantity,recipient_email,requested_at,total_price_points,unit_price_points,product_id,user_id) "
                     + "VALUES (9001,'existing@example.com','Test','phone-migration-test',1,'recipient@example.com',NOW(),1000,1000,9001,9001)");
         }
+        var phoneMigrations = Flyway.configure().dataSource(url, user, password).target("22").load();
+        assertThat(phoneMigrations.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(phoneMigrations.info().current().getVersion().getVersion()).isEqualTo("22");
+
         var flyway = Flyway.configure().dataSource(url, user, password).load();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("22");
+        flyway.migrate();
         flyway.validate();
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         try (var connection = DriverManager.getConnection(url, user, password);

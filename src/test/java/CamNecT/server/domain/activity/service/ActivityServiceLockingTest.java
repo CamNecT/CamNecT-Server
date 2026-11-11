@@ -7,6 +7,8 @@ import CamNecT.server.domain.activity.model.external_activity.ExternalActivityBo
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityAttachmentRepository;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityBookmarkRepository;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityRepository;
+import CamNecT.server.domain.activity.repository.comment.ActivityCommentRepository;
+import CamNecT.server.domain.activity.repository.comment.ActivityCommentLikeRepository;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityTagRepository;
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.server.domain.community.service.AuthorAssembler;
@@ -54,6 +56,8 @@ class ActivityServiceLockingTest {
     @Mock PublicUrlIssuer publicUrlIssuer;
     @Mock GlobalPresignMethods globalPresignMethods;
 
+    @Mock ActivityCommentRepository activityCommentRepository;
+    @Mock ActivityCommentLikeRepository activityCommentLikeRepository;
     @InjectMocks ActivityService service;
 
     @Test
@@ -123,7 +127,9 @@ class ActivityServiceLockingTest {
                 teamRecruitmentRepository,
                 activityAttachmentRepository,
                 activityTagRepository,
-                activityBookmarkRepository
+                activityBookmarkRepository,
+                activityCommentLikeRepository,
+                activityCommentRepository
         );
         order.verify(accountAccessGuard).requireAccessibleForUpdate(1L);
         order.verify(activityRepository).findByIdForUpdate(10L);
@@ -132,6 +138,9 @@ class ActivityServiceLockingTest {
         order.verify(activityTagRepository).deleteAllByActivityId(10L);
         order.verify(activityBookmarkRepository).deleteAllByActivityId(10L);
         order.verify(activityAttachmentRepository).deleteAllByActivityId(10L);
+        order.verify(activityCommentLikeRepository).deleteByActivityId(10L);
+        order.verify(activityCommentRepository).deleteRepliesByActivityId(10L);
+        order.verify(activityCommentRepository).deleteRootsByActivityId(10L);
         order.verify(activityRepository).delete(activity);
     }
 
