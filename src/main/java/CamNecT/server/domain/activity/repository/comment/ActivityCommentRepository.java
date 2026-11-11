@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -49,11 +50,39 @@ public interface ActivityCommentRepository extends JpaRepository<ActivityComment
             Pageable pageable
     );
 
-    // 루트 댓글 여러 개에 대한 답글을 한 번에 조회(부모 아래 created_at 정렬)
-    List<ActivityComment> findByActivity_ActivityIdAndParent_IdInAndStatusInOrderByParent_IdAscCreatedAtAsc(
-            Long activityId,
-            Collection<Long> parentIds,
-            Collection<CommentStatus> statuses
+    // Bound each root's preview in the database, while fetching all roots in one query.
+    @Query(value = """
+        select c.* from activity_comments c
+        join (
+            select comment_id,
+                   row_number() over (partition by parent_comment_id order by created_at, comment_id) as reply_number
+            from activity_comments
+            where activity_id = :activityId and parent_comment_id in (:parentIds) and status in (:statuses)
+        ) ranked on ranked.comment_id = c.comment_id
+        where ranked.reply_number <= :limit
+        order by c.parent_comment_id, c.created_at, c.comment_id
+        """, nativeQuery = true)
+    List<ActivityComment> findReplyPreviews(
+            @Param("activityId") Long activityId,
+            @Param("parentIds") Collection<Long> parentIds,
+            @Param("statuses") Collection<String> statuses,
+            @Param("limit") int limit
+    );
+
+    @Query("""
+        select c from ActivityComment c
+        where c.activity.activityId = :activityId and c.parent.id = :parentId and c.status in :statuses
+          and (:cursorId is null or c.createdAt > :cursorCreatedAt
+               or (c.createdAt = :cursorCreatedAt and c.id > :cursorId))
+        order by c.createdAt, c.id
+        """)
+    List<ActivityComment> findReplyPage(
+            @Param("activityId") Long activityId,
+            @Param("parentId") Long parentId,
+            @Param("statuses") Collection<CommentStatus> statuses,
+            @Param("cursorId") Long cursorId,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            Pageable pageable
     );
 
     // 게시글 삭제 시: 자기참조 FK를 지키기 위해 대댓글을 먼저 삭제한다.

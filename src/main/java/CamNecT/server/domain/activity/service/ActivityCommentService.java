@@ -1,5 +1,6 @@
 package CamNecT.server.domain.activity.service;
 
+import CamNecT.server.domain.activity.dto.response.ActivityCommentListResponse;
 import CamNecT.server.domain.activity.model.comment.ActivityComment;
 import CamNecT.server.domain.activity.model.comment.ActivityCommentLike;
 import CamNecT.server.domain.activity.model.enums.ActivityCategory;
@@ -31,6 +32,8 @@ import java.util.stream.Stream;
 @Service
 @RequiredArgsConstructor
 public class ActivityCommentService {
+    private static final int REPLY_PREVIEW_SIZE = 20;
+    private static final List<CommentStatus> VISIBLE_STATUSES = List.of(CommentStatus.PUBLISHED, CommentStatus.DELETED);
     private final ExternalActivityRepository activityRepository;
     private final ActivityCommentRepository commentsRepository;
     private final ActivityCommentLikeRepository likesRepository;
@@ -90,34 +93,70 @@ public class ActivityCommentService {
     }
 
     @Transactional(readOnly = true)
-    public CommentListResponse list(Long userId, Long activityId, Long cursorId, int size) {
+    public ActivityCommentListResponse list(Long userId, Long activityId, Long cursorId, int size) {
         requireUser(userId);
         requireActivity(activityId);
         if (cursorId != null && cursorId <= 0) throw new CustomException(CommunityErrorCode.INVALID_CURSOR);
         int limit = Math.clamp(size, 1, 50);
-        List<CommentStatus> statuses = List.of(CommentStatus.PUBLISHED, CommentStatus.DELETED);
+        List<CommentStatus> statuses = VISIBLE_STATUSES;
         List<ActivityComment> fetched = commentsRepository.findRootPage(activityId, statuses, cursorId, PageRequest.of(0, limit + 1));
         boolean hasNext = fetched.size() > limit;
         List<ActivityComment> roots = hasNext ? fetched.subList(0, limit) : fetched;
         Long nextCursor = hasNext ? roots.getLast().getId() : null;
         List<Long> rootIds = roots.stream().map(ActivityComment::getId).toList();
         List<ActivityComment> children = rootIds.isEmpty() ? new ArrayList<>() : new ArrayList<>(commentsRepository
-                .findByActivity_ActivityIdAndParent_IdInAndStatusInOrderByParent_IdAscCreatedAtAsc(activityId, rootIds, statuses));
+                .findReplyPreviews(activityId, rootIds, statuses.stream().map(Enum::name).toList(), REPLY_PREVIEW_SIZE + 1));
         children.sort(Comparator.comparing((ActivityComment c) -> c.getParent().getId())
                 .thenComparing(ActivityComment::getCreatedAt).thenComparing(ActivityComment::getId));
-        List<ActivityComment> all = Stream.concat(roots.stream(), children.stream()).toList();
+        Map<Long, List<ActivityComment>> childrenByParent = new HashMap<>();
+        children.forEach(c -> childrenByParent.computeIfAbsent(c.getParent().getId(), ignored -> new ArrayList<>()).add(c));
+        List<ActivityComment> visibleChildren = childrenByParent.values().stream()
+                .flatMap(replies -> replies.stream().limit(REPLY_PREVIEW_SIZE)).toList();
+        List<ActivityComment> all = Stream.concat(roots.stream(), visibleChildren.stream()).toList();
         Map<Long, AuthorDto> authors = authorAssembler.buildAuthorMap(all.stream().map(ActivityComment::getUserId).distinct().toList());
         Map<Long, Long> counts = new HashMap<>();
         if (!all.isEmpty()) likesRepository.countByCommentIds(all.stream().map(ActivityComment::getId).toList())
                 .forEach(row -> counts.put(row.getCommentId(), row.getCnt()));
-        Map<Long, List<ActivityComment>> childrenByParent = new HashMap<>();
-        children.forEach(c -> childrenByParent.computeIfAbsent(c.getParent().getId(), ignored -> new ArrayList<>()).add(c));
         List<CommentItemResponse> items = new ArrayList<>();
+        List<ActivityCommentListResponse.ReplyPage> replyPages = new ArrayList<>();
         for (ActivityComment root : roots) {
             items.add(toRow(root, counts, authors));
-            for (ActivityComment child : childrenByParent.getOrDefault(root.getId(), List.of())) items.add(toRow(child, counts, authors));
+            List<ActivityComment> replies = childrenByParent.getOrDefault(root.getId(), List.of());
+            boolean hasMoreReplies = replies.size() > REPLY_PREVIEW_SIZE;
+            List<ActivityComment> preview = replies.subList(0, Math.min(replies.size(), REPLY_PREVIEW_SIZE));
+            for (ActivityComment child : preview) items.add(toRow(child, counts, authors));
+            replyPages.add(new ActivityCommentListResponse.ReplyPage(root.getId(),
+                    hasMoreReplies ? preview.getLast().getId() : null, hasMoreReplies));
         }
-        return new CommentListResponse(items, nextCursor, hasNext);
+        return new ActivityCommentListResponse(items, nextCursor, hasNext, replyPages);
+    }
+
+    @Transactional(readOnly = true)
+    public CommentListResponse listReplies(Long userId, Long activityId, Long parentId, Long cursorId, int size) {
+        requireUser(userId);
+        requireActivity(activityId);
+        ActivityComment parent = commentsRepository.findById(parentId)
+                .filter(c -> c.getActivity().getActivityId().equals(activityId)
+                        && c.getParent() == null && VISIBLE_STATUSES.contains(c.getStatus()))
+                .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
+        ActivityComment cursor = null;
+        if (cursorId != null) {
+            cursor = commentsRepository.findById(cursorId)
+                    .filter(c -> c.getActivity().getActivityId().equals(activityId)
+                            && c.getParent() != null && c.getParent().getId().equals(parent.getId()))
+                    .orElseThrow(() -> new CustomException(CommunityErrorCode.INVALID_CURSOR));
+        }
+        int limit = Math.clamp(size, 1, 50);
+        List<ActivityComment> fetched = commentsRepository.findReplyPage(activityId, parentId, VISIBLE_STATUSES,
+                cursorId, cursor == null ? null : cursor.getCreatedAt(), PageRequest.of(0, limit + 1));
+        boolean hasNext = fetched.size() > limit;
+        List<ActivityComment> replies = hasNext ? fetched.subList(0, limit) : fetched;
+        Map<Long, AuthorDto> authors = authorAssembler.buildAuthorMap(replies.stream().map(ActivityComment::getUserId).distinct().toList());
+        Map<Long, Long> counts = new HashMap<>();
+        if (!replies.isEmpty()) likesRepository.countByCommentIds(replies.stream().map(ActivityComment::getId).toList())
+                .forEach(row -> counts.put(row.getCommentId(), row.getCnt()));
+        return new CommentListResponse(replies.stream().map(c -> toRow(c, counts, authors)).toList(),
+                hasNext ? replies.getLast().getId() : null, hasNext);
     }
 
     private CommentItemResponse toRow(ActivityComment c, Map<Long, Long> counts, Map<Long, AuthorDto> authors) {

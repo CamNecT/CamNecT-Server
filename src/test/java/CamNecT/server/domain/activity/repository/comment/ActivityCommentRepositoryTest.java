@@ -41,8 +41,8 @@ class ActivityCommentRepositoryTest {
 
         assertThat(comments.findRootPage(activityId, List.of(CommentStatus.PUBLISHED), null, PageRequest.of(0, 20)))
                 .extracting(ActivityComment::getId).containsExactly(rootId);
-        assertThat(comments.findByActivity_ActivityIdAndParent_IdInAndStatusInOrderByParent_IdAscCreatedAtAsc(
-                activityId, List.of(rootId), List.of(CommentStatus.PUBLISHED))).hasSize(1);
+        assertThat(comments.findReplyPreviews(
+                activityId, List.of(rootId), List.of(CommentStatus.PUBLISHED.name()), 21)).hasSize(1);
         ExternalActivity locked = activities.findByIdForUpdate(activityId).orElseThrow();
         likes.deleteByActivityId(activityId);
         comments.deleteRepliesByActivityId(activityId);

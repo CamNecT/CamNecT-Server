@@ -1,5 +1,6 @@
 package CamNecT.server.domain.activity.controller;
 
+import CamNecT.server.domain.activity.dto.response.ActivityCommentListResponse;
 import CamNecT.server.domain.activity.service.ActivityCommentService;
 import CamNecT.server.domain.community.dto.request.CreateCommentRequest;
 import CamNecT.server.domain.community.dto.request.UpdateCommentRequest;
@@ -34,12 +35,21 @@ public class ActivityCommentController {
         return ApiResponse.success(service.create(userId, activityId, request));
     }
 
-    @Operation(summary = "댓글 목록 조회", description = "루트 댓글 기준 커서 페이지와 대댓글을 평면 목록으로 반환합니다.")
+    @Operation(summary = "댓글 목록 조회", description = "루트 댓글 기준 커서 페이지와 루트별 최대 20개 대댓글을 평면 목록으로 반환합니다. replyPages의 nextCursorId로 대댓글을 이어서 조회합니다.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true)
     @GetMapping("/{activityId}/comments")
-    public ApiResponse<CommentListResponse> list(@UserId Long userId, @PathVariable @Positive Long activityId,
+    public ApiResponse<ActivityCommentListResponse> list(@UserId Long userId, @PathVariable @Positive Long activityId,
             @RequestParam(required = false) @Positive Long cursorId, @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
         return ApiResponse.success(service.list(userId, activityId, cursorId, size));
+    }
+
+    @Operation(summary = "대댓글 이어보기", description = "루트 댓글의 대댓글을 작성 시각과 ID 오름차순으로 반환합니다. cursorId를 생략하면 처음부터 조회합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true)
+    @GetMapping("/{activityId}/comments/{commentId}/replies")
+    public ApiResponse<CommentListResponse> replies(@UserId Long userId, @PathVariable @Positive Long activityId,
+            @PathVariable @Positive Long commentId, @RequestParam(required = false) @Positive Long cursorId,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
+        return ApiResponse.success(service.listReplies(userId, activityId, commentId, cursorId, size));
     }
 
     @Operation(summary = "댓글 수정")
