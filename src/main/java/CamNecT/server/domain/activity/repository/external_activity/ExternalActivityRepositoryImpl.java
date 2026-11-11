@@ -51,7 +51,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                         titleContains(title),
                         hasAllTags(tagIds)
                 )
-                .orderBy(getOrderSpecifier(sortType, userId))
+                .orderBy(getOrderSpecifier(sortType, userId), externalActivity.activityId.desc())
                 .offset(pageable.getOffset())
                 .limit(pageSize + 1)
                 .fetch();

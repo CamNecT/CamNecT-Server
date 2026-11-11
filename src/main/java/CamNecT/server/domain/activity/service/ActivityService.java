@@ -522,6 +522,16 @@ public class ActivityService {
     }
 
     @Transactional
+    public CamNecT.server.domain.preview.GuestActivityDetail getGuestActivityDetail(Long activityId) {
+        ExternalActivity activity = activityRepository.findById(activityId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+        var result = CamNecT.server.domain.preview.GuestActivityDetail.from(activity,
+                thumbnailUrlOrNull(activity.getThumbnailKey()), activityTagRepository.findTagsForDetail(activityId));
+        activityRepository.incrementViews(activityId);
+        return result;
+    }
+
+    @Transactional
     public ActivityDetailResponse getActivityDetail(Long userId, Long activityId) {
         if (userId == null) throw new CustomException(ActivityErrorCode.USER_NOT_FOUND);
         // 1. 메인 활동 조회

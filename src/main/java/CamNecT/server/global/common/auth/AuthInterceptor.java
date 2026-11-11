@@ -36,6 +36,11 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (request.getMethod().equals("OPTIONS")) {
             return true;
         }
+        if (("GET".equals(request.getMethod()) || "HEAD".equals(request.getMethod()))
+                && handler instanceof org.springframework.web.method.HandlerMethod method
+                && method.hasMethodAnnotation(PublicPreview.class)) {
+            return true;
+        }
         // 토큰 추출
         String token = extractBearer(request);
         //토큰 유효성 검사
