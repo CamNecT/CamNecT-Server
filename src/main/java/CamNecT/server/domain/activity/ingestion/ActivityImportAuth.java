@@ -15,16 +15,17 @@ import java.util.HexFormat;
 @RequiredArgsConstructor
 public class ActivityImportAuth {
     public static final String PATH = "/api/internal/activity-imports/konkuk-job";
+    public static final String STUDENT_PATH = "/api/internal/activity-imports/konkuk-student";
     private final ActivityImportProperties properties;
 
-    public void verify(String timestamp, String signature, byte[] body) {
+    public void verify(String path, String timestamp, String signature, byte[] body) {
         if (!properties.enabled() || properties.sharedSecret() == null || properties.sharedSecret().length() < 32)
             throw new CustomException(ErrorCode.FORBIDDEN);
         try {
             long seconds = Long.parseLong(timestamp);
             long current = Instant.now().getEpochSecond();
             if (seconds < current - 300 || seconds > current + 300) throw new IllegalArgumentException();
-            String canonical = timestamp + "\nPOST\n" + PATH + "\n" + sha256(body);
+            String canonical = timestamp + "\nPOST\n" + path + "\n" + sha256(body);
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(properties.sharedSecret().getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
             byte[] expected = mac.doFinal(canonical.getBytes(StandardCharsets.UTF_8));

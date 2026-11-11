@@ -24,15 +24,26 @@ public class ActivityImportController {
     @io.swagger.v3.oas.annotations.Operation(summary = "건국대 공지 자동 등록", description = "전용 HMAC 서명이 필요한 크롤러 API")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "수집 데이터 반영 결과", useReturnTypeSchema = true)
     public ApiResponse<ActivityImportService.Result> ingest(HttpServletRequest request) throws IOException {
+        return ingest(request, false);
+    }
+
+    @PostMapping(value = ActivityImportAuth.STUDENT_PATH, consumes = MediaType.APPLICATION_JSON_VALUE)
+    @io.swagger.v3.oas.annotations.Operation(summary = "건국대 학생공지 자동 등록", description = "학생공지 경로 전용 HMAC 서명이 필요합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "학생공지 반영 결과", useReturnTypeSchema = true)
+    public ApiResponse<ActivityImportService.Result> ingestStudent(HttpServletRequest request) throws IOException {
+        return ingest(request, true);
+    }
+
+    private ApiResponse<ActivityImportService.Result> ingest(HttpServletRequest request, boolean student) throws IOException {
         byte[] body = request.getInputStream().readNBytes(12_000_001);
         if (body.length > 12_000_000) throw new CustomException(ErrorCode.PAYLOAD_TOO_LARGE);
-        auth.verify(request.getHeader("X-Crawler-Timestamp"), request.getHeader("X-Crawler-Signature"), body);
+        auth.verify(student ? ActivityImportAuth.STUDENT_PATH : ActivityImportAuth.PATH, request.getHeader("X-Crawler-Timestamp"), request.getHeader("X-Crawler-Signature"), body);
         ActivityImportRequest payload;
         try { payload = mapper.readValue(body, ActivityImportRequest.class); }
         catch (IOException exception) { throw new CustomException(ErrorCode.BAD_REQUEST); }
         if (payload == null) throw new CustomException(ErrorCode.BAD_REQUEST);
         var violations = validator.validate(payload);
         if (!violations.isEmpty()) throw new ConstraintViolationException(violations);
-        return ApiResponse.success(service.ingest(payload));
+        return ApiResponse.success(service.ingest(payload, student));
     }
 }

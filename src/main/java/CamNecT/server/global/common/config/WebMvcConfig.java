@@ -40,6 +40,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                     .excludePathPatterns(
                             // Machine-to-machine endpoint verifies its own timestamped HMAC; no other internal path is exempt.
                             CamNecT.server.domain.activity.ingestion.ActivityImportAuth.PATH,
+                            CamNecT.server.domain.activity.ingestion.ActivityImportAuth.STUDENT_PATH,
                             "/api/auth/**",
                             "/swagger-ui/**",
                             "/v3/api-docs/**",

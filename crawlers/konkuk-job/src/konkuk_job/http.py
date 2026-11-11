@@ -16,35 +16,41 @@ class PayloadTooLarge(SourceError):
         self.bytes_read = bytes_read
 
 
-def source_url(url):
+def source_url(url, host="job.konkuk.ac.kr"):
     p = urlsplit(url)
-    if p.scheme != 'https' or p.netloc != 'job.konkuk.ac.kr' or p.username or p.password:
+    if p.scheme != 'https' or p.netloc != host or p.username or p.password:
         raise SourceError('Fetch outside the HTTPS source host is forbidden')
     return urlunsplit((p.scheme, p.netloc, quote(p.path, safe='/%'), quote(p.query, safe='=&%+'), ''))
 
 
 class SourceRedirect(HTTPRedirectHandler):
+    def __init__(self, host="job.konkuk.ac.kr"):
+        self.host = host
+
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return super().redirect_request(req, fp, code, msg, headers, source_url(newurl))
+        return super().redirect_request(req, fp, code, msg, headers, source_url(newurl, self.host))
 
 
 class HttpClient:
-    def __init__(self, delay=2.5, timeout=20, opener=None):
+    def __init__(self, delay=2.5, timeout=20, opener=None, host="job.konkuk.ac.kr"):
+        if host not in ("job.konkuk.ac.kr", "www.konkuk.ac.kr"):
+            raise ValueError("Unknown school host")
+        self.host = host
         if delay < 2:
             raise ValueError('Minimum source request interval is 2 seconds')
         self.delay, self.timeout, self.last_request = delay, timeout, 0
-        self.opener = opener or build_opener(SourceRedirect(), HTTPCookieProcessor(CookieJar()))
+        self.opener = opener or build_opener(SourceRedirect(host), HTTPCookieProcessor(CookieJar()))
         self.robots = None
         self.deadline = None
 
     def load_robots(self):
-        raw, _ = self.fetch(BASE + '/robots.txt', limit=64_000)
+        raw, _ = self.fetch(f'https://{self.host}/robots.txt', limit=64_000)
         robots = RobotFileParser()
         robots.parse(raw.decode('utf-8-sig').splitlines())
         self.robots = robots
 
     def fetch(self, url, fields=None, limit=2_000_000):
-        url = source_url(url)
+        url = source_url(url, self.host)
         if self.robots and not self.robots.can_fetch(USER_AGENT, url):
             raise SourceError('robots.txt disallows this path')
         for attempt in range(3):
@@ -56,7 +62,7 @@ class HttpClient:
                               headers={'User-Agent': USER_AGENT, 'Accept-Encoding': 'identity'})
             try:
                 with self.opener.open(request, timeout=self.timeout) as response:
-                    source_url(response.url)
+                    source_url(response.url, self.host)
                     length = response.headers.get('Content-Length', '')
                     if length.isdigit() and int(length) > limit:
                         raise PayloadTooLarge()
