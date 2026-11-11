@@ -23,6 +23,7 @@ import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepo
 import CamNecT.server.domain.community.dto.AuthorDto;
 import CamNecT.server.domain.community.service.AuthorAssembler;
 import CamNecT.server.domain.home.dto.HomeResponse;
+import CamNecT.server.domain.preview.GuestActivitySummary;
 import CamNecT.server.domain.users.model.UserRole;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
@@ -519,6 +520,13 @@ public class ActivityService {
 
         activityRepository.delete(activity);
         globalPresignMethods.deleteAfterCommit(deleteAfterCommit);
+    }
+
+    public Slice<GuestActivitySummary> getGuestActivities(
+            ActivityCategory category, String title, Pageable pageable) {
+        return activityRepository.findGuestActivities(category, title, pageable)
+                .map(row -> new GuestActivitySummary(
+                        row.getActivityId(), row.getTitle(), thumbnailUrlOrNull(row.getThumbnailKey())));
     }
 
     @Transactional
