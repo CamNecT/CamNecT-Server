@@ -44,7 +44,7 @@ public class ActivityCommentService {
     public CreateCommentResponse create(Long userId, Long activityId, CreateCommentRequest req) {
         requireUser(userId);
         accountAccessGuard.requireAccessibleForUpdate(userId);
-        ExternalActivity activity = requireActivity(activityId);
+        ExternalActivity activity = requireCommentableActivity(activityRepository.findByIdForRead(activityId));
         ActivityComment parent = null;
         if (req.parentCommentId() != null) {
             parent = commentsRepository.findByIdForUpdate(req.parentCommentId())
@@ -95,7 +95,7 @@ public class ActivityCommentService {
     @Transactional(readOnly = true)
     public ActivityCommentListResponse list(Long userId, Long activityId, Long cursorId, int size) {
         requireUser(userId);
-        requireActivity(activityId);
+        requireCommentableActivity(activityRepository.findById(activityId));
         if (cursorId != null && cursorId <= 0) throw new CustomException(CommunityErrorCode.INVALID_CURSOR);
         int limit = Math.clamp(size, 1, 50);
         List<CommentStatus> statuses = VISIBLE_STATUSES;
@@ -134,7 +134,7 @@ public class ActivityCommentService {
     @Transactional(readOnly = true)
     public CommentListResponse listReplies(Long userId, Long activityId, Long parentId, Long cursorId, int size) {
         requireUser(userId);
-        requireActivity(activityId);
+        requireCommentableActivity(activityRepository.findById(activityId));
         ActivityComment parent = commentsRepository.findById(parentId)
                 .filter(c -> c.getActivity().getActivityId().equals(activityId)
                         && c.getParent() == null && VISIBLE_STATUSES.contains(c.getStatus()))
@@ -166,9 +166,8 @@ public class ActivityCommentService {
                 deleted ? null : authors.get(c.getUserId()));
     }
 
-    private ExternalActivity requireActivity(Long activityId) {
-        ExternalActivity activity = activityRepository.findByIdForRead(activityId)
-                .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+    private ExternalActivity requireCommentableActivity(Optional<ExternalActivity> found) {
+        ExternalActivity activity = found.orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
         if (activity.getCategory() != ActivityCategory.CLUB && activity.getCategory() != ActivityCategory.STUDY)
             throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
         return activity;
@@ -177,7 +176,7 @@ public class ActivityCommentService {
     private ActivityComment requireCommentForUpdate(Long commentId) {
         Long activityId = commentsRepository.findActivityIdByCommentId(commentId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
-        requireActivity(activityId);
+        requireCommentableActivity(activityRepository.findByIdForRead(activityId));
         return commentsRepository.findByIdForUpdate(commentId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
     }
