@@ -21,6 +21,7 @@ public class PointHistoryController {
     private final PointHistoryService history;
 
     @GetMapping("/transactions")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true)
     @Operation(summary = "내 포인트 이용 내역", description = "최신순. type을 생략하면 전체, EARN은 적립, SPEND는 사용입니다. 다음 요청의 cursor에는 nextCursor를 전달합니다.")
     public ApiResponse<PointHistoryResponse> list(@UserId Long userId,
             @RequestParam(required = false) TransactionType type,
