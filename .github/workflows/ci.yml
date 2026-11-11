@@ -1,19 +1,18 @@
-name: Phone verification tests
+name: CI
 
 on:
   pull_request:
-    branches: [main, develop]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: phone-tests-${{ github.event.pull_request.number || github.ref }}
+  group: server-ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  phone-mysql:
+  test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -45,16 +44,17 @@ jobs:
         # Historical V1 compares explicitly unicode_ci tables with the database's default tables.
         run: |
           docker exec -e MYSQL_PWD="$PHONE_MYSQL_PASSWORD" ${{ job.services.mysql.id }} mysql -uroot -e 'ALTER DATABASE phone_integration_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE phone_migration_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
-      - name: Test application, real MySQL transactions, migrations and deployment checks
+      - name: Run server tests
         run: |
           chmod +x gradlew
           ./gradlew test --no-daemon
-          python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Test deployment scripts
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Save test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phone-verification-test-reports
+          name: server-test-reports
           path: |
             build/reports/tests/test
             build/test-results/test
