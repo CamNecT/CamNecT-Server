@@ -13,10 +13,15 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@Validated
 @RequiredArgsConstructor
 @RequestMapping("/api/gifticons")
 public class GifticonController {
@@ -52,6 +57,15 @@ public class GifticonController {
             @PathVariable Long productId
     ) {
         return ApiResponse.success(gifticonService.productDetail(productId));
+    }
+
+    @GetMapping("/purchases")
+    @Operation(summary = "내 기프티콘 구매내역", description = "내 주문을 최신순으로 조회합니다. 다음 페이지는 nextCursor를 cursor로 전달합니다. 주문 당시 가격과 처리 결과를 반환합니다.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true)
+    public ApiResponse<GifticonPurchaseHistoryResponse> purchases(@UserId Long userId,
+            @RequestParam(required = false) @Positive Long cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return ApiResponse.success(purchaseService.history(userId, cursor, size));
     }
 
     @Operation(summary = "구매 확정", description = "legacy 운영에서는 기존 이메일 교환을 유지합니다. verified-phone 전환 후에는 인증된 본인 번호로만 교환하며 미인증 시 403/47301입니다. 번호 변경 시 재인증합니다. recipientPhone 입력은 허용하지 않으며 recipientEmail 생략 시 가입 이메일을 사용합니다.")

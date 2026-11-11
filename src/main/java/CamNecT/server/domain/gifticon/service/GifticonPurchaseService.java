@@ -2,6 +2,8 @@ package CamNecT.server.domain.gifticon.service;
 
 import CamNecT.server.domain.gifticon.dto.request.ConfirmGifticonPurchaseRequest;
 import CamNecT.server.domain.gifticon.dto.response.GifticonPurchaseConfirmResponse;
+import CamNecT.server.domain.gifticon.dto.response.GifticonPurchaseHistoryResponse;
+import org.springframework.data.domain.PageRequest;
 import CamNecT.server.domain.gifticon.model.GifticonProduct;
 import CamNecT.server.domain.gifticon.model.GifticonPurchase;
 import CamNecT.server.domain.gifticon.repository.GifticonProductRepository;
@@ -36,6 +38,15 @@ public class GifticonPurchaseService {
     private final UserReportPenaltyService userReportPenaltyService;
     private final GifticonEmailPolicy emailPolicy;
     private final PhoneVerificationProperties phoneProperties;
+
+    @Transactional(readOnly = true)
+    public GifticonPurchaseHistoryResponse history(Long userId, Long cursor, int size) {
+        var rows = purchaseRepository.findHistory(userId, cursor, PageRequest.of(0, size + 1));
+        if (rows.size() <= size) return new GifticonPurchaseHistoryResponse(rows, null);
+
+        var items = rows.subList(0, size);
+        return new GifticonPurchaseHistoryResponse(items, items.getLast().purchaseId());
+    }
 
     @Transactional
     public GifticonPurchaseConfirmResponse confirm(Long userId, ConfirmGifticonPurchaseRequest req) {
