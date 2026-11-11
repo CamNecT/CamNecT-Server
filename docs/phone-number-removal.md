@@ -129,7 +129,7 @@ sudo -E python3 scripts/check-phone-deployment.py --compose docker-compose.prod.
 
 전체 Java 테스트와 함께 번호 정규화, 이메일 전용 가입, 마이페이지에서 첫 번호 등록 시 미인증 저장, OTP 만료·재발송·5회 실패·재사용·계정 바인딩, 번호 변경 중 발송 경쟁, 동시 발송 예산, 월 경계, 교환 차단·반복 교환, 서명·공급자 오류·타임아웃을 검증한다. 테스트에서는 SENS를 모의 처리하여 실제 문자를 발송하지 않는다.
 
-`Phone verification tests` PR CI는 운영과 같은 MySQL 8.0.45의 일회용 데이터베이스를 사용한다. 동일한 인증·HTTP·동시성 테스트를 MySQL에서도 실행하고, 별도 DB에서 전체 Flyway V0~V20 적용 → 기존 계정/주문 생성 → V21/V22 적용 → 데이터 보존·제약·재실행 검증을 한다. 운영 데이터는 사용하지 않는다. MySQL URL 환경변수가 없는 로컬 실행에서는 이 추가 테스트가 명시적으로 건너뛰어진다. 배포 검사 Python 테스트도 실행한다.
+`CI / test` PR CI는 운영과 같은 MySQL 8.0.45의 일회용 데이터베이스를 사용한다. 동일한 인증·HTTP·동시성 테스트를 MySQL에서도 실행하고, 별도 DB에서 전체 Flyway V0~V20 적용 → 기존 계정/주문 생성 → V21/V22 적용 → 데이터 보존·제약·재실행 검증을 한다. 운영 데이터는 사용하지 않는다. MySQL URL 환경변수가 없는 로컬 실행에서는 이 추가 테스트가 명시적으로 건너뛰어진다. 배포 검사 Python 테스트도 실행한다.
 
 공식 자료: [요금](https://www.ncloud.com/charge/price/ko), [발신번호 등록](https://guide.ncloud-docs.com/docs/sens-callingno), [API 인증](https://api.ncloud-docs.com/docs/sens-overview), [SMS 발송](https://api.ncloud-docs.com/docs/sens-sms-send).
 
