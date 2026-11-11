@@ -4,6 +4,7 @@ import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -12,6 +13,10 @@ import java.util.Optional;
 
 @Repository
 public interface ExternalActivityRepository extends JpaRepository<ExternalActivity, Long>, ExternalActivityRepositoryCustom {
+
+    @Modifying
+    @Query(value = "UPDATE external_activities SET view_count = view_count + 1 WHERE activity_id = :id", nativeQuery = true)
+    int incrementViews(@Param("id") Long id);
 
     @Lock(LockModeType.PESSIMISTIC_READ)
     @Query("select e from ExternalActivity e where e.activityId = :id")

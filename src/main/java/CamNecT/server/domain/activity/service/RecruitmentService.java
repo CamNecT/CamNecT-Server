@@ -84,7 +84,8 @@ public class RecruitmentService {
         return recruitmentRepository.save(recruitment);
     }
 
-    public RecruitmentDetailResponse getRecruitmentDetail(Long currentUserId, Long recruitmentId) {
+    @Transactional
+    public RecruitmentDetailResponse getRecruitmentDetail(Long currentUserId, Long recruitmentId, boolean countView) {
         requireAuthenticatedUser(currentUserId);
 
         //모집글 조회
@@ -102,6 +103,9 @@ public class RecruitmentService {
         boolean isBookmarked = bookmarkRepository.existsByUserIdAndRecruitId(currentUserId, recruitmentId);
         boolean isMine = recruitment.getUserId().equals(currentUserId);
 
+        if (countView) {
+            recruitmentRepository.incrementViews(recruitmentId);
+        }
         return new RecruitmentDetailResponse(
                 author,
                 recruitment,

@@ -35,13 +35,34 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest
-@Import({PointService.class, QuerydslConfig.class})
+@Import({PointService.class, PointHistoryService.class, QuerydslConfig.class})
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class PointServiceConcurrencyIntegrationTest {
 
     @Autowired PointService pointService;
+    @Autowired PointHistoryService history;
+
+    @Test
+    void historyScopesBothPagesToTheCallerAndRequestedType() {
+        long userId = 9100000L;
+        pointService.earnPoint(userId, 100, PointEvent.signup(userId));
+        pointService.spendPoint(userId, 10, PointEvent.gifticonPurchase(userId, 7L));
+        pointService.earnPoint(userId + 1, 90, PointEvent.signup(userId + 1));
+        pointService.earnPoint(userId, 20, PointEvent.threeLikeReward(userId, 42L));
+        var type = CamNecT.server.global.point.model.TransactionType.EARN;
+        var first = history.list(userId, type, null, 1);
+        assertThat(first.items()).singleElement().satisfies(tx -> {
+            assertThat(tx.pointChange()).isEqualTo(20);
+            assertThat(tx.balanceAfter()).isEqualTo(110);
+        });
+        assertThat(first.nextCursor()).isEqualTo(first.items().getFirst().id());
+        var last = history.list(userId, type, first.nextCursor(), 1);
+        assertThat(last.items()).singleElement().satisfies(tx -> assertThat(tx.source()).isEqualTo(PointSource.SIGNUP));
+        assertThat(last.nextCursor()).isNull();
+        assertThat(history.list(userId, null, null, 20).items()).hasSize(3);
+    }
     @Autowired PointWalletRepository walletRepository;
     @Autowired PointTransactionRepository transactionRepository;
     @Autowired PlatformTransactionManager transactionManager;

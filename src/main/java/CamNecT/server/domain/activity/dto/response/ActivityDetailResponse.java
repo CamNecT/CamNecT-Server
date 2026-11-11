@@ -5,6 +5,7 @@ import CamNecT.server.domain.activity.dto.ExternalActivityDto;
 import CamNecT.server.domain.activity.dto.TeamRecruitmentDto;
 import CamNecT.server.domain.community.dto.AuthorDto;
 
+import CamNecT.server.global.tag.dto.TagDto;
 import java.util.List;
 
 public record ActivityDetailResponse(
@@ -13,6 +14,7 @@ public record ActivityDetailResponse(
         ExternalActivityDto activity,
         List<ExternalActivityAttachmentDto> attachment,
         List<Long> tagIds,
+        List<TagDto> tags,
         List<TeamRecruitmentDto> recruitmentList,
         Long bookmarkCount,
         boolean isBookmarked

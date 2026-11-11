@@ -15,6 +15,7 @@ import CamNecT.server.global.storage.dto.response.PresignUploadBatchResponse;
 import CamNecT.server.global.storage.dto.response.PresignUploadResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -77,9 +78,10 @@ public class ActivityController {
     @GetMapping("/{activityId}")
     public ApiResponse<ActivityDetailResponse> getActivityDetail(
             @UserId Long userId,
-            @PathVariable Long activityId
+            @PathVariable Long activityId,
+            HttpServletRequest request
     ) {
-        return ApiResponse.success(activityService.getActivityDetail(userId, activityId));
+        return ApiResponse.success(activityService.getActivityDetail(userId, activityId, "GET".equals(request.getMethod())));
     }
 
     @Operation(summary = "대외활동 삭제", description = "특정 대외활동을 삭제합니다.")

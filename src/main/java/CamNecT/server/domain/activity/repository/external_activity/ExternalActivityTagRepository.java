@@ -16,6 +16,13 @@ public interface ExternalActivityTagRepository extends JpaRepository<ExternalAct
     @Query("delete from ExternalActivityTag e where e.activity.activityId = :activityId")
     void deleteAllByActivityId(@Param("activityId") Long activityId);
 
+    @Query("""
+            select new CamNecT.server.global.tag.dto.TagDto(t.id, t.name)
+            from ExternalActivityTag a join a.tag t
+            where a.activity.activityId = :activityId order by t.id
+            """)
+    List<CamNecT.server.global.tag.dto.TagDto> findTagsForDetail(@Param("activityId") Long activityId);
+
     List<ExternalActivityTag> findAllByActivity_ActivityId(Long activityId);
     List<ExternalActivityTag> findAllByActivity_ActivityIdIn(List<Long> activityIds);
 }

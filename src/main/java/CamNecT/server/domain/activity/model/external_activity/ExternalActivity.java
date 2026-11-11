@@ -6,6 +6,8 @@ import CamNecT.server.domain.activity.model.enums.ActivityCategory;
 import CamNecT.server.domain.activity.model.enums.ActivityStatus;
 import CamNecT.server.domain.users.model.Users;
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.hibernate.annotations.ColumnDefault;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -24,6 +26,11 @@ public class ExternalActivity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "activity_id")
     private Long activityId;
+
+    @JsonIgnore
+    @ColumnDefault("0")
+    @Column(name = "view_count", nullable = false, insertable = false, updatable = false)
+    private long viewCount;
 
     @Column(name = "title", nullable = false, length = 200)
     private String title;
