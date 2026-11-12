@@ -1,0 +1,23 @@
+{
+  "model": {
+    "model2/prompt.txt": "aad6923f4d003d6735f789f3448599c824df32e919d94e012843862a7d3e6a5c",
+    "model2/select_tags.py": "c9577f26af1e8784b90cfabec6be5b95eedf7199bf13ef7c42e2e0a4107d10ec",
+    "model2/dictionary.json": "77a79b683cc0d1ae2d04edcf1aa8c69d0fec0ae08c56890f86a1d191078fefb8",
+    "prompt-neutral.txt": "446f33e484264755e92ba0d764872057e912cff1ee44415a5399b8825a6f3230",
+    "prompt-search.txt": "b5256229a1a5d46ea05e8841bf6a0bbd983bff3abfb4ae04ab1137cea9b0800d",
+    "final_reader.py": "092c93e76b7a9f60032322e22eb22bf00cb7b103e2a48003ecf97622e9353758",
+    "run_job.py": "a39cfed76362629ff5eab05e3d0f72aac408ef7efbb507554d7d2ac655935f2d",
+    "model/consensus.py": "fbfe40e39627f8aab5793a066e4ed30ee30733515f749bf82f62fcb4e94b6132",
+    "model/select_tags.py": "9ca8263d8d081eb70c0e5a32142665025e3dcc0d5c9a2e87061403367c400d9f"
+  },
+  "sampling_seed": 72310,
+  "tested_groups": "new stratified evaluation only; prior option/parallel notices and six old failures are development regression controls",
+  "acceptance": "micro precision > .95 AND micro recall > .85 on unmodified entire evaluation sample",
+  "fusion": "one specialist + two independent search-intent views; each canonical validated; tag and direct-role majority independently. Up to four public tags. Direct-role index up to 20.",
+  "secondary": "Report strict 3/3 unanimity for public tags with recall including every omitted tag. Role index always >=2 votes; default public tag result >=2 votes.",
+  "sample": {
+    "rows": 60,
+    "sources_sha256": "5854d9d4b80c6c70c1115e5e62842acf0c3ac79dc9dfabdadc4055bf22a31159",
+    "input_sha256": "b4cc0c9447526c6abb3d2fe0cd985e488e727b6fc7a553ce85ef5bef6cade362"
+  }
+}
