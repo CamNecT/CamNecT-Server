@@ -1,0 +1,16 @@
+[Unit]
+Description=Read completed CamNecT crawler imports for the 4084 tag bot
+After=network-online.target docker.service
+Wants=network-online.target
+OnSuccess=camnect-auto-tagbot.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -IB /opt/camnect-auto-tagbot/current/server/export_imports.py /var/lib/camnect-tag-input
+TimeoutStartSec=3min
+ProtectSystem=strict
+ReadWritePaths=/var/lib/camnect-tag-input
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+UMask=0027

@@ -1,0 +1,19 @@
+[Unit]
+Description=Assign offline tags to imported 4084 notices in the shadow ledger
+
+[Service]
+Type=oneshot
+User=camnect-tagbot
+Group=camnect-tagbot
+ExecStart=/usr/bin/python3 -EB /opt/camnect-auto-tagbot/current/server_worker.py --input /var/lib/camnect-tag-input --state /var/lib/camnect-auto-tagbot
+StateDirectory=camnect-auto-tagbot
+StateDirectoryMode=0750
+TimeoutStartSec=3min
+PrivateNetwork=true
+RestrictAddressFamilies=AF_UNIX
+InaccessiblePaths=-/run/docker.sock -/etc/camnect
+ProtectHome=true
+ProtectSystem=strict
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077

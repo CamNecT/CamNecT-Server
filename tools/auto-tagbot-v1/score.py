@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def score(report, gold):
-    rows = {row["id"]: row for row in report["notices"]}
+    rows = {row["id"]: row for row in report["notices"] if row.get("cohort") == "live"}
     if not isinstance(gold, dict) or not gold:
         raise ValueError("Expected a nonempty JSON object mapping article ID to tag IDs")
     if report.get("meta", {}).get("smoke"):

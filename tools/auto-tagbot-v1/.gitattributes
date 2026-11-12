@@ -1,3 +1,7 @@
 *.py text eol=lf
 *.ps1 text eol=lf
 *.zip binary
+server/*.json -text
+*.service text eol=lf
+*.timer text eol=lf
+*.sh text eol=lf

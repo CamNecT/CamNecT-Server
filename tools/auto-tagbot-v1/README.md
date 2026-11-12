@@ -1,23 +1,15 @@
 # 자동부여봇 v1.0
 
-건국대학교 취업팀 4084 게시판을 읽고 새 공고에 대한 태그 후보와 판정 근거를 로컬에 저장한다. Windows 작업 이름은 `CamNecT-AutoTagBot-v1`이다. 현재 사용자로 로그인한 PC에서 30분 간격과 로그인 시점에 실행된다. 실행에는 해당 계정의 Codex 로그인과 HTTPS 접근이 필요하다.
+운영 서버가 크롤러의 4084 등록 영수증과 연결된 공고를 5분마다 조회한다. 독립적인 규칙 판독기가 각 공고의 제목·본문에서 태그와 실제 모집 직무의 근거를 찾는다. 이미지를 읽는 기능은 없다. 최초 처리한 기존 공고는 `bootstrap`, 이후 새로 등록된 공고는 `live`로 표시한다. 수정 수집본도 revision과 content hash로 구분해 재처리한다.
 
-## 수집과 판정
+## 서버에서 읽고 쓰는 데이터
 
-처음 설치할 때 전체 게시판 목록을 읽어 기등록 ID를 기록한다. 이후 전체 목록에 새로 나타난 ID만 큐에 넣는다. 중복 게시와 재시작은 게시물 ID를 기준으로 처리한다. 같은 ID의 본문 수정은 재판정 대상에서 제외한다. 포스터나 첨부파일을 읽는 기능은 없으며, 추출된 본문이 비면 제목만 사용한다.
+- `camnect-tag-imports.service`가 서버의 기존 연결 설정을 사용해 운영 DB에서 읽기 전용 트랜잭션을 연다. 대상은 `activity_imports`의 `KONKUK_JOB_4084#` 영수증과 대응하는 `external_activities`뿐이다. 고정 SELECT로 /var/lib/camnect-tag-input에 입력 스냅샷을 만들고 성공 시 판독기를 호출한다.
+- `camnect-auto-tagbot.service`는 전용 비권한 계정과 격리된 네트워크에서 작동한다. 모델·API 키·Docker 접근 권한이 필요 없다. `/var/lib/camnect-auto-tagbot/candidates.sqlite3`에 공고별 버전과 부여 태그를 기록하고 같은 폴더의 `candidates.json`으로 현재 결과를 내보낸다. 운영 앱에서 사용자에게 보이는 태그는 이 버전에서 갱신하지 않는다.
+- `assigned_tag_ids`에는 판독기의 제안 중 로컬 개발 판정자 3명이 승인한 조건에 일치한 태그만 들어간다. 정확히 2명이 승인한 조건은 `review_candidates`에 담는다. 나머지 제안은 `other_suggestions`, 명시된 직무는 `role_index`에 원문 인용과 함께 보존한다. 승인 수는 **규칙 개발 단계**의 표다. 신규 공고의 런타임 판정 횟수를 뜻하지 않는다.
 
-각 공고의 제목·본문을 고정한 후 `gpt-6-astra` 세 세션에 각각 동결된 프롬프트를 보낸다. 세 판정이 모두 유효해야 후보를 공개한다. 공고별 태그마다 3표는 `auto_candidates`, 정확히 2표는 `review_candidates`에 남긴다. 1표는 원본 투표 원장에서만 확인할 수 있다. 동결 판독기의 공개 태그 최대 4개와 실제 모집 직무 인덱스는 별도 필드로 보존한다. 실패한 표는 이후 실행에서 다시 요청하며, 완료된 표와 원문은 재사용한다.
+## 개발과 배포
 
-## 설치 및 확인
+로컬에서 `python -B -m unittest discover -s tools/auto-tagbot-v1 -v`로 검사한다. `offline_reader.py`는 근거 추출과 태그 제안을 담당하고 동결된 `frozen/model2/select_tags.py`와 사전을 사용한다. `server/policy.json`을 변경하면 개발 PC에서 `validate_policy.py --codex <실행파일> --out server/policy-review.json`으로 규칙을 다시 검토한다. 정밀도와 재현율은 별도 정답 표본으로 측정한다. `score.py candidates.json gold.json`은 독립 라벨을 준 신규 공고의 자동 후보와 검수 포함 후보를 각각 채점한다. gold.json은 공고 ID에서 태그 ID 배열로의 매핑이다.
 
-저장소에 포함된 `install.ps1 -Python <Windows-python.exe> -Codex <codex.exe>`를 실행한다. Python은 Windows 인증서 저장소를 사용하는 3.11 이상과 같은 폴더의 pythonw.exe가 필요하다. 설치 프로그램은 실행 파일을 현재 사용자의 `%LOCALAPPDATA%\CamNecT\AutoTagBot\1.0`에 복사한다. 같은 버전의 실행 파일이 달라지면 설치를 중단한다. 운영 서버 연결 설정은 사용하지 않는다.
-
-- 예약 실행 결과는 `Get-ScheduledTaskInfo -TaskName CamNecT-AutoTagBot-v1`으로 확인한다.
-- `%LOCALAPPDATA%\CamNecT\AutoTagBot\state-4084-v1\candidates.json`에 원문 URL, 공고별 후보, 인용 근거 및 미완료 사유가 있다. `worker.log`에 수집 실패와 실행 시각을 남긴다. 같은 폴더의 `candidates.sqlite3`가 원문·판정자별 응답·세션 ID를 보관한다.
-- 신규 공고 성능을 측정할 때 원문만 보고 독립 정답을 먼저 확정한다. 정답 JSON의 키에는 공고 ID, 값에는 태그 ID 배열을 넣고 태그가 없는 공고도 빈 배열로 포함한다. `python score.py candidates.json gold.json`은 3표 후보와 2표 이상 후보 각각의 TP·FP·FN, 정밀도·재현율, 누락·과잉 태그를 출력한다.
-- 특정 기존 공고의 설치 점검은 `python worker.py smoke --state <별도폴더> --id <4084게시물번호> --codex <codex.exe>`로 실행한다. 이 결과는 신규 공고 성능 집계에서 제외한다.
-- 중지는 `Disable-ScheduledTask -TaskName CamNecT-AutoTagBot-v1`, 재개는 `Enable-ScheduledTask -TaskName CamNecT-AutoTagBot-v1`로 한다. 원장은 다음 실행에 이어 쓴다.
-
-## 회귀 검사
-
-`python -B -m unittest discover -s tools/auto-tagbot-v1 -v`로 동결 규칙, 투표 분리, 기준점, 실패 후 재시도, 지표 계산을 검사한다. `frozen/final-reader-lock.json`과 판독기 파일들의 SHA-256을 실행 시 검증한다. `source-libs.zip`은 공식 게시판을 읽는 파서와 의존성을 포함한다. `build_source_libs.py`가 그 빌드 입력과 버전을 기록한다.
+배포 패키지에는 `server_worker.py`, `offline_reader.py`, 동결 사전·선택기, `server/`만 담는다. 서버의 /opt/camnect-auto-tagbot/releases 아래 커밋별 경로에 풀고 그 경로에서 `sudo sh server/install.sh`를 실행한다. `camnect-auto-tagbot.timer`의 다음 실행 시각과 두 서비스의 `Result`, `ExecMainStatus`를 확인한다. 처리를 멈추려면 `sudo systemctl disable --now camnect-auto-tagbot.timer`를 실행한다. 앱이나 기존 크롤러를 재시작할 필요가 없다.

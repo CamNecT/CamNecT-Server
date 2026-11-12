@@ -1,0 +1,135 @@
+{
+  "scope": "development_rule_review",
+  "sha256": "d03fc51193b5d46429bcc8a3a3c75035dff4be38807ecaf6b775b6bade1c3374",
+  "reviews": [
+    {
+      "view": "구직자 검색 의도와 원문 근거",
+      "session": "01a1ce3d-5568-7380-a6df-d28da2ac6fd2",
+      "model": "gpt-6-astra",
+      "rules": {
+        "job-preparation-event": {
+          "approve": true,
+          "reason": "취업 준비 콘서트·박람회·캠프와 채용 설명회는 구직자가 취업을 준비하거나 채용 정보를 얻기 위해 찾는 행사다."
+        },
+        "regular-hiring": {
+          "approve": true,
+          "reason": "정규직·신입사원·경력사원을 채용하거나 모집한다는 제목은 실제 일자리를 찾는 구직자의 의도에 직접 부합한다."
+        },
+        "intern-opening": {
+          "approve": true,
+          "reason": "제목에서 인턴을 모집·채용 대상으로 명시하고 설명회나 참여기업 모집 등 흔한 혼동 사례도 제외한다."
+        },
+        "interview-workshop": {
+          "approve": true,
+          "reason": "모의 면접은 면접 연습 기회를, 면접 특강·코칭·클리닉·캠프는 면접 준비 기회를 직접 나타낸다."
+        },
+        "supporter-recruitment": {
+          "approve": true,
+          "reason": "서포터즈 또는 서포터스를 모집·선발한다는 표현은 지원자가 신청할 수 있는 활동과 모집 대상을 함께 명시한다."
+        },
+        "contest-open": {
+          "approve": true,
+          "reason": "접수 중인지는 제목만으로 확정할 수 없어도 ‘공모전’은 행사 유형을 직접 나타내며 결과 발표·시상·심사위원 관련 공고도 제외한다."
+        },
+        "role-in-vacancy-title": {
+          "approve": false,
+          "reason": "‘디자인 동아리 회원 모집’이나 ‘마케팅팀 사무보조 채용’처럼 제목에 인용어가 있어도 활동 분야나 소속 부서를 실제 모집 직무로 오인할 수 있다."
+        },
+        "mentoring-program": {
+          "approve": true,
+          "reason": "멘토링 프로그램 안내와 멘토·멘티 모집 또는 참여 신청은 모두 멘토링 활동을 찾는 검색 의도에 부합한다."
+        },
+        "startup-program": {
+          "approve": true,
+          "reason": "창업 캠프·경진대회·교육·특강·지원사업은 창업을 준비하거나 사업 지원을 받으려는 사람이 찾는 기회를 구체적으로 나타낸다."
+        }
+      }
+    },
+    {
+      "view": "오분류와 반례",
+      "session": "01a1ce3d-555b-7cd3-831b-a62641ac06bd",
+      "model": "gpt-6-astra",
+      "rules": {
+        "job-preparation-event": {
+          "approve": true,
+          "reason": "취업준비 콘서트, 취업박람회, 채용설명회, 취업캠프는 구직자의 취업 준비나 채용 정보 탐색을 지원하므로 취업 태그의 근거가 된다."
+        },
+        "regular-hiring": {
+          "approve": true,
+          "reason": "정규직·신입사원·경력사원을 채용하거나 모집한다는 표현은 일자리 지원 기회를 직접 나타낸다."
+        },
+        "intern-opening": {
+          "approve": true,
+          "reason": "인턴과 모집·채용이 맞닿은 표현은 통상 인턴으로 일할 사람을 구한다는 뜻이며, 참여 기업 모집이나 채용설명회 등 주요 혼동 사례도 제외된다."
+        },
+        "interview-workshop": {
+          "approve": true,
+          "reason": "모의면접과 면접 특강·코칭·클리닉·캠프는 모두 면접 연습이나 지도를 핵심 활동으로 명시한다."
+        },
+        "supporter-recruitment": {
+          "approve": true,
+          "reason": "서포터즈 또는 서포터스를 모집·선발한다는 표현이 활동 유형과 모집 대상을 직접 명시한다."
+        },
+        "contest-open": {
+          "approve": true,
+          "reason": "‘공모전’은 행사 유형을 직접 나타내고 시상·수상·심사위원 관련 공고도 제외하므로 공모전 태그를 추천할 근거가 된다."
+        },
+        "role-in-vacancy-title": {
+          "approve": false,
+          "reason": "‘개발자 커뮤니티 운영 매니저 채용’에서 ‘개발자’도 제목에 그대로 있지만 실제 채용 직무는 운영 매니저이므로 인용 일치만으로 모집 직무를 특정할 수 없다."
+        },
+        "mentoring-program": {
+          "approve": true,
+          "reason": "멘토링 프로그램이나 신청을 안내하는 경우와 멘토·멘티 등 참여자를 모집하는 경우 모두 멘토링 활동을 직접 가리킨다."
+        },
+        "startup-program": {
+          "approve": true,
+          "reason": "창업이 캠프·경진대회·교육·특강·지원사업을 직접 수식해 해당 프로그램의 주제가 창업임을 보여 준다."
+        }
+      }
+    },
+    {
+      "view": "취업팀 운영과 직무 분류",
+      "session": "01a1ce3d-553d-7872-ab64-bfb1fa44b101",
+      "model": "gpt-6-astra",
+      "rules": {
+        "job-preparation-event": {
+          "approve": true,
+          "reason": "취업박람회와 채용설명회 등은 행사 목적이 취업 준비나 채용 정보 제공이므로 취업 태그를 추천할 근거가 된다."
+        },
+        "regular-hiring": {
+          "approve": true,
+          "reason": "정규직·신입사원·경력사원이 채용 또는 모집의 대상으로 명시되고 인턴이나 채용 준비 행사도 제외되므로 취업 태그를 추천할 근거가 된다."
+        },
+        "intern-opening": {
+          "approve": true,
+          "reason": "인턴을 모집·채용 대상으로 명시하고 설명회나 참여 기업 모집 등도 제외하므로 인턴십 태그를 추천할 근거가 된다."
+        },
+        "interview-workshop": {
+          "approve": true,
+          "reason": "모의면접은 면접 연습을, 면접 특강·코칭·클리닉·캠프는 면접을 주제로 한 활동을 직접 가리킨다."
+        },
+        "supporter-recruitment": {
+          "approve": true,
+          "reason": "서포터즈 또는 서포터스를 모집·선발 대상으로 명시하므로 서포터즈 태그를 추천할 근거가 된다."
+        },
+        "contest-open": {
+          "approve": true,
+          "reason": "제목이 공모전을 직접 명시하고 결과 발표·시상·수상작·심사위원 등 주요 후속 공지를 제외하므로 공모전 태그를 추천할 근거가 된다."
+        },
+        "role-in-vacancy-title": {
+          "approve": false,
+          "reason": "‘마케팅 동아리 신입 부원 모집’도 조건을 통과하므로 직무 관련 인용문이 제목에 있어도 그 표현이 실제 채용 직무를 가리킨다고 판단하기 어렵다."
+        },
+        "mentoring-program": {
+          "approve": true,
+          "reason": "멘토링을 프로그램명으로 명시하거나 멘토·멘티 모집과 참여 신청을 멘토링에 직접 연결하므로 멘토링 태그를 추천할 근거가 된다."
+        },
+        "startup-program": {
+          "approve": true,
+          "reason": "창업을 캠프·경진대회·교육·특강·지원사업의 주제로 명시하므로 창업 태그를 추천할 근거가 된다."
+        }
+      }
+    }
+  ]
+}
