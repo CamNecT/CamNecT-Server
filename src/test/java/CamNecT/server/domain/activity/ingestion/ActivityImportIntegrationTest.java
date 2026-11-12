@@ -2,6 +2,11 @@ package CamNecT.server.domain.activity.ingestion;
 
 import CamNecT.server.domain.activity.model.enums.ActivityCategory;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityRepository;
+import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityTagRepository;
+import CamNecT.server.global.tag.model.Tag;
+import CamNecT.server.global.tag.model.TagCategory;
+import CamNecT.server.global.tag.repository.TagCategoryRepository;
+import CamNecT.server.global.tag.repository.TagRepository;
 import CamNecT.server.domain.activity.service.ActivityService;
 import CamNecT.server.domain.users.model.*;
 import CamNecT.server.domain.users.repository.*;
@@ -14,6 +19,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -37,6 +43,10 @@ class ActivityImportIntegrationTest {
     @Autowired ObjectMapper mapper;
     @Autowired ActivityImportRepository imports;
     @Autowired ExternalActivityRepository activities;
+    @Autowired ExternalActivityTagRepository activityTags;
+    @Autowired TagRepository tags;
+    @Autowired TagCategoryRepository categories;
+    @Autowired JdbcTemplate jdbc;
     @Autowired UserRepository users;
     @Autowired UserProfileRepository profiles;
     @Autowired ActivityService service;
@@ -47,10 +57,14 @@ class ActivityImportIntegrationTest {
     @MockitoBean ActivityImportProperties properties;
     @LocalServerPort int port;
     long authorId;
+    long tagId;
 
     @BeforeEach void setup() {
         imports.deleteAll();
+        activityTags.deleteAll();
         activities.deleteAll();
+        var category = categories.save(TagCategory.builder().name("검색").code("test-" + UUID.randomUUID().toString().substring(0, 12)).build());
+        tagId = tags.save(Tag.builder().name("취업").category(category).build()).getId();
         authorId = new TransactionTemplate(transactionManager).execute(status -> {
             var user = users.save(Users.builder().username("crawler-" + UUID.randomUUID()).name("캠넥트 활동 안내")
                     .passwordHash("not-a-login-credential").role(UserRole.ADMIN).status(UserStatus.ACTIVE).build());
@@ -65,6 +79,7 @@ class ActivityImportIntegrationTest {
     private Map<String, Object> payload(long revision) {
         var value = new LinkedHashMap<String, Object>();
         value.put("articleId", "1210911");
+        value.put("tagIds", List.of(tagId));
         value.put("revision", revision);
         value.put("contentHash", ActivityImportAuth.sha256(("revision" + revision).getBytes(StandardCharsets.UTF_8)));
         value.put("title", "[수영구청] 대학생 경진대회");
@@ -113,6 +128,7 @@ class ActivityImportIntegrationTest {
         long now = Instant.now().getEpochSecond();
         var student = payload(1);
         student.remove("thumbnail");
+        student.remove("tagIds");
         assertThat(postTo(student, SECRET, now, path, ActivityImportAuth.PATH).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         var created = postTo(student, SECRET, now, path, path);
         assertThat(created.getBody().at("/data/status").asText()).isEqualTo("CREATED");
@@ -122,6 +138,7 @@ class ActivityImportIntegrationTest {
         assertThat(postTo(student, SECRET, now, path, path).getBody().at("/data/status").asText()).isEqualTo("UNCHANGED");
         var extended = payload(2);
         extended.remove("thumbnail");
+        extended.remove("tagIds");
         extended.put("applyEndDate", "2030-11-02");
         extended.put("applyEndAt", "2030-11-02T09:00:00+09:00");
         assertThat(postTo(extended, SECRET, now, path, path).getBody().at("/data/status").asText()).isEqualTo("UPDATED");
@@ -138,6 +155,7 @@ class ActivityImportIntegrationTest {
         assertThat(listing.getContent()).hasSize(1);
         assertThat(listing.getContent().getFirst().activityId()).isEqualTo(id);
         var detail = service.getActivityDetail(authorId, id, true);
+        assertThat(activityTags.findTagsForDetail(id)).extracting(tag -> tag.id()).containsExactly(tagId);
         assertThat(detail.activity().getApplyEndAt()).isEqualTo(Instant.parse("2030-10-30T09:00:00Z"));
         assertThat(detail.author().userId()).isEqualTo(authorId);
         assertThat(activities.findById(id).orElseThrow().getViewCount()).isEqualTo(1);
@@ -183,10 +201,39 @@ class ActivityImportIntegrationTest {
         assertThat(imports.count()).isEqualTo(1);
     }
 
+    @Test void missingInactiveOrUnknownTagsNeverCreatePublicActivity() throws Exception {
+        var feed = payload(1);
+        feed.remove("tagIds");
+        assertThat(post(feed).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        for (var ids : List.of(List.<Long>of(), List.of(Long.MAX_VALUE), List.of(tagId, tagId))) {
+            feed.put("tagIds", ids);
+            assertThat(post(feed).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        }
+        new TransactionTemplate(transactionManager).executeWithoutResult(tx -> tags.findById(tagId).orElseThrow().deactivate());
+        assertThat(post(payload(1)).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(activities.count()).isZero();
+        assertThat(imports.count()).isZero();
+        assertThat(activityTags.count()).isZero();
+        var list = readAsUser("/api/activity?category=EXTERNAL&size=20");
+        assertThat(list.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(list.getBody().at("/data/content").size()).isZero();
+        assertThat(readAsUser("/api/activity/" + Long.MAX_VALUE).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test void preservesManualTagEditsAndRejectsLegacyWriter() throws Exception {
+        String legacy = "/api/internal/activity-imports/konkuk-job";
+        assertThat(postTo(payload(1), SECRET, Instant.now().getEpochSecond(), legacy, legacy)
+                .getStatusCode().is2xxSuccessful()).isFalse();
+        assertThat(post(payload(1)).getStatusCode()).isEqualTo(HttpStatus.OK);
+        activityTags.deleteAll();
+        assertThat(post(payload(2)).getBody().at("/data/status").asText()).isEqualTo("MANUAL_OVERRIDE");
+    }
+
     @Test void doesNotOverwriteManualChangesOrRecreateDeletedActivities() throws Exception {
         long id = post(payload(1)).getBody().at("/data/activityId").asLong();
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> activities.findById(id).orElseThrow().close());
         assertThat(post(payload(2)).getBody().at("/data/status").asText()).isEqualTo("MANUAL_OVERRIDE");
+        activityTags.deleteAll();
         activities.deleteById(id);
         assertThat(post(payload(3)).getBody().at("/data/status").asText()).isEqualTo("DELETED");
         assertThat(activities.count()).isZero();
@@ -249,6 +296,7 @@ class ActivityImportIntegrationTest {
         assertThat(importService.expireImported(source, Instant.parse("2031-01-01T00:00:00Z"))).isFalse();
         assertThat(activities.findById(id).orElseThrow().getStatus().name()).isEqualTo("OPEN");
         assertThat(post(payload(2)).getBody().at("/data/status").asText()).isEqualTo("MANUAL_OVERRIDE");
+        activityTags.deleteAll();
         activities.deleteById(id);
         assertThat(importService.expireImported(source, Instant.parse("2031-01-01T00:00:00Z"))).isFalse();
         assertThat(imports.findById(source)).isPresent();
@@ -298,10 +346,21 @@ class ActivityImportIntegrationTest {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "CRAWLER_LIVE_CAPTURE", matches = "true")
-    void actualPythonPublisherUploadsAllCapturedArticlesToThisTestServer() throws Exception {
-        var builder = new ProcessBuilder("crawlers/konkuk-job/.venv/Scripts/python.exe", "-m", "konkuk_job",
-                "--data-dir", "crawlers/konkuk-job/data/smoke", "--publish-only", "--max-articles", "49", "--allow-local-api");
-        builder.environment().put("PYTHONPATH", Path.of("crawlers/konkuk-job/src").toAbsolutePath().toString());
+    void actualPythonPublisherUploadsOnlyTaggedCapturedArticlesToThisTestServer() throws Exception {
+        // Match the real reader's vocabulary in this disposable H2 database.
+        long category = tags.findById(tagId).orElseThrow().getCategory().getId();
+        var dictionary = mapper.readTree(Path.of("tools/auto-tagbot-v1/frozen/model2/dictionary.json").toFile());
+        dictionary.fields().forEachRemaining(tag -> jdbc.update(
+                "MERGE INTO tags (tag_id,name,tag_category_id,active,created_at) KEY(tag_id) VALUES (?,?,?,true,CURRENT_TIMESTAMP)",
+                Long.valueOf(tag.getKey()), tag.getValue().asText(), category));
+        var builder = new ProcessBuilder(System.getenv().getOrDefault("CAMNECT_TEST_PYTHON",
+                "crawlers/konkuk-job/.venv/Scripts/python.exe"), "-m", "konkuk_job", "--data-dir",
+                System.getenv().getOrDefault("CAMNECT_TEST_CAPTURE_DIR", "crawlers/konkuk-job/data/smoke"),
+                "--publish-only", "--max-articles", "49", "--allow-local-api");
+        String readerDir = Objects.requireNonNull(System.getenv("CAMNECT_TEST_READER_PATH"),
+                "Set CAMNECT_TEST_READER_PATH to the packaged offline reader directory for the capture test");
+        builder.environment().put("PYTHONPATH", Path.of("crawlers/konkuk-job/src").toAbsolutePath() + java.io.File.pathSeparator + readerDir);
+        builder.environment().put("JOB_TAG_PUBLICATION_MODE", "tagged");
         builder.environment().put("CAMNECT_API_BASE_URL", "http://127.0.0.1:" + port);
         builder.environment().put("CAMNECT_IMPORT_SECRET", SECRET);
         builder.redirectErrorStream(true);
@@ -309,20 +368,26 @@ class ActivityImportIntegrationTest {
         var process = builder.start();
         assertThat(process.waitFor(180, TimeUnit.SECONDS)).isTrue();
         assertThat(process.exitValue()).withFailMessage(Files.readString(Path.of("build/crawler-live-publication.log"))).isZero();
-        assertThat(imports.count()).isEqualTo(49);
-        assertThat(activities.count()).isEqualTo(49);
-        assertThat(service.getActivities(authorId, ActivityCategory.EXTERNAL, null, null, "LATEST", PageRequest.of(0, 100)).getContent()).hasSize(49);
+        var log = Path.of("build/crawler-live-publication.log");
+        JsonNode results = mapper.readTree(Files.readAllLines(log).getFirst()).get("publicationResults");
+        int created = results.path("CREATED").asInt();
+        assertThat(created).isPositive();
+        assertThat(created + results.path("AWAITING_TAGS").asInt()).isEqualTo(49);
+        assertThat(imports.count()).isEqualTo(created);
+        assertThat(activities.count()).isEqualTo(created);
+        assertThat(service.getActivities(authorId, ActivityCategory.EXTERNAL, null, null, "LATEST", PageRequest.of(0, 100)).getContent()).hasSize(created);
         var listed = readAsUser("/api/activity?category=EXTERNAL&size=100");
         assertThat(listed.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(listed.getBody().at("/data/content").size()).isEqualTo(49);
+        assertThat(listed.getBody().at("/data/content").size()).isEqualTo(created);
         for (var item : activities.findAll()) {
+            assertThat(activityTags.findTagsForDetail(item.getActivityId())).isNotEmpty();
             assertThat(service.getActivityDetail(authorId, item.getActivityId(), true).activity().getOfficialUrl()).contains("job.konkuk.ac.kr");
         }
         // A complete second delivery must be idempotent through the real HTTP boundary.
         process = builder.start();
         assertThat(process.waitFor(180, TimeUnit.SECONDS)).isTrue();
         assertThat(process.exitValue()).isZero();
-        assertThat(activities.count()).isEqualTo(49);
-        assertThat(Files.readString(Path.of("build/crawler-live-publication.log"))).contains("UNCHANGED");
+        assertThat(activities.count()).isEqualTo(created);
+        assertThat(mapper.readTree(Files.readAllLines(log).getFirst()).at("/publicationResults/UNCHANGED").asInt()).isEqualTo(created);
     }
 }

@@ -4,7 +4,10 @@ import CamNecT.server.domain.activity.dto.request.AdminActivityRequest;
 import CamNecT.server.domain.activity.model.enums.ActivityCategory;
 import CamNecT.server.domain.activity.model.enums.ActivityStatus;
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
+import CamNecT.server.domain.activity.model.external_activity.ExternalActivityTag;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityRepository;
+import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityTagRepository;
+import CamNecT.server.global.tag.repository.TagRepository;
 import CamNecT.server.domain.users.model.UserRole;
 import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
@@ -33,6 +36,8 @@ public class ActivityImportService {
     private final ActivityImportProperties properties;
     private final ActivityImportRepository imports;
     private final ExternalActivityRepository activities;
+    private final TagRepository tags;
+    private final ExternalActivityTagRepository activityTags;
     private final UserRepository users;
     private final FileStorage files;
     private final ObjectMapper mapper;
@@ -51,13 +56,18 @@ public class ActivityImportService {
             throw new CustomException(ErrorCode.BAD_REQUEST);
         // One configured author row serializes imports, including the first insertion of a source ID.
         var author = lockAuthor();
+        List<Long> tagIds = request.tagIds() == null ? List.of() : request.tagIds();
+        if ((student && !tagIds.isEmpty()) || (!student && (tagIds.isEmpty()
+                || new HashSet<>(tagIds).size() != tagIds.size()
+                || tags.findExistingActiveIds(tagIds).size() != tagIds.size())))
+            throw new CustomException(ErrorCode.BAD_REQUEST);
         String sourceId = (student ? "KONKUK_STUDENT_238#" : "KONKUK_JOB_4084#") + request.articleId();
         if (student && request.thumbnail() != null) throw new CustomException(ErrorCode.BAD_REQUEST);
         var entry = imports.findByIdForUpdate(sourceId).orElse(null);
         ExternalActivity activity = entry == null ? null : activities.findByIdForUpdate(entry.getActivityId()).orElse(null);
         if (entry != null) {
             if (activity == null) return new Result(entry.getActivityId(), "DELETED", entry.getSourceRevision());
-            if (!entry.getManagedHash().equals(managedHash(activity)))
+            if (!entry.getManagedHash().equals(managedHash(activity, student)))
                 return new Result(activity.getActivityId(), "MANUAL_OVERRIDE", entry.getSourceRevision());
             if (request.revision() < entry.getSourceRevision())
                 return new Result(activity.getActivityId(), "STALE", entry.getSourceRevision());
@@ -67,8 +77,10 @@ public class ActivityImportService {
         boolean created = activity == null;
         boolean same = !created && entry.getContentHash().equals(request.contentHash());
         if (same) {
+            if (!student && !new HashSet<>(tagIds).equals(new HashSet<>(storedTagIds(activity))))
+                throw new CustomException(ErrorCode.CONFLICT);
             if (expired(activity.getApplyEndDate(), activity.getApplyEndAt(), Instant.now())) activity.close();
-            entry.applied(request.revision(), request.contentHash(), managedHash(activity), entry.getThumbnailHash());
+            entry.applied(request.revision(), request.contentHash(), managedHash(activity, student), entry.getThumbnailHash());
             return new Result(activity.getActivityId(), "UNCHANGED", request.revision());
         }
         byte[] thumbnail = validateThumbnail(request.thumbnail());
@@ -93,7 +105,8 @@ public class ActivityImportService {
         Instant deadline = request.applyEndAt() == null ? null : request.applyEndAt().toInstant();
         activity.applyImported(payload, deadline, expired(request.applyEndDate(), deadline, Instant.now())
                 ? ActivityStatus.CLOSED : ActivityStatus.OPEN);
-        entry.applied(request.revision(), request.contentHash(), managedHash(activity), imageHash);
+        if (!student) replaceTags(activity, tagIds);
+        entry.applied(request.revision(), request.contentHash(), managedHash(activity, student), imageHash);
         imports.save(entry);
         return new Result(activity.getActivityId(), created ? "CREATED" : "UPDATED", request.revision());
     }
@@ -107,11 +120,12 @@ public class ActivityImportService {
         var entry = imports.findByIdForUpdate(sourceId).orElse(null);
         if (entry == null) return false;
         var activity = activities.findByIdForUpdate(entry.getActivityId()).orElse(null);
+        boolean student = sourceId.startsWith("KONKUK_STUDENT_238#");
         if (activity == null || activity.getStatus() != ActivityStatus.OPEN
-                || !entry.getManagedHash().equals(managedHash(activity))
+                || !entry.getManagedHash().equals(managedHash(activity, student))
                 || !expired(activity.getApplyEndDate(), activity.getApplyEndAt(), now)) return false;
         activity.close();
-        entry.refreshManagedHash(managedHash(activity));
+        entry.refreshManagedHash(managedHash(activity, student));
         return true;
     }
 
@@ -133,13 +147,34 @@ public class ActivityImportService {
         return author;
     }
 
-    private String managedHash(ExternalActivity activity) {
+    private List<Long> storedTagIds(ExternalActivity activity) {
+        return activityTags.findTagsForDetail(activity.getActivityId()).stream().map(tag -> tag.id()).toList();
+    }
+
+    private void replaceTags(ExternalActivity activity, List<Long> ids) {
+        var missing = new LinkedHashSet<>(ids);
+        for (var old : activityTags.findAllByActivity_ActivityId(activity.getActivityId())) {
+            if (!missing.remove(old.getTag().getId())) activityTags.delete(old);
+        }
+        for (Long id : missing) {
+            activityTags.save(ExternalActivityTag.builder().activity(activity).tag(tags.getReferenceById(id)).build());
+        }
+    }
+
+    private String managedHash(ExternalActivity activity, boolean student) {
         try {
-            return ActivityImportAuth.sha256(mapper.writeValueAsBytes(Arrays.asList(activity.getTitle(),
+            List<Object> values = new ArrayList<>(Arrays.asList(activity.getTitle(),
                     activity.getCategory(), activity.getOrganizer(), activity.getContext(), activity.getContextTitle(),
                     activity.getApplyStartDate(), activity.getApplyEndDate(), activity.getApplyEndAt(),
                     activity.getOfficialUrl(), activity.getThumbnailKey(), activity.getStatus(),
-                    activity.getTargetDescription(), activity.getResultAnnounceDate())));
+                    activity.getTargetDescription(), activity.getResultAnnounceDate()));
+            // Preserve the old hash for existing zero-tag imports and student notices.
+            // Manual tag edits on a managed job change the hash and block replacement.
+            if (!student) {
+                List<Long> ids = storedTagIds(activity);
+                if (!ids.isEmpty()) values.add(ids);
+            }
+            return ActivityImportAuth.sha256(mapper.writeValueAsBytes(values));
         } catch (IOException exception) { throw new IllegalStateException(exception); }
     }
 

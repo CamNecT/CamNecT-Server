@@ -15,6 +15,36 @@ from test_crawler import detail, listing
 
 
 class PublisherTests(unittest.TestCase):
+    def publisher(self, *args, **kwargs):
+        kwargs.setdefault('job_mode', 'tagged')
+        kwargs.setdefault('reader_version', '1.0')
+        kwargs.setdefault('reader', lambda row: {'assigned_tag_ids': [107], 'auto_candidates': [
+            {'tag_id': 107, 'evidence': row['title']}]})
+        return Publisher(*args, **kwargs)
+
+    def test_shadow_archives_decision_without_publishing_or_replacing_receipt(self):
+        opener = Mock()
+        previous = {'activityId': 7, 'status': 'CREATED'}
+        self.store.save_publication('1', previous)
+        # Empty URL and secret work in shadow: it cannot open HTTP connections.
+        receipt = self.publisher('', '', opener=opener, job_mode='shadow').publish(self.record, self.meta, self.store)
+        self.assertEqual('SHADOW_TAGGED', receipt['status'])
+        self.assertEqual([107], json.loads(self.store.read_bytes(receipt['decisionKey']))['result']['assigned_tag_ids'])
+        self.assertEqual(previous, self.store.get_publication('1'))
+        opener.open.assert_not_called()
+
+    def test_empty_tags_and_absent_evidence_prevent_real_publication(self):
+        opener = Mock()
+        for mode in ('shadow', 'tagged'):
+            publisher = self.publisher('https://api.camnect.site', 'x' * 32, opener=opener, job_mode=mode,
+                                       reader=lambda row: {'assigned_tag_ids': [], 'auto_candidates': []})
+            self.assertEqual('AWAITING_TAGS', publisher.publish(self.record, self.meta, self.store)['status'])
+        publisher.reader = lambda row: {'assigned_tag_ids': [107], 'auto_candidates': []}
+        with self.assertRaisesRegex(PublishError, 'evidence'):
+            publisher.publish(self.record, self.meta, self.store)
+        opener.open.assert_not_called()
+        self.assertIsNone(self.store.get_publication('1'))
+
     def test_poison_post_is_isolated_backed_off_and_recovers(self):
         class FakeClient:
             def load_robots(self): pass
@@ -52,25 +82,25 @@ class PublisherTests(unittest.TestCase):
             opener = Mock()
             opener.open.return_value = response
             with self.assertRaises(PublishError) as error:
-                Publisher('https://api.camnect.site', 'x' * 32, opener=opener).publish(self.record, self.meta, self.store)
+                self.publisher('https://api.camnect.site', 'x' * 32, opener=opener).publish(self.record, self.meta, self.store)
             self.assertTrue(error.exception.fatal)
             self.assertIsNone(self.store.get_publication('1'))
 
     def test_stale_revision_and_wrong_acknowledgement_never_mark_delivered(self):
         for data in ({'status': 'STALE', 'activityId': 42, 'revision': 9001},
                      {'status': 'UNCHANGED', 'activityId': 42, 'revision': 1},
-                     {'status': 'CREATED', 'activityId': True, 'revision': 1001}):
+                     {'status': 'CREATED', 'activityId': True, 'revision': 1002}):
             response = self.response()
             response.read.return_value = json.dumps({'status': 200, 'data': data}).encode()
             opener = Mock()
             opener.open.return_value = response
             with self.assertRaises(PublishError):
-                Publisher('https://api.camnect.site', 'x' * 32, opener=opener).publish(self.record, self.meta, self.store)
+                self.publisher('https://api.camnect.site', 'x' * 32, opener=opener).publish(self.record, self.meta, self.store)
             self.assertIsNone(self.store.get_publication('1'))
 
     def test_time_budget_prevents_new_publication_request(self):
         opener = Mock()
-        publisher = Publisher('https://api.camnect.site', 'x' * 32, opener=opener)
+        publisher = self.publisher('https://api.camnect.site', 'x' * 32, opener=opener)
         publisher.deadline = 0
         with self.assertRaises(PublishError):
             publisher.publish(self.record, self.meta, self.store)
@@ -96,7 +126,7 @@ class PublisherTests(unittest.TestCase):
 
     def response(self, status='CREATED'):
         response = Mock()
-        response.read.return_value = json.dumps({'status': 200, 'data': {'status': status, 'activityId': 42, 'revision': 1001}}).encode()
+        response.read.return_value = json.dumps({'status': 200, 'data': {'status': status, 'activityId': 42, 'revision': 1002}}).encode()
         response.__enter__ = Mock(return_value=response)
         response.__exit__ = Mock(return_value=False)
         return response
@@ -112,7 +142,7 @@ class PublisherTests(unittest.TestCase):
     def test_signed_delivery_records_acknowledgement_only_after_success(self):
         opener = Mock()
         opener.open.return_value = self.response()
-        publisher = Publisher('https://api.camnect.site', 'x' * 32, opener=opener)
+        publisher = self.publisher('https://api.camnect.site', 'x' * 32, opener=opener)
         receipt = publisher.publish(self.record, self.meta, self.store)
         request = opener.open.call_args.args[0]
         timestamp = request.get_header('X-crawler-timestamp')
@@ -124,7 +154,7 @@ class PublisherTests(unittest.TestCase):
     def test_response_loss_retries_same_payload_without_duplicate_semantics(self):
         opener = Mock()
         opener.open.side_effect = [URLError('response lost'), self.response('UNCHANGED')]
-        publisher = Publisher('https://api.camnect.site', 'x' * 32, opener=opener)
+        publisher = self.publisher('https://api.camnect.site', 'x' * 32, opener=opener)
         with patch('konkuk_job.publisher.time.sleep'):
             receipt = publisher.publish(self.record, self.meta, self.store)
         self.assertEqual('UNCHANGED', receipt['status'])
@@ -134,15 +164,15 @@ class PublisherTests(unittest.TestCase):
         opener = Mock()
         opener.open.side_effect = HTTPError('https://api.camnect.site', 401, 'no', {}, None)
         with self.assertRaises(PublishError):
-            Publisher('https://api.camnect.site', 'x' * 32, opener=opener).publish(self.record, self.meta, self.store)
+            self.publisher('https://api.camnect.site', 'x' * 32, opener=opener).publish(self.record, self.meta, self.store)
         self.assertIsNone(self.store.get_publication('1'))
         self.assertEqual(1, opener.open.call_count)
 
     def test_url_validation_and_redirects_prevent_secret_forwarding(self):
         for url in ('http://api.camnect.site', 'http://127.0.0.1:8080', 'https://user:password@api.camnect.site', 'https://api.camnect.site/other'):
             with self.assertRaises(ValueError):
-                Publisher(url, 'x' * 32)
-        Publisher('http://127.0.0.1:8080', 'x' * 32, allow_local=True)
+                self.publisher(url, 'x' * 32)
+        self.publisher('http://127.0.0.1:8080', 'x' * 32, allow_local=True)
         with self.assertRaises(PublishError):
             NoRedirect().redirect_request(None, None, 302, '', {}, 'https://other.example')
 
@@ -169,7 +199,7 @@ class PublisherTests(unittest.TestCase):
                 return (listing(('2',)), b'list') if url == LIST_URL else (detail('2'), b'html')
         opener = Mock()
         opener.open.side_effect = HTTPError('https://api.camnect.site', 401, 'no', {}, None)
-        publisher = Publisher('https://api.camnect.site', 'x' * 32, opener=opener)
+        publisher = self.publisher('https://api.camnect.site', 'x' * 32, opener=opener)
         with self.assertRaises(PublishError):
             run(FakeClient(), self.store, publisher=publisher)
         self.assertIsNotNone(self.store.get('2'))

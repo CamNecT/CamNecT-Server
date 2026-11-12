@@ -1,15 +1,17 @@
-# 자동부여봇 v1.0
+# 취업팀 4084 공개 전 태그 판독기
 
-운영 서버가 크롤러의 4084 등록 영수증과 연결된 공고를 5분마다 조회한다. 독립적인 규칙 판독기가 각 공고의 제목·본문에서 태그와 실제 모집 직무의 근거를 찾는다. 이미지를 읽는 기능은 없다. 최초 처리한 기존 공고는 `bootstrap`, 이후 새로 등록된 공고는 `live`로 표시한다. 수정 수집본도 revision과 content hash로 구분해 재처리한다.
+AWS 서울 리전의 기존 수집 Lambda가 원문을 아카이브한 직후 같은 실행에서 취업팀 태그를 결정한다. 수집 주기는 기존 스케줄을 따른다. 태그를 붙이기 위한 별도 폴링이나 모델 호출은 없다.
 
-## 서버에서 읽고 쓰는 데이터
+현재 운영 모드는 `shadow`다. 근거가 있는 태그를 찾으면 `SHADOW_TAGGED`, 자동 부여 태그가 비면 `AWAITING_TAGS`로 기록한다. 두 경우 모두 크롤러의 비공개 S3 아카이브 안 `tag-decisions/4084/<판독기버전>/<공고ID>/<수집버전>-<내용해시>.json`에 판정과 원문 스냅샷 키를 보관한다. 운영 앱에 활동이나 태그를 등록하는 HTTP 요청은 보내지 않는다. 단일 수집 실행 안에서 발생한 오류는 기존 수집기의 재시도 정책을 따른다.
 
-- `camnect-tag-imports.service`가 서버의 기존 연결 설정을 사용해 운영 DB에서 읽기 전용 트랜잭션을 연다. 대상은 `activity_imports`의 `KONKUK_JOB_4084#` 영수증과 대응하는 `external_activities`뿐이다. 고정 SELECT로 /var/lib/camnect-tag-input에 입력 스냅샷을 만들고 성공 시 판독기를 호출한다.
-- `camnect-auto-tagbot.service`는 전용 비권한 계정과 격리된 네트워크에서 작동한다. 모델·API 키·Docker 접근 권한이 필요 없다. `/var/lib/camnect-auto-tagbot/candidates.sqlite3`에 공고별 버전과 부여 태그를 기록하고 같은 폴더의 `candidates.json`으로 현재 결과를 내보낸다. 운영 앱에서 사용자에게 보이는 태그는 이 버전에서 갱신하지 않는다.
-- `assigned_tag_ids`에는 판독기의 제안 중 로컬 개발 판정자 3명이 승인한 조건에 일치한 태그만 들어간다. 정확히 2명이 승인한 조건은 `review_candidates`에 담는다. 나머지 제안은 `other_suggestions`, 명시된 직무는 `role_index`에 원문 인용과 함께 보존한다. 승인 수는 **규칙 개발 단계**의 표다. 신규 공고의 런타임 판정 횟수를 뜻하지 않는다.
+## 공개 경로
 
-## 개발과 배포
+취업팀의 구형 등록 URL과 신규 tagged URL에는 운영 Nginx의 409 보류 응답이 적용되어 있다. 기존에 공개된 활동은 소급 수정하지 않는다. 학생공지는 별도 URL을 사용한다. 보관된 v1.0 후보 원장은 EC2의 `/var/lib/camnect-auto-tagbot`에 있으며, 게시 후 DB를 다시 읽던 타이머는 수집 단계로 전환하면서 중지했다.
 
-로컬에서 `python -B -m unittest discover -s tools/auto-tagbot-v1 -v`로 검사한다. `offline_reader.py`는 근거 추출과 태그 제안을 담당하고 동결된 `frozen/model2/select_tags.py`와 사전을 사용한다. `server/policy.json`을 변경하면 개발 PC에서 `validate_policy.py --codex <실행파일> --out server/policy-review.json`으로 규칙을 다시 검토한다. 정밀도와 재현율은 별도 정답 표본으로 측정한다. `score.py candidates.json gold.json`은 독립 라벨을 준 신규 공고의 자동 후보와 검수 포함 후보를 각각 채점한다. gold.json은 공고 ID에서 태그 ID 배열로의 매핑이다.
+운영 쓰기를 허용하는 후속 배포에는 이번 브랜치의 `/api/internal/activity-imports/konkuk-job/tagged` 앱 엔드포인트가 필요하다. 유효하고 활성인 태그 ID가 하나 이상일 때만 트랜잭션 하나에서 공고와 태그 관계를 저장한다. 이 엔드포인트를 사용할 때는 tagged URL만 개방하며 구형 URL은 닫아 둔다. 태그가 없는 신규 공고가 목록이나 상세에 노출되지 않는지 로컬 HTTP/H2 통합 테스트에서 검증한다.
 
-배포 패키지에는 `server_worker.py`, `offline_reader.py`, 동결 사전·선택기, `server/`만 담는다. 서버의 /opt/camnect-auto-tagbot/releases 아래 커밋별 경로에 풀고 그 경로에서 `sudo sh server/install.sh`를 실행한다. `camnect-auto-tagbot.timer`의 다음 실행 시각과 두 서비스의 `Result`, `ExecMainStatus`를 확인한다. 처리를 멈추려면 `sudo systemctl disable --now camnect-auto-tagbot.timer`를 실행한다. 앱이나 기존 크롤러를 재시작할 필요가 없다.
+## 재현
+
+`lambda_release/build.py`는 모델 클라이언트나 검증 데이터를 포함하지 않는 판독기 패치를 만든다. `lambda_release/apply_overlay.py`는 지정한 기존 운영 ZIP의 원본 파일 해시를 확인하고 같은 ZIP에 패치를 조립한다. 운영의 원래 취업팀 단독 구성과 파서·의존성을 보존한다. 통합 수집기용 SAM 구성과 독립 실행 레이어는 [크롤러 운영 문서](../../crawlers/konkuk-job/AUTO_UPLOAD.md)에 있다.
+
+로컬에서는 `v11/evaluate.py`로 사용한 개발 자료에서 누락을 분석하고 `v11/score_holdout.py <원문.jsonl> <독립정답.json> <새로운결과.json>`로 미사용 표본의 **assigned_tag_ids**를 채점한다. 재현율 분모에 보류 공고의 정답도 포함한다. 정밀도 95% 초과와 재현율 90% 초과가 v1.1 배포 기준이다. 이미 점수를 열어본 웨이브는 이후 개선에 사용할 수 있으며, 개선한 버전의 독립 시험에는 새 웨이브를 사용한다.

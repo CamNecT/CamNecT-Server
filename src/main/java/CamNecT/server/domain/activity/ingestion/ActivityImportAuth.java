@@ -14,7 +14,9 @@ import java.util.HexFormat;
 @Component
 @RequiredArgsConstructor
 public class ActivityImportAuth {
-    public static final String PATH = "/api/internal/activity-imports/konkuk-job";
+    // A legacy receiver ignores unknown JSON fields. A distinct signed path prevents
+    // tagged publication from ever succeeding on that receiver during a rolling release.
+    public static final String PATH = "/api/internal/activity-imports/konkuk-job/tagged";
     public static final String STUDENT_PATH = "/api/internal/activity-imports/konkuk-student";
     private final ActivityImportProperties properties;
 

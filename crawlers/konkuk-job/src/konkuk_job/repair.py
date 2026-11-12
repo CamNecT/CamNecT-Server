@@ -35,7 +35,8 @@ def repair(store, publisher, article_id, apply=False):
     result = {'articleId': article_id, 'activityId': receipt['activityId'],
               'before': original['applicationDates'], 'after': record['applicationDates'], 'applied': apply}
     if apply:
-        if not publisher or receipt.get('destination') != publisher.url:
+        if not publisher or publisher.shadow is True or receipt.get('destination') not in (
+                publisher.url, publisher.url.removesuffix('/tagged')):
             raise ValueError('Publication destination mismatch')
         if store.get(article_id) != meta:
             raise RuntimeError('Source changed during repair; retry after inspection')
@@ -70,7 +71,9 @@ def main():
     if options.apply:
         secret = json.loads(session.client('secretsmanager').get_secret_value(
             SecretId=env['CAMNECT_IMPORT_SECRET_ARN'])['SecretString'])['sharedSecret']
-        publisher = Publisher(env['CAMNECT_API_BASE_URL'], secret)
+        if env.get('JOB_TAG_PUBLICATION_MODE', 'shadow') != 'tagged':
+            raise ValueError('Repair publication requires tagged publication mode')
+        publisher = Publisher(env['CAMNECT_API_BASE_URL'], secret, job_mode='tagged')
     for article_id in TARGETS:
         print(json.dumps(repair(store, publisher, article_id, options.apply), ensure_ascii=False))
 

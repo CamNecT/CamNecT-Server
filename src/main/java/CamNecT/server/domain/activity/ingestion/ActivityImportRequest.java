@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public record ActivityImportRequest(
         @NotBlank @Pattern(regexp = "[0-9]{1,20}") String articleId,
@@ -15,7 +16,8 @@ public record ActivityImportRequest(
         LocalDate applyStartDate,
         LocalDate applyEndDate,
         OffsetDateTime applyEndAt,
-        @Valid Thumbnail thumbnail) {
+        @Valid Thumbnail thumbnail,
+        @Size(max = 128) List<@NotNull @Positive Long> tagIds) {
     public record Thumbnail(
             @NotBlank @Pattern(regexp = "image/(jpeg|png|webp)") String contentType,
             @NotBlank @Pattern(regexp = "[a-f0-9]{64}") String sha256,

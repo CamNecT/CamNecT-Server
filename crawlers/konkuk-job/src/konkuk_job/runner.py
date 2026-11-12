@@ -102,9 +102,12 @@ def run(client, store, max_articles=20, max_pages=20, seconds=480, publisher=Non
         failures = {article_id: store.get_failure(article_id) for article_id in articles}
         def priority(article_id):
             meta = store.get(article_id)
-            receipt = store.get_publication(article_id) if publisher else None
-            pending = publisher is not None and (not receipt or not meta or receipt.get('destination') != publisher.url
-                                                or receipt['sourceVersion'] != meta['version'])
+            receipt = store.get_publication(article_id) if publisher and student else None
+            # Held jobs deliberately have no publication receipt. Rotate archived jobs
+            # by lastSeenAt so these cannot starve new postings or older revisions.
+            pending = not meta or (publisher is not None and student and
+                                   (not receipt or receipt.get('destination') != publisher.url or
+                                    receipt['sourceVersion'] != meta['version']))
             # A poison record cannot consume every slot ahead of healthy/new records.
             return (1 if failures[article_id] else 0, 0 if pending else 1,
                     meta['lastSeenAt'] if meta else '', -int(article_id))
@@ -146,8 +149,9 @@ def run(client, store, max_articles=20, max_pages=20, seconds=480, publisher=Non
                     store.record_failure(article_id, 'publication', exc)
                     summary['publicationErrors'].append({'articleId': article_id, 'error': str(exc)})
                     continue
-                summary['published'] += 1
                 status = receipt['status']
+                if status not in ('SHADOW_TAGGED', 'AWAITING_TAGS'):
+                    summary['published'] += 1
                 summary['publicationResults'][status] = summary['publicationResults'].get(status, 0) + 1
             store.clear_failure(article_id)
         summary.update(status='SUCCESS', mediaBytes=budget['bytes'],

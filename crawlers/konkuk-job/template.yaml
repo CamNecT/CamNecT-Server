@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Konkuk job board crawler with signed automatic CamNeCT activity publication
 Parameters:
+  JobTagReaderLayerArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^arn:aws:lambda:ap-northeast-2:[0-9]{12}:layer:[A-Za-z0-9_-]+:[0-9]+$'
+    Description: Versioned layer with python/camnect_tagger.py and its offline reader; omit when included in the function zip.
   AlarmTopicArn:
     Type: String
     Default: ''
@@ -30,6 +35,7 @@ Parameters:
     AllowedValues: [0, 1]
     Description: Use 1 only when the account has more than 10 concurrent executions; 0 uses the account pool.
 Conditions:
+  HasJobTagReaderLayer: !Not [!Equals [!Ref JobTagReaderLayerArn, '']]
   HasAlarmTopic: !Not [!Equals [!Ref AlarmTopicArn, '']]
   ReserveExecution: !Equals [!Ref ReservedConcurrency, 1]
 Rules:
@@ -100,6 +106,7 @@ Resources:
     Properties:
       CodeUri: src/
       Handler: app.handler
+      Layers: !If [HasJobTagReaderLayer, [!Ref JobTagReaderLayerArn], !Ref 'AWS::NoValue']
       Runtime: python3.13
       Architectures: [arm64]
       MemorySize: 256
@@ -112,6 +119,7 @@ Resources:
           EXPECTED_ACCOUNT_ID: !Ref ExpectedAccountId
           STATE_TABLE: !Ref State
           ARCHIVE_BUCKET: !Ref Archive
+          JOB_TAG_PUBLICATION_MODE: shadow
           MAX_ARTICLES: '20'
           CAMNECT_API_BASE_URL: !Ref CamnectApiBaseUrl
           CAMNECT_IMPORT_SECRET_ARN: !Ref CamnectImportSecretArn

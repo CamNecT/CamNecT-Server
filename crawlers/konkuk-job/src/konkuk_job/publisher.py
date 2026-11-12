@@ -9,8 +9,9 @@ import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+from .parser import content_hash
 
-PATH = '/api/internal/activity-imports/konkuk-job'
+PATH = '/api/internal/activity-imports/konkuk-job/tagged'
 MAPPING_VERSION = 1
 
 
@@ -25,7 +26,7 @@ class NoRedirect(HTTPRedirectHandler):
         raise PublishError('Publication redirects are forbidden')
 
 
-def make_payload(record, revision, store):
+def make_payload(record, revision, store, *, tag_ids=None, mapping_version=MAPPING_VERSION):
     candidate = record['applicationDates']['candidate'] or {}
     links = list(dict.fromkeys([record['sourceUrl']] + record['externalLinks'] + record['images'] +
                                [a['url'] for a in record['attachments']]))
@@ -43,11 +44,13 @@ def make_payload(record, revision, store):
         text = text.encode('utf-16-le')[:39000 - len((suffix + marker).encode('utf-16-le'))].decode('utf-16-le', errors='ignore')
         text = text.encode()[:58000 - len((suffix + marker).encode())].decode('utf-8', errors='ignore') + marker
     organizer = re.match(r'^\[([^\]]+)\]', record['title'])
-    payload = {'articleId': record['articleId'], 'revision': revision * 1000 + MAPPING_VERSION,
+    payload = {'articleId': record['articleId'], 'revision': revision * 1000 + mapping_version,
                'title': record['title'].encode('utf-16-le')[:400].decode('utf-16-le', errors='ignore'), 'content': text + suffix,
                'organizer': organizer[1].encode('utf-16-le')[:200].decode('utf-16-le', errors='ignore') if organizer else None,
                'applyStartDate': candidate.get('startDate'), 'applyEndDate': candidate.get('endDate'),
                'applyEndAt': candidate.get('endAt'), 'thumbnail': None}
+    if tag_ids is not None:
+        payload['tagIds'] = sorted(tag_ids)
     for media in ([] if student else record['media']):
         if media['status'] == 'DOWNLOADED' and media.get('mime') in ('image/jpeg', 'image/png', 'image/webp'):
             raw = store.read_bytes(media['blobKey'])
@@ -64,7 +67,17 @@ def make_payload(record, revision, store):
 
 
 class Publisher:
-    def __init__(self, base_url, secret, allow_local=False, opener=None, student=False):
+    def __init__(self, base_url, secret, allow_local=False, opener=None, student=False,
+                 job_mode='shadow', reader=None, reader_version=None):
+        if not student and job_mode not in ('shadow', 'tagged'):
+            raise ValueError('Unknown 4084 publication mode')
+        self.student = student
+        self.shadow = not student and job_mode == 'shadow'
+        self.reader, self.reader_version = reader, reader_version
+        self.deadline = None
+        if self.shadow:
+            self.url = 'shadow://KONKUK_JOB_4084'
+            return
         p = urlsplit(base_url)
         local = allow_local and p.scheme == 'http' and p.hostname in ('127.0.0.1', 'localhost')
         if not (p.scheme == 'https' or local) or not p.hostname or p.username or p.password or p.query or p.fragment or p.path not in ('', '/'):
@@ -74,10 +87,49 @@ class Publisher:
         self.path = '/api/internal/activity-imports/konkuk-student' if student else PATH
         self.url, self.secret = base_url.rstrip('/') + self.path, secret
         self.opener = opener or build_opener(NoRedirect())
-        self.deadline = None
+
+    def job_decision(self, record, meta, store):
+        if record['articleId'] != meta['articleId'] or content_hash(record) != meta['contentHash']:
+            raise PublishError('Archived source changed before tagging')
+        if self.reader is None:
+            # A release supplies the frozen standalone reader as a module or Lambda layer.
+            from camnect_tagger import READER_VERSION, classify
+            self.reader, self.reader_version = classify, READER_VERSION
+        if not isinstance(self.reader_version, str) or not re.fullmatch(r'[0-9A-Za-z][0-9A-Za-z._-]{0,63}', self.reader_version):
+            raise PublishError('Invalid reader version', fatal=True)
+        row = {'id': record['articleId'], 'title': record['title'], 'body': record['bodyText'], 'url': record['sourceUrl']}
+        try:
+            result = self.reader(row)
+        except Exception as exc:
+            raise PublishError('Reader failed before publication') from exc
+        ids = result['assigned_tag_ids']
+        if not isinstance(ids, list) or any(type(i) is not int or i <= 0 for i in ids) or len(set(ids)) != len(ids):
+            raise PublishError('Invalid tag IDs from the reader')
+        evidence = {entry['tag_id'] for entry in result['auto_candidates']
+                    if isinstance(entry.get('evidence'), str) and entry['evidence'].strip()
+                    and (entry['evidence'] in row['title'] or entry['evidence'] in row['body'])}
+        if not set(ids) <= evidence:
+            raise PublishError('Assigned tag lacks source evidence')
+        key = f"tag-decisions/4084/{self.reader_version}/{row['id']}/{meta['version']}-{meta['contentHash']}.json"
+        decision = {'articleId': row['id'], 'sourceVersion': meta['version'], 'sourceHash': meta['contentHash'],
+                    'snapshotKey': meta['snapshotKey'], 'readerVersion': self.reader_version, 'result': result}
+        store.put_bytes(key, json.dumps(decision, ensure_ascii=False, sort_keys=True).encode())
+        return ids, key
 
     def publish(self, record, meta, store):
-        payload = make_payload(record, int(meta['version']), store)
+        if record.get('source') != ('KONKUK_STUDENT_238' if self.student else 'KONKUK_JOB_4084'):
+            raise PublishError('Board does not match publication destination', fatal=True)
+        tag_ids = None
+        mapping_version = MAPPING_VERSION
+        if not self.student:
+            tag_ids, key = self.job_decision(record, meta, store)
+            if self.shadow or not tag_ids:
+                return {'status': 'SHADOW_TAGGED' if tag_ids else 'AWAITING_TAGS', 'decisionKey': key}
+            release = re.fullmatch(r'([1-9])\.([0-9]{1,2})', self.reader_version)
+            if not release:
+                raise PublishError('Tagged publication requires a numbered major.minor reader release', fatal=True)
+            mapping_version = 2 + (int(release[1]) - 1) * 100 + int(release[2])
+        payload = make_payload(record, int(meta['version']), store, tag_ids=tag_ids, mapping_version=mapping_version)
         body = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode()
         for attempt in range(3):
             if self.deadline is not None and time.monotonic() + 30 >= self.deadline:
@@ -124,6 +176,6 @@ class Publisher:
 def from_environment(allow_local=False, *, student=False):
     base = os.environ.get('CAMNECT_API_BASE_URL', '')
     secret = os.environ.get('CAMNECT_IMPORT_SECRET', '')
-    if not base and not secret:
+    if not base and not secret and (student or not os.environ.get('JOB_TAG_PUBLICATION_MODE')):
         return None
-    return Publisher(base, secret, allow_local, student=student)
+    return Publisher(base, secret, allow_local, student=student, job_mode=os.environ.get('JOB_TAG_PUBLICATION_MODE', 'shadow'))
