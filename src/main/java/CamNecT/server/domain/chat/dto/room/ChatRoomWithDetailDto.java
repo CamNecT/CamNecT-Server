@@ -5,10 +5,12 @@ import CamNecT.server.domain.chat.model.ChatRoom;
 import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.global.tag.model.Tag;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.With;
 
 import java.util.List;
 
@@ -39,6 +41,9 @@ public class ChatRoomWithDetailDto {
     private Long activityId;
     private Long recruitmentId;
 
+    @With
+    @Schema(description = "입장 직전 상대방이 보낸 미읽음 메시지 중 가장 오래된 ID. 없으면 null", nullable = true)
+    private Long firstUnreadMessageId;
     private List<ChatMessageResponseDto> chatList;
 
     public static ChatRoomWithDetailDto from(ChatRoom room,
@@ -46,7 +51,8 @@ public class ChatRoomWithDetailDto {
                                              Users opponent,
                                              UserProfile opProfile,
                                              String majorName,
-                                             List<String> tagNames, List<ChatMessageResponseDto> chats, String title, String profileImgUrl) {
+                                             List<String> tagNames, List<ChatMessageResponseDto> chats, String title,
+                                             String profileImgUrl, Long firstUnreadMessageId) {
         List<String> requestTagNames = (room.getTags() != null)
                 ? room.getTags().stream().map(Tag::getName).toList()
                 : List.of();
@@ -77,6 +83,7 @@ public class ChatRoomWithDetailDto {
                 .activityId(room.getRequest().getActivityId())
                 .recruitmentId(room.getRequest().getRecruitmentId())
 
+                .firstUnreadMessageId(firstUnreadMessageId)
                 .chatList(chats)
                 .build();
     }

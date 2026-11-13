@@ -4,6 +4,7 @@ import CamNecT.server.domain.chat.dto.message.ChatMessageAckResponseDto;
 import CamNecT.server.domain.chat.dto.message.ChatMessageResponseDto;
 import CamNecT.server.domain.chat.dto.message.ChatMessageSendRequestDto;
 import CamNecT.server.domain.chat.dto.message.ChatSocketErrorResponse;
+import CamNecT.server.domain.chat.model.Chat;
 import CamNecT.server.domain.chat.model.ChatRequest;
 import CamNecT.server.domain.chat.model.ChatRoom;
 import CamNecT.server.domain.chat.repository.ChatRepository;
@@ -16,11 +17,18 @@ import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.jwt.util.JwtUtil;
 import CamNecT.server.global.jwt.service.TokenSessionService;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
@@ -59,6 +67,58 @@ class ChatWebSocketContractIntegrationTest {
     @Autowired JwtUtil jwtUtil;
     @Autowired TokenSessionService tokenSessionService;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired TestRestTemplate http;
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void roomDetailReturnsPreEntryBoundaryWhetherGetOrSubscribeReadsFirst(boolean subscribeFirst) throws Exception {
+        Fixture fixture = createFixture();
+        Long firstUnread = new TransactionTemplate(transactionManager).execute(status -> {
+            ChatRoom room = chatRoomRepository.findByIdForUpdate(fixture.roomId()).orElseThrow();
+            Users me = room.getRequester();
+            Users other = room.getReceiver();
+            Chat alreadyRead = Chat.createChat(room, other, me, "read", null);
+            alreadyRead.markAsRead();
+            chatRepository.save(alreadyRead);
+            chatRepository.save(Chat.createChat(room, me, other, "outgoing", null));
+            Chat first = chatRepository.save(Chat.createChat(room, other, me, "first unread", null));
+            chatRepository.save(Chat.createChat(room, other, me, "last unread", null));
+            return first.getId();
+        });
+        String login = UUID.randomUUID().toString();
+        String token = jwtUtil.generateAccessToken(fixture.senderId(), UserRole.USER, login);
+        tokenSessionService.create(fixture.senderId(), token,
+                jwtUtil.generateRefreshToken(fixture.senderId(), UserRole.USER, login));
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        String path = "/api/chat/room/" + fixture.roomId();
+        WebSocketStompClient client = new WebSocketStompClient(new StandardWebSocketClient());
+        StompSession session = null;
+        try {
+            if (subscribeFirst) {
+                StompHeaders connect = new StompHeaders();
+                connect.add("Authorization", "Bearer " + token);
+                session = client.connectAsync("ws://localhost:" + port + "/ws-stomp", new WebSocketHttpHeaders(),
+                        connect, new StompSessionHandlerAdapter() {}).get(MESSAGE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                session.subscribe("/sub/chat/room/" + fixture.roomId(), new StompSessionHandlerAdapter() {});
+                assertThat(awaitRoomPresence(fixture)).isTrue();
+                assertThat(chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(
+                        fixture.roomId(), fixture.senderId())).isZero();
+            }
+
+            JsonNode detail = http.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class)
+                    .getBody().required("data");
+            assertThat(detail.required("firstUnreadMessageId").longValue()).isEqualTo(firstUnread);
+            assertThat(detail.required("chatList").get(1).required("read").booleanValue()).isFalse();
+            assertThat(detail.required("chatList").get(2).required("read").booleanValue()).isTrue();
+            JsonNode again = http.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class)
+                    .getBody().required("data");
+            assertThat(again.required("firstUnreadMessageId").isNull()).isTrue();
+        } finally {
+            if (session != null && session.isConnected()) session.disconnect();
+            client.stop();
+        }
+    }
 
     @Test
     void websocketSendReturnsAckAndClosedRoomRetryKeepsIdempotentContract() throws Exception {

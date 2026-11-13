@@ -45,7 +45,7 @@ class ChatMessageIdempotencyIntegrationTest {
     void concurrentRetriesWithSameClientMessageIdCreateOneMessage() throws Exception {
         Fixture fixture = createFixture();
         String clientMessageId = UUID.randomUUID().toString();
-        presenceService.enter(fixture.roomId(), fixture.receiverId(), "receiver-session", "receiver-sub");
+        presenceService.enter(fixture.roomId(), fixture.receiverId(), "receiver-session", "receiver-sub", "login", null);
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch ready = new CountDownLatch(2);

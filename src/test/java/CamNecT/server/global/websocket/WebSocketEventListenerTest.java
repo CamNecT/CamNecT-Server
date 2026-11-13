@@ -3,6 +3,7 @@ package CamNecT.server.global.websocket;
 import CamNecT.server.domain.chat.dto.message.ChatSocketErrorResponse;
 import CamNecT.server.domain.chat.service.ChatPresenceService;
 import CamNecT.server.domain.chat.service.ChatService;
+import CamNecT.server.domain.chat.service.ChatRoomEntryService;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
@@ -28,7 +29,7 @@ class WebSocketEventListenerTest {
     private final ChatSocketErrorMapper errorMapper = mock(ChatSocketErrorMapper.class);
     private final ChatSocketErrorPublisher errorPublisher = mock(ChatSocketErrorPublisher.class);
     private final WebSocketEventListener listener = new WebSocketEventListener(
-            presenceService, chatService, userRepository, errorMapper, errorPublisher);
+            presenceService, new ChatRoomEntryService(chatService, presenceService), userRepository, errorMapper, errorPublisher);
 
     @Test
     void readFailureDoesNotLeaveAFalsePresenceAndIsDeliveredToOriginatingSession() {
@@ -58,11 +59,12 @@ class WebSocketEventListenerTest {
         Message<byte[]> message = subscribeMessage();
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
+        when(chatService.markAllAsRead(99L, user)).thenReturn(7L);
         listener.handleSessionSubscribeEvent(new SessionSubscribeEvent(this, message));
 
         var order = inOrder(chatService, presenceService);
         order.verify(chatService).markAllAsRead(99L, user);
-        order.verify(presenceService).enter(99L, 1L, "session-a", "subscription-a");
+        order.verify(presenceService).enter(99L, 1L, "session-a", "subscription-a", "login", 7L);
         verifyNoInteractions(errorPublisher);
     }
 
@@ -71,7 +73,7 @@ class WebSocketEventListenerTest {
         accessor.setDestination("/sub/chat/room/99");
         accessor.setSessionId("session-a");
         accessor.setSubscriptionId("subscription-a");
-        accessor.setSessionAttributes(new HashMap<>(Map.of("userId", 1L)));
+        accessor.setSessionAttributes(new HashMap<>(Map.of("userId", 1L, "sessionId", "login")));
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
     }
 }

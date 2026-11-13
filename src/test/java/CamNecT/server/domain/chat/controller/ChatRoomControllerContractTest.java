@@ -2,6 +2,7 @@ package CamNecT.server.domain.chat.controller;
 
 import CamNecT.server.domain.chat.repository.ChatRequestRepository;
 import CamNecT.server.domain.chat.service.ChatService;
+import CamNecT.server.domain.chat.service.ChatRoomEntryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.bind.annotation.PatchMapping;
 
@@ -16,7 +17,7 @@ class ChatRoomControllerContractTest {
     private final ChatService chatService = mock(ChatService.class);
     private final ChatRoomController controller = new ChatRoomController(
             chatService,
-            mock(ChatRequestRepository.class)
+            mock(ChatRequestRepository.class), mock(ChatRoomEntryService.class)
     );
 
     @Test

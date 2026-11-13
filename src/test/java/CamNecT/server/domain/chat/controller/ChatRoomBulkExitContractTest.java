@@ -2,6 +2,7 @@ package CamNecT.server.domain.chat.controller;
 
 import CamNecT.server.domain.chat.repository.ChatRequestRepository;
 import CamNecT.server.domain.chat.service.ChatService;
+import CamNecT.server.domain.chat.service.ChatRoomEntryService;
 import CamNecT.server.global.common.auth.UserId;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
@@ -34,7 +35,8 @@ class ChatRoomBulkExitContractTest {
     @BeforeEach
     void setUp() {
         service = mock(ChatService.class);
-        mvc = MockMvcBuilders.standaloneSetup(new ChatRoomController(service, mock(ChatRequestRepository.class)))
+        mvc = MockMvcBuilders.standaloneSetup(new ChatRoomController(service, mock(ChatRequestRepository.class),
+                        mock(ChatRoomEntryService.class)))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new HandlerMethodArgumentResolver() {
                     @Override

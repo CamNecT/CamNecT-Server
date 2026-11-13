@@ -331,7 +331,8 @@ public class ChatService {
         chatRoomRepository.findByUserIdWithDetails(roomId, userId)
                 .orElseThrow(() -> new CustomException(CoffeeChatErrorCode.CHATROOM_NOT_FOUND));
 
-        return loadHistoryAndMarkRead(roomId, userId);
+        markAllAsReadAfterAccessCheck(roomId, userId);
+        return loadHistory(roomId);
     }
 
 
@@ -362,11 +363,13 @@ public class ChatService {
                 .map(Tag::getName)
                 .toList();
 
-        List<ChatMessageResponseDto> chatHistory = loadHistoryAndMarkRead(roomId, userId);
+        Long firstUnreadMessageId = markAllAsReadAfterAccessCheck(roomId, userId);
+        List<ChatMessageResponseDto> chatHistory = loadHistory(roomId);
 
         String title = resolveRequestTitle(room.getRequest());
 
-        return ChatRoomWithDetailDto.from(room, me, opponent, opProfile, majorName, tagNames, chatHistory, title, profileImgUrl);
+        return ChatRoomWithDetailDto.from(room, me, opponent, opProfile, majorName, tagNames, chatHistory,
+                title, profileImgUrl, firstUnreadMessageId);
     }
 
 
@@ -445,7 +448,7 @@ public class ChatService {
 
     //   기존 unread 전부 읽음 처리
     @Transactional
-    public void markAllAsRead(Long roomId, Users reader) {
+    public Long markAllAsRead(Long roomId, Users reader) {
         if (reader == null || reader.getUserId() == null) {
             throw new CustomException(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED);
         }
@@ -456,33 +459,31 @@ public class ChatService {
             throw new CustomException(CoffeeChatErrorCode.CHATROOM_ACCESS_DENIED);
         }
 
-        markAllAsReadAfterAccessCheck(roomId, readerId);
+        return markAllAsReadAfterAccessCheck(roomId, readerId);
     }
 
-    private List<ChatMessageResponseDto> loadHistoryAndMarkRead(Long roomId, Long readerId) {
-        markAllAsReadAfterAccessCheck(roomId, readerId);
-
+    private List<ChatMessageResponseDto> loadHistory(Long roomId) {
         return chatRepository.findTop1000ByRoomId(roomId, PageRequest.of(0, 1000)).stream()
                 .sorted(Comparator.comparing(Chat::getId))
                 .map(ChatMessageResponseDto::toDto)
                 .toList();
     }
 
-    private void markAllAsReadAfterAccessCheck(Long roomId, Long readerId) {
+    private Long markAllAsReadAfterAccessCheck(Long roomId, Long readerId) {
 
         List<Chat> unreadMessages = chatRepository.findUnreadMessages(roomId, readerId);
 
         if (unreadMessages.isEmpty()) {
-            return;
+            return null;
         }
 
+        Long firstUnreadMessageId = unreadMessages.getFirst().getId();
         unreadMessages.forEach(Chat::markAsRead);
         chatRepository.saveAll(unreadMessages);
 
         log.info("📚 읽음 처리 완료: {}건 저장됨.", unreadMessages.size());
 
-        // 마지막으로 읽은 메시지 ID 추출 (없으면 0L임)
-        Long lastMessageId = unreadMessages.isEmpty() ? 0L : unreadMessages.getLast().getId();
+        Long lastMessageId = unreadMessages.getLast().getId();
 
         ChatReadEvent chatReadEvent = ChatReadEvent.of(
                 roomId,
@@ -499,7 +500,7 @@ public class ChatService {
                 lastContent,
                 lastTime
         ));
-
+        return firstUnreadMessageId;
     }
 
     @Transactional
