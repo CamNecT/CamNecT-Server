@@ -9,14 +9,25 @@ class ChatPresenceServiceImplTest {
     private final ChatPresenceServiceImpl presenceService = new ChatPresenceServiceImpl();
 
     @Test
-    void onlyTheMatchingRoomUserAndLoginCanConsumeASubscriptionBoundary() {
+    void onlyTheMatchingRoomUserAndLoginSeeTheBoundaryOnEveryRefetch() {
         presenceService.enter(10L, 1L, "socket", "sub", "login-a", 12L);
         presenceService.enter(10L, 1L, "socket", "sub", "login-a", null);
-        assertThat(presenceService.takeFirstUnreadMessageId(10L, 2L, "login-a")).isNull();
-        assertThat(presenceService.takeFirstUnreadMessageId(20L, 1L, "login-a")).isNull();
-        assertThat(presenceService.takeFirstUnreadMessageId(10L, 1L, "login-b")).isNull();
-        assertThat(presenceService.takeFirstUnreadMessageId(10L, 1L, "login-a")).isEqualTo(12L);
-        assertThat(presenceService.takeFirstUnreadMessageId(10L, 1L, "login-a")).isNull();
+        assertThat(presenceService.firstUnreadForEntry(10L, 2L, "login-a", null)).isNull();
+        assertThat(presenceService.firstUnreadForEntry(20L, 1L, "login-a", null)).isNull();
+        assertThat(presenceService.firstUnreadForEntry(10L, 1L, "login-b", null)).isNull();
+        assertThat(presenceService.firstUnreadForEntry(10L, 1L, "login-a", null)).isEqualTo(12L);
+        presenceService.enter(10L, 1L, "second-socket", "sub", "login-a", null);
+        presenceService.leaveSubscription("socket", "sub");
+        assertThat(presenceService.firstUnreadForEntry(10L, 1L, "login-a", null)).isEqualTo(12L);
+    }
+
+    @Test
+    void repeatedGetsBeforeSubscribeKeepTheOldestBoundaryAndExplicitLeaveEndsTheVisit() {
+        assertThat(presenceService.firstUnreadForEntry(10L, 1L, "login", 1204L)).isEqualTo(1204L);
+        assertThat(presenceService.firstUnreadForEntry(10L, 1L, "login", 1206L)).isEqualTo(1204L);
+        presenceService.leaveRoom(10L, 1L, "socket", "login");
+        assertThat(presenceService.firstUnreadForEntry(10L, 1L, "login", null)).isNull();
+        assertThat(presenceService.firstUnreadForEntry(10L, 1L, "login", 1207L)).isEqualTo(1207L);
     }
 
     @Test
@@ -24,7 +35,7 @@ class ChatPresenceServiceImplTest {
         presenceService.enter(10L, 1L, "socket", "sub", "login", 12L);
         presenceService.leaveSession("socket");
         presenceService.enter(10L, 1L, "socket", "sub", "login", null);
-        assertThat(presenceService.takeFirstUnreadMessageId(10L, 1L, "login")).isNull();
+        assertThat(presenceService.firstUnreadForEntry(10L, 1L, "login", null)).isNull();
     }
 
     @Test
@@ -56,10 +67,10 @@ class ChatPresenceServiceImplTest {
         presenceService.enter(10L, 1L, "session-a", "subscription-a", "login", null);
         presenceService.enter(10L, 1L, "session-b", "subscription-b", "login", null);
 
-        presenceService.leaveRoom(10L, 1L, "session-a");
+        presenceService.leaveRoom(10L, 1L, "session-a", "login");
 
         assertThat(presenceService.isPresent(10L, 1L)).isTrue();
-        presenceService.leaveRoom(10L, 1L, "session-b");
+        presenceService.leaveRoom(10L, 1L, "session-b", "login");
         assertThat(presenceService.isPresent(10L, 1L)).isFalse();
     }
 

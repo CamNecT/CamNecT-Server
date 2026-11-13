@@ -28,8 +28,9 @@ public class ChatRoomEntryService {
     public ChatRoomWithDetailDto getRoomWithDetails(Long roomId, Long userId, String loginSessionId) {
         synchronized (entryLock(roomId, userId)) {
             ChatRoomWithDetailDto details = chatService.getRoomWithDetails(roomId, userId);
-            Long fromSubscription = presenceService.takeFirstUnreadMessageId(roomId, userId, loginSessionId);
-            return fromSubscription == null ? details : details.withFirstUnreadMessageId(fromSubscription);
+            Long firstUnread = presenceService.firstUnreadForEntry(roomId, userId, loginSessionId,
+                    details.getFirstUnreadMessageId());
+            return details.withFirstUnreadMessageId(firstUnread);
         }
     }
 

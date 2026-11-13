@@ -95,16 +95,20 @@ class ChatWebSocketContractIntegrationTest {
         WebSocketStompClient client = new WebSocketStompClient(new StandardWebSocketClient());
         StompSession session = null;
         try {
-            if (subscribeFirst) {
-                StompHeaders connect = new StompHeaders();
-                connect.add("Authorization", "Bearer " + token);
-                session = client.connectAsync("ws://localhost:" + port + "/ws-stomp", new WebSocketHttpHeaders(),
-                        connect, new StompSessionHandlerAdapter() {}).get(MESSAGE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                session.subscribe("/sub/chat/room/" + fixture.roomId(), new StompSessionHandlerAdapter() {});
-                assertThat(awaitRoomPresence(fixture)).isTrue();
-                assertThat(chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(
-                        fixture.roomId(), fixture.senderId())).isZero();
+            if (!subscribeFirst) {
+                JsonNode beforeSubscribe = http.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class)
+                        .getBody().required("data");
+                assertThat(beforeSubscribe.required("firstUnreadMessageId").longValue()).isEqualTo(firstUnread);
             }
+            StompHeaders connect = new StompHeaders();
+            connect.add("Authorization", "Bearer " + token);
+            session = client.connectAsync("ws://localhost:" + port + "/ws-stomp", new WebSocketHttpHeaders(),
+                    connect, new StompSessionHandlerAdapter() {}).get(MESSAGE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            StompSession.Subscription subscription = session.subscribe("/sub/chat/room/" + fixture.roomId(),
+                    new StompSessionHandlerAdapter() {});
+            assertThat(awaitRoomPresence(fixture)).isTrue();
+            assertThat(chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(
+                    fixture.roomId(), fixture.senderId())).isZero();
 
             JsonNode detail = http.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class)
                     .getBody().required("data");
@@ -113,7 +117,14 @@ class ChatWebSocketContractIntegrationTest {
             assertThat(detail.required("chatList").get(2).required("read").booleanValue()).isTrue();
             JsonNode again = http.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class)
                     .getBody().required("data");
-            assertThat(again.required("firstUnreadMessageId").isNull()).isTrue();
+            assertThat(again.required("firstUnreadMessageId").longValue()).isEqualTo(firstUnread);
+
+            subscription.unsubscribe();
+            org.awaitility.Awaitility.await().atMost(MESSAGE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .until(() -> !presenceService.isPresent(fixture.roomId(), fixture.senderId()));
+            JsonNode nextVisit = http.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), JsonNode.class)
+                    .getBody().required("data");
+            assertThat(nextVisit.required("firstUnreadMessageId").isNull()).isTrue();
         } finally {
             if (session != null && session.isConnected()) session.disconnect();
             client.stop();

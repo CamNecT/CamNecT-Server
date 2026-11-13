@@ -68,7 +68,7 @@ public class ChatRoomController {
     }
 
 
-    @Operation(summary = "채팅방 상세 조회 (입장)", description = "상대방 정보와 채팅 내역을 불러옵니다. firstUnreadMessageId는 상세 조회 또는 같은 세션의 방 구독으로 읽음 처리하기 전의 첫 미읽음 메시지 ID입니다.")
+    @Operation(summary = "채팅방 상세 조회 (입장)", description = "상대방 정보와 채팅 내역을 불러옵니다. firstUnreadMessageId는 입장 직전의 첫 미읽음 메시지 ID입니다. 같은 세션에서 방을 구독하는 동안 재조회해도 이 값을 유지합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 잘못된 채팅방 ID 형식", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),

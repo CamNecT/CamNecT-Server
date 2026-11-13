@@ -56,7 +56,8 @@ public class ChatController {
             throw new CustomException(AuthErrorCode.INVALID_TOKEN);
         }
 
-        presenceService.leaveRoom(roomId, userId, accessor.getSessionId());
+        presenceService.leaveRoom(roomId, userId, accessor.getSessionId(),
+                (String) accessor.getSessionAttributes().get("sessionId"));
 
         log.info("👋 LEAVE (방 퇴장): userId={}, roomId={}", userId, roomId);
     }
