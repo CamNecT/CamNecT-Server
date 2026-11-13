@@ -1,7 +1,7 @@
 package CamNecT.server.global.websocket;
 
 import CamNecT.server.domain.chat.service.ChatPresenceService;
-import CamNecT.server.domain.chat.service.ChatService;
+import CamNecT.server.domain.chat.service.ChatRoomEntryService;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
@@ -23,7 +23,7 @@ import java.util.Map;
 public class WebSocketEventListener {
 
     private final ChatPresenceService presenceService;
-    private final ChatService chatService;
+    private final ChatRoomEntryService roomEntryService;
     private final UserRepository userRepository;
     private final ChatSocketErrorMapper errorMapper;
     private final ChatSocketErrorPublisher errorPublisher;
@@ -49,8 +49,7 @@ public class WebSocketEventListener {
                 if (roomId == null) return;
                 Users user = userRepository.findById(userId)
                         .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
-                chatService.markAllAsRead(roomId, user);
-                presenceService.enter(roomId, userId, sessionId, subscriptionId);
+                roomEntryService.subscribe(roomId, user, (String) attrs.get("sessionId"), sessionId, subscriptionId);
                 log.info("👤 SUBSCRIBE (입장): userId={}, roomId={}", userId, roomId);
             } catch (Exception e) {
                 log.warn("채팅방 구독 후 읽음 처리 실패. userId={}, roomId={}", userId, roomId, e);

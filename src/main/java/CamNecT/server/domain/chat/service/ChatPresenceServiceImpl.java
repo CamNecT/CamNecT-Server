@@ -15,9 +15,11 @@ public class ChatPresenceServiceImpl implements ChatPresenceService {
 
     private final Map<PresenceKey, Set<SubscriptionKey>> subscriptionsByPresence = new HashMap<>();
     private final Map<String, Map<String, PresenceKey>> presencesBySession = new HashMap<>();
+    private final Map<SubscriptionKey, UnreadBoundary> pendingBoundaries = new HashMap<>();
 
     @Override
-    public synchronized void enter(Long roomId, Long userId, String sessionId, String subscriptionId) {
+    public synchronized void enter(Long roomId, Long userId, String sessionId, String subscriptionId,
+                                   String loginSessionId, Long firstUnreadMessageId) {
         if (roomId == null || userId == null
                 || !StringUtils.hasText(sessionId) || !StringUtils.hasText(subscriptionId)) {
             log.warn("[chat-presence] skip invalid enter. room={}, user={}, session={}, subscription={}",
@@ -38,8 +40,27 @@ public class ChatPresenceServiceImpl implements ChatPresenceService {
         subscriptionsByPresence
                 .computeIfAbsent(presenceKey, ignored -> new HashSet<>())
                 .add(subscriptionKey);
+        if (firstUnreadMessageId != null && loginSessionId != null) {
+            pendingBoundaries.putIfAbsent(subscriptionKey, new UnreadBoundary(loginSessionId, firstUnreadMessageId));
+        }
         log.debug("[chat-presence] enter room={}, user={}, session={}, subscription={}",
                 roomId, userId, sessionId, subscriptionId);
+    }
+
+    @Override
+    public synchronized Long takeFirstUnreadMessageId(Long roomId, Long userId, String loginSessionId) {
+        Long first = null;
+        Set<SubscriptionKey> subscriptions = subscriptionsByPresence.getOrDefault(new PresenceKey(roomId, userId), Set.of());
+        for (SubscriptionKey subscription : subscriptions) {
+            UnreadBoundary boundary = pendingBoundaries.get(subscription);
+            if (boundary != null && boundary.loginSessionId().equals(loginSessionId)) {
+                pendingBoundaries.remove(subscription);
+                if (first == null || boundary.messageId() < first) {
+                    first = boundary.messageId();
+                }
+            }
+        }
+        return first;
     }
 
     @Override
@@ -99,6 +120,7 @@ public class ChatPresenceServiceImpl implements ChatPresenceService {
     }
 
     private void removeSubscription(PresenceKey presenceKey, SubscriptionKey subscriptionKey) {
+        pendingBoundaries.remove(subscriptionKey);
         Set<SubscriptionKey> subscriptions = subscriptionsByPresence.get(presenceKey);
         if (subscriptions == null) return;
 
@@ -112,4 +134,5 @@ public class ChatPresenceServiceImpl implements ChatPresenceService {
 
     private record PresenceKey(Long roomId, Long userId) {}
     private record SubscriptionKey(String sessionId, String subscriptionId) {}
+    private record UnreadBoundary(String loginSessionId, Long messageId) {}
 }
