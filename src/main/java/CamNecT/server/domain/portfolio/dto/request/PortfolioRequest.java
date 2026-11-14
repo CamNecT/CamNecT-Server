@@ -21,7 +21,8 @@ import java.util.List;
 @Accessors(fluent = true)
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class PortfolioRequest {
-    @NotBlank @Size(max = 100)
+    @Schema(description = "포트폴리오 제목 (최대 20자)", maxLength = 20)
+    @NotBlank @Size(max = 20, message = "포트폴리오 제목은 20자 이하여야 합니다.")
     private String projectTitle;
 
     @Size(max = 50)
