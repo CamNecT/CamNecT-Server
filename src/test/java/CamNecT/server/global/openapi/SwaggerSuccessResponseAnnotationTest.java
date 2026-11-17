@@ -9,6 +9,7 @@ import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -20,7 +21,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SwaggerSuccessResponseAnnotationTest {
 
     private static final String BASE_PACKAGE = "CamNecT.server";
-    private static final String DEBUG_PACKAGE_SEGMENT = ".debug.";
 
     @Test
     void everyFrontendRestEndpointDeclaresSwaggerSuccessResponse() throws ClassNotFoundException {
@@ -32,9 +32,6 @@ class SwaggerSuccessResponseAnnotationTest {
 
         for (var candidate : scanner.findCandidateComponents(BASE_PACKAGE)) {
             Class<?> controller = Class.forName(candidate.getBeanClassName());
-            if (controller.getPackageName().contains(DEBUG_PACKAGE_SEGMENT)) {
-                continue;
-            }
 
             for (Method method : controller.getDeclaredMethods()) {
                 if (AnnotatedElementUtils.findMergedAnnotation(method, RequestMapping.class) == null) {
@@ -57,6 +54,19 @@ class SwaggerSuccessResponseAnnotationTest {
                 if (!hasSuccessResponse) {
                     missingSuccessResponse.add(endpoint);
                 }
+                var status = AnnotatedElementUtils.findMergedAnnotation(method, ResponseStatus.class);
+                String expectedStatus = status == null ? "200" : Integer.toString(status.code().value());
+                var successes = List.of(method.getAnnotationsByType(ApiResponse.class)).stream()
+                        .filter(response -> response.responseCode().matches("2\\d\\d")).toList();
+                assertThat(successes).as(endpoint + " 정상 HTTP 상태").singleElement().satisfies(response -> {
+                    assertThat(response.responseCode()).isEqualTo(expectedStatus);
+                    if (method.getReturnType() != void.class) {
+                        assertThat(response.useReturnTypeSchema()).as(endpoint + " 제네릭 반환 타입 스키마").isTrue();
+                    } else {
+                        assertThat(response.useReturnTypeSchema()).isFalse();
+                        assertThat(response.content()).as(endpoint + " 본문 없는 응답").hasSize(1);
+                    }
+                });
             }
         }
 
