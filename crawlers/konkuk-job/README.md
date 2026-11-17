@@ -117,3 +117,9 @@ aws lambda invoke --function-name <FunctionName> --payload '{}' \
 학생공지는 제목·출처·원문 링크와 확인된 신청기한을 활동으로 게시한다. 본문·첨부·포스터는 재게시하지 않는다. RSS 게시일과 고정 종료일은 마감 근거가 아니다. 같은 신청 범위에 시작 연도가 명시되고 축약 종료일의 요일이 일치할 때만 같은 해로 인정한다. 날짜만 있으면 `applyEndAt=null`, 근거가 없으면 날짜도 null이다. 원문 근거는 아카이브에 남긴다. 외부 OCR·모델 API는 사용하지 않는다.
 
 로컬 확인: 게시용 환경 변수 없이 `PYTHONPATH=src python -m konkuk_job --board student --data-dir data/local`. 수신 경로는 `/api/internal/activity-imports/konkuk-student`로, 취업팀 서명을 재사용할 수 없다. 서버를 먼저 배포하고 기존 Lambda에 같은 버전의 수집기를 배포한다. `{"board":"student"}`로 호출해 `boards.student.publicationResults`와 활동 ID를 확인한다. 기본 이벤트는 두 게시판을 실행한다.
+
+### 수집 한도에 따른 이월
+
+취업팀 첨부는 파일당 최대 8,000,000바이트, 실행당 최대 64,000,000바이트를 읽는다. 한도가 부족하면 해당 공고의 일부만 게시하지 않고, 남은 처리 순서를 저장한다. 다음 실행은 최신 목록에서 여전히 조회 가능하고 재시도 시점이 된 이월 공고부터 처리한다. 표준 실행 보고서에는 `stopReason`(`MEDIA_BUDGET` 또는 `TIME_BUDGET`), `mediaBytes`, `processed`, `published`, `remaining`과 이월 시 `nextArticleId`·`pendingCount`를 기록한다. `processed`는 원문 저장까지 끝난 수다. 게시 직전 시간이 부족했던 공고도 이월 목록에 포함된다.
+
+한도를 정확히 채운 파일은 Content-Length로 전체 길이가 확인되면 저장한다. 길이 헤더 없이 파일당 상한을 채우면 `SIZE_UNVERIFIED`로 검수에 남긴다. 실행 잔여량만 부족했다면 새 회차에서 다시 확인한다. 실제 응답 거부, 목록 수집 실패, 개별 오류가 동반된 종료, 같은 공고가 새 예산에서도 첫 자리에서 반복 중단되는 경우에는 실패를 보고한다.

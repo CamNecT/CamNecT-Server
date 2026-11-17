@@ -10,6 +10,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from .http import RunBudgetReached
+
 PATH = '/api/internal/activity-imports/konkuk-job'
 MAPPING_VERSION = 1
 
@@ -81,7 +83,9 @@ class Publisher:
         body = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode()
         for attempt in range(3):
             if self.deadline is not None and time.monotonic() + 30 >= self.deadline:
-                raise PublishError('Publication time budget exhausted', fatal=True)
+                if attempt:
+                    raise PublishError('Publication failed; no time to retry', fatal=True) from last_error
+                raise RunBudgetReached('TIME_BUDGET')
             timestamp = str(int(time.time()))
             signature = hmac.new(self.secret.encode(),
                 f'{timestamp}\nPOST\n{self.path}\n{hashlib.sha256(body).hexdigest()}'.encode(), hashlib.sha256).hexdigest()
@@ -114,9 +118,11 @@ class Publisher:
                 if exc.code not in (409, 429, 500, 502, 503, 504) or attempt == 2:
                     raise PublishError(f'Publication HTTP {exc.code}',
                                        fatal=exc.code in (401, 403, 429) or exc.code >= 500) from exc
+                last_error = exc
             except (URLError, TimeoutError) as exc:
                 if attempt == 2:
                     raise PublishError('Publication connection failed', fatal=True) from exc
+                last_error = exc
             time.sleep(2 ** attempt)
         raise PublishError('No publication result')
 

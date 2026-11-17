@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
-from konkuk_job.http import HttpClient, PayloadTooLarge, SourceRedirect, source_url
+from konkuk_job.http import HttpClient, PayloadTooLarge, RunBudgetReached, SourceRedirect, source_url
 from konkuk_job.parser import (BASE, LIST_URL, SourceBlocked, SourceError,
                                application_dates, content_hash, parse_detail, parse_list)
 from konkuk_job.runner import collect_listing, collect_media, run
@@ -232,7 +232,7 @@ class TransportAndPaginationTests(unittest.TestCase):
         collect_media(record, client, Mock(), {'bytes': 0})
         self.assertEqual('TOO_LARGE', record['media'][0]['status'])
         self.assertIn('MEDIA_SIZE_LIMIT', record['reviewReasons'])
-        with self.assertRaises(SourceBlocked):
+        with self.assertRaisesRegex(RunBudgetReached, "MEDIA_BUDGET"):
             collect_media(record, client, Mock(), {'bytes': 60_000_000})
 
     def test_media_block_page_stops_entire_run(self):

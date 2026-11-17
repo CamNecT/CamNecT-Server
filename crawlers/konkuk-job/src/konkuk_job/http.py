@@ -10,10 +10,21 @@ from .parser import BASE, SourceBlocked, SourceError
 USER_AGENT = 'CamNecT-ActivityCrawler/0.1 (+https://github.com/CamNecT/CamNecT-Server)'
 
 
+class RunBudgetReached(Exception):
+    """A local run limit reached before completing the current article."""
+
+
+class IncompleteMedia(SourceError):
+    def __init__(self, bytes_read):
+        super().__init__('Incomplete media response')
+        self.bytes_read = bytes_read
+
+
 class PayloadTooLarge(SourceError):
-    def __init__(self, bytes_read=0):
+    def __init__(self, bytes_read=0, size_unverified=False):
         super().__init__('Source response exceeds size limit')
         self.bytes_read = bytes_read
+        self.size_unverified = size_unverified
 
 
 def source_url(url, host="job.konkuk.ac.kr"):
@@ -49,13 +60,15 @@ class HttpClient:
         robots.parse(raw.decode('utf-8-sig').splitlines())
         self.robots = robots
 
-    def fetch(self, url, fields=None, limit=2_000_000):
+    def fetch(self, url, fields=None, limit=2_000_000, *, media=False):
         url = source_url(url, self.host)
         if self.robots and not self.robots.can_fetch(USER_AGENT, url):
             raise SourceError('robots.txt disallows this path')
         for attempt in range(3):
             if self.deadline and time.monotonic() + self.timeout + self.delay >= self.deadline:
-                raise SourceBlocked('Request time budget exhausted')
+                if attempt:
+                    raise SourceError('Source request failed; no time to retry') from last_error
+                raise RunBudgetReached('TIME_BUDGET')
             time.sleep(max(0, self.delay - (time.monotonic() - self.last_request)))
             self.last_request = time.monotonic()
             request = Request(url, data=urlencode(fields).encode() if fields is not None else None,
@@ -66,7 +79,12 @@ class HttpClient:
                     length = response.headers.get('Content-Length', '')
                     if length.isdigit() and int(length) > limit:
                         raise PayloadTooLarge()
-                    data = response.read(limit + 1)
+                    # Media shares a hard byte cap across the run, including rejected files.
+                    data = response.read(limit if media else limit + 1)
+                    if media and length.isdigit() and len(data) < int(length):
+                        raise IncompleteMedia(len(data))
+                    if media and len(data) == limit and not length.isdigit():
+                        raise PayloadTooLarge(len(data), size_unverified=True)
                     if len(data) > limit:
                         raise PayloadTooLarge(len(data))
                     return data, response.headers.get_content_type()
@@ -75,9 +93,11 @@ class HttpClient:
                     raise SourceBlocked(f'Source denied/rate-limited request ({exc.code})') from exc
                 if exc.code < 500 or attempt == 2:
                     raise SourceError(f'Source HTTP error {exc.code}') from exc
+                last_error = exc
             except (URLError, TimeoutError) as exc:
                 if attempt == 2:
                     raise SourceError('Source connection failed after retries') from exc
+                last_error = exc
             time.sleep(2 ** (attempt + 1))
         raise SourceError('No response')
 

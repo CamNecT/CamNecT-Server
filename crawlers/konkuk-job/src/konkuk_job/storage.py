@@ -67,9 +67,21 @@ class LocalStore(Store):
             CREATE TABLE IF NOT EXISTS revisions (
                 article_id TEXT NOT NULL, version INTEGER NOT NULL, snapshot_key TEXT NOT NULL,
                 PRIMARY KEY(article_id, version));
+            CREATE TABLE IF NOT EXISTS run_cursor (id INTEGER PRIMARY KEY, pending TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS publications (article_id TEXT PRIMARY KEY, receipt TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS failures (article_id TEXT PRIMARY KEY, metadata TEXT NOT NULL);
         ''')
+
+    def get_pending(self):
+        row = self.db.execute('SELECT pending FROM run_cursor WHERE id=1').fetchone()
+        return json.loads(row[0]) if row else []
+
+    def save_pending(self, previous, pending):
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            if self.get_pending() != previous:
+                raise RuntimeError('Concurrent change to crawl cursor')
+            self.db.execute('INSERT OR REPLACE INTO run_cursor VALUES (1, ?)', (encode(pending).decode(),))
 
     def get_watch(self):
         path = self.root / 'student-watch.json'
@@ -146,6 +158,16 @@ class AwsStore(Store):
     def __init__(self, table, bucket, s3, source=SOURCE):
         self.source = source
         self.table, self.bucket, self.s3 = table, bucket, s3
+
+    def get_pending(self):
+        item = self.table.get_item(Key={'pk': f'CURSOR#{self.source}'}, ConsistentRead=True).get('Item')
+        return item['pending'] if item else []
+
+    def save_pending(self, previous, pending):
+        self.table.put_item(Item={'pk': f'CURSOR#{self.source}', 'pending': pending},
+                            ConditionExpression='attribute_not_exists(pk) OR #p = :previous',
+                            ExpressionAttributeNames={'#p': 'pending'},
+                            ExpressionAttributeValues={':previous': previous})
 
     def get_watch(self):
         item = self.table.get_item(Key={'pk': f'WATCH#{self.source}'}, ConsistentRead=True).get('Item')
