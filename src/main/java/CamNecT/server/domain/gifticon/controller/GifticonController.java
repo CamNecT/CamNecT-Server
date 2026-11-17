@@ -61,7 +61,10 @@ public class GifticonController {
 
     @GetMapping("/purchases")
     @Operation(summary = "내 기프티콘 구매내역", description = "내 주문을 최신순으로 조회합니다. 다음 페이지는 nextCursor를 cursor로 전달합니다. 주문 당시 가격과 처리 결과를 반환합니다.")
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true)
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공", useReturnTypeSchema = true),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 cursor는 양수, size는 1~100이어야 함 / 쿼리 형식 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public ApiResponse<GifticonPurchaseHistoryResponse> purchases(@UserId Long userId,
             @RequestParam(required = false) @Positive Long cursor,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
@@ -73,6 +76,7 @@ public class GifticonController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 47001 판매 중이 아닌 상품 / 47002 수량 오류 / 47003 수신 이메일 오류 / 44101 포인트 부족", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 41103 인증 헤더 누락·형식 오류 / 41104 토큰 타입 누락 / 41106 허용되지 않은 토큰 타입", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "47301 verified-phone 모드에서 전화번호 인증 필요", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "47401 상품을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "47901 동일 요청 식별자가 다른 구매 내용에 재사용됨 / 40900 포인트 잔액 동시성 충돌", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),

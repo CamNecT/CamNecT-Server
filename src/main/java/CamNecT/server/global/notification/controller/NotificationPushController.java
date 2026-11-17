@@ -30,6 +30,7 @@ public class NotificationPushController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 푸시 토큰 저장 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @io.swagger.v3.oas.annotations.Operation(summary = "알림 개발 환경 테스트: registerToken")
     public ApiResponse<RegisterPushTokenResponse> registerToken(
             @UserId Long userId,
             @RequestBody @Valid RegisterPushTokenRequest req

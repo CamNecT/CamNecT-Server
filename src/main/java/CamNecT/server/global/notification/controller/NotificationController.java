@@ -35,6 +35,7 @@ public class NotificationController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "41302 정지된 사용자", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 알림·발신자 프로필 조회 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @io.swagger.v3.oas.annotations.Operation(summary = "알림 개발 환경 테스트: list")
     public ApiResponse<NotificationListResponse> list(
             @UserId Long userId,
             @RequestParam(required = false) @Positive Long cursorId,
@@ -55,6 +56,7 @@ public class NotificationController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "41302 정지된 사용자", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 미읽음 알림 집계 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @io.swagger.v3.oas.annotations.Operation(summary = "알림 개발 환경 테스트: unreadCount")
     public ApiResponse<UnreadCountResponse> unreadCount(@UserId Long userId) {
         return ApiResponse.success(new UnreadCountResponse(notificationService.countUnread(userId)));
     }
@@ -68,6 +70,7 @@ public class NotificationController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "45401 알림이 없거나 현재 사용자의 알림이 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 읽음 처리 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @io.swagger.v3.oas.annotations.Operation(summary = "알림 개발 환경 테스트: markRead")
     public ApiResponse<Void> markRead(@UserId Long userId, @PathVariable @Positive Long id) {
         notificationService.markRead(userId, id);
         return ApiResponse.success(null);
@@ -80,6 +83,7 @@ public class NotificationController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "41302 정지된 사용자", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 전체 읽음 처리 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @io.swagger.v3.oas.annotations.Operation(summary = "알림 개발 환경 테스트: markAllRead")
     public ApiResponse<MarkAllReadResponse> markAllRead(@UserId Long userId) {
         int updated = notificationService.markAllRead(userId);
         long unread = notificationService.countUnread(userId);
@@ -95,6 +99,7 @@ public class NotificationController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 공지 알림 배치 저장 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @io.swagger.v3.oas.annotations.Operation(summary = "알림 개발 환경 테스트: pushEvent")
     public ApiResponse<AdminAnnouncementResponse> pushEvent(
             @UserId Long userId,
             @Valid @RequestBody AdminAnnouncementRequest request

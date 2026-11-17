@@ -92,7 +92,7 @@ public class ChatRoomController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 잘못된 채팅방 ID 형식", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 41103 인증 헤더 오류 또는 토큰 사용자 없음 / 41104 토큰 타입 누락 / 41106 허용되지 않은 토큰 타입", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "41302 정지된 사용자", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "48402 채팅방이 없거나 참여자가 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "48402 채팅방이 없거나 참여자가 아님 / 48404 연결된 요청 정보 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 채팅방 종료 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PatchMapping("/room/{roomId}/close")
@@ -107,7 +107,8 @@ public class ChatRoomController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 방 ID 목록 검증 실패 / 48007 종료되지 않은 채팅방 포함", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "인증 정보가 없거나 유효하지 않음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "접근이 제한된 사용자", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "48402 채팅방이 없거나 참여자가 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "48402 채팅방이 없거나 참여자가 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PatchMapping("/rooms/exit")
     public ApiResponse<Void> exitClosedRooms(@Valid @RequestBody ChatRoomBulkExitRequest request, @UserId Long userId) {

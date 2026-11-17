@@ -1,5 +1,6 @@
 package CamNecT.server.domain.report.controller;
 
+import org.springdoc.core.annotations.ParameterObject;
 import CamNecT.server.domain.report.dto.request.ReportCreateRequest;
 import CamNecT.server.domain.report.dto.request.ReportProcessRequest;
 import CamNecT.server.domain.report.dto.response.ReportCaseDetailResponse;
@@ -47,31 +48,15 @@ public class ReportController {
             description = "신고 대상, 사유, 증거 이미지를 포함하여 신고를 제출합니다. 관리자 검토 후 자동으로 패널티가 적용됩니다."
     )
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "201",
-                    description = "신고 성공적으로 제출됨",
-                    content = @Content(schema = @Schema(implementation = ReportResultResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "40000 요청값 검증 실패",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "40100 유효하지 않거나 만료된 JWT / 인증 헤더 누락",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "44401 신고 대상 사용자를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "500",
-                    description = "50000 내부 서버 오류",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            )
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "신고 성공적으로 제출됨", useReturnTypeSchema = true),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 51002 자기 자신 신고 / 51003 잘못된 신고 대상 / 49010 만료·사용된 티켓 / 49011 업로드 파일 불일치 / 49021 첨부 메타데이터 오류 / 49022 중복 첨부 키", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 인증 헤더 누락", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "49310 업로드 티켓 사용 권한 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "44401 신고 대상 사용자 / 49410 업로드 티켓 / 49401 업로드 파일을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "51901 중복 신고 / 51902 이미 처리한 신고 대상 / 51903 신고 대상 작성자 확인 불가", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "49006 신고 증거 이미지 개수 제한 초과", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "49902 저장 파일 확인 실패 / 49904 증거 파일 이동 실패 / 50000 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -87,7 +72,13 @@ public class ReportController {
             summary = "신고 증거 이미지 일괄 업로드 URL 발급",
             description = "신고 한 건의 증거 이미지 업로드 URL을 일괄 발급합니다. 허용 개수는 서버의 신고 증거 이미지 설정을 따릅니다."
     )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true)
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 49020 파일 크기가 0 이하 / 49021 첨부 메타데이터 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "413", description = "49005 파일 용량 제한 초과", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type / 49004 허용하지 않는 파일 형식", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "49006 파일 개수 또는 미사용 업로드 티켓 제한 초과", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     @PostMapping("/uploads/presign/evidence/batch")
     public ApiResponse<PresignUploadBatchResponse> presignEvidenceBatch(
             @UserId Long userId,
@@ -105,33 +96,19 @@ public class ReportController {
             description = "동일 객체에 접수된 신고를 하나의 case로 묶어 조회합니다. 신고 타입과 상태로 필터링할 수 있습니다."
     )
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "신고 목록 조회 성공",
-                    content = @Content(schema = @Schema(implementation = Page.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "40100 유효하지 않거나 만료된 JWT",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "41301 관리자 권한이 없음",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "500",
-                    description = "50000 내부 서버 오류",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            )
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "신고 목록 조회 성공", useReturnTypeSchema = true),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 경로·쿼리 자료형 또는 요청값 검증 실패", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "40300 관리자 권한 없음 / 44303 관리자 사용자가 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "44401 관리자 사용자 정보 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 내부 서버 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/admin")
     public ApiResponse<Page<ReportCaseSummaryResponse>> getReports(
             @UserId Long userId,
             @RequestParam(required = false) TargetType type,
             @RequestParam(required = false) ReportStatus status,
-            Pageable pageable) {
+            @ParameterObject Pageable pageable) {
         return ApiResponse.success(reportService.findAllReports(userId, type, status, pageable));
     }
 
@@ -144,31 +121,12 @@ public class ReportController {
             description = "대상 작성자, 개별 신고 제출 내역, 증거 첨부 여부와 대상 사용자의 기존 제재 이력을 조회합니다. 증거 파일은 별도 presigned download API로 조회합니다."
     )
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "신고 상세 정보 조회 성공",
-                    content = @Content(schema = @Schema(implementation = ReportCaseDetailResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "40100 유효하지 않거나 만료된 JWT",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "41301 관리자 권한이 없음",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "44401 신고를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "500",
-                    description = "50000 내부 서버 오류",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            )
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "신고 상세 정보 조회 성공", useReturnTypeSchema = true),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 경로·쿼리 자료형 또는 요청값 검증 실패", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "40300 관리자 권한 없음 / 44303 관리자 사용자가 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "51401 신고 case / 44401 관리자 사용자 정보를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 내부 서버 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/admin/{caseId}")
     public ApiResponse<ReportCaseDetailResponse> getReportDetail(
@@ -181,7 +139,13 @@ public class ReportController {
             summary = "신고 증거 이미지별 다운로드 URL 발급",
             description = "관리자가 신고 제출 건에 포함된 특정 증거 이미지의 presigned download URL을 발급합니다."
     )
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true)
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 경로·쿼리 자료형 또는 요청값 검증 실패", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "40300 관리자 권한 없음 / 44303 관리자 사용자가 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "51402 해당 case·신고 제출의 증거 파일 / 49401 저장 파일 / 44401 관리자 사용자를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "49902 저장 파일 확인 실패 / 50000 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     @GetMapping("/admin/{caseId}/submissions/{reportId}/evidence/{evidenceId}/download-url")
     public ApiResponse<PresignDownloadResponse> getEvidenceDownloadUrl(
             @UserId Long userId,
@@ -207,35 +171,14 @@ public class ReportController {
                     "- 즉시 제재: 성희롱, 사기 → 1개 객체 승인 시 영구 차단"
     )
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "신고 처리 성공"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400",
-                    description = "40000 요청값 검증 실패",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "40100 유효하지 않거나 만료된 JWT",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "41301 관리자 권한이 없음",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404",
-                    description = "44401 신고를 찾을 수 없음",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "500",
-                    description = "50000 내부 서버 오류",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            )
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "신고 처리 성공", useReturnTypeSchema = true),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 51001 이미 처리한 신고 / 51004 허용되지 않은 처리 상태 / 51005 승인 카테고리 누락", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "40300 관리자 권한 없음 / 44303 관리자 사용자가 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "51401 신고 case / 44401 관리자 사용자 정보를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "46006 연결된 팀 모집글로 인해 활동 삭제 불가 / 51903 신고 대상 작성자 확인 불가", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 내부 서버 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PatchMapping("/admin/{caseId}/status")
     public ApiResponse<Void> processReport(
@@ -255,25 +198,12 @@ public class ReportController {
             description = "특정 사용자에 대해 승인된 신고의 누적 수를 조회합니다. 패널티 결정에 사용됩니다."
     )
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "200",
-                    description = "신고 누적 수 조회 성공"
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "401",
-                    description = "40100 유효하지 않거나 만료된 JWT",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "403",
-                    description = "41301 관리자 권한이 없음",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "500",
-                    description = "50000 내부 서버 오류",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            )
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "신고 누적 수 조회 성공", useReturnTypeSchema = true),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 경로·쿼리 자료형 또는 요청값 검증 실패", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "40300 관리자 권한 없음 / 44303 관리자 사용자가 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "44401 관리자 사용자 정보 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 내부 서버 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/admin/users/{targetUserId}/report-count")
     public ApiResponse<Long> getReportCount(

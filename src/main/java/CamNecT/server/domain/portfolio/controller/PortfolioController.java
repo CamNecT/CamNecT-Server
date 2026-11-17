@@ -179,6 +179,7 @@ public class PortfolioController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "41302 정지된 사용자 / 44310 URL 사용자와 로그인 사용자 불일치", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "413", description = "49005 썸네일 용량 제한 초과", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type / 49004 허용되지 않은 이미지 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "49006 미사용 업로드 티켓 제한 초과", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 Presigned URL 발급 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/uploads/presign/thumbnail")

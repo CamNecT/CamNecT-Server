@@ -34,7 +34,7 @@ public class ChatRequestController {
     @Operation(summary = "커피챗 요청 보내기 (커피챗)", description = "상대방에게 커피챗 요청을 보냅니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 수신자·태그·내용 검증 실패 / 48001 자기 자신에게 요청 / 48004 상대방이 커피챗 요청을 받지 않는 상태", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 수신자·태그·내용 검증 실패 / 48001 자기 자신에게 요청 / 48004 상대방이 커피챗 요청을 받지 않는 상태 / 48003 채팅 요청 내용 검증 실패", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 41103 인증 헤더 오류 또는 토큰 사용자 없음 / 41104 토큰 타입 누락 / 41106 허용되지 않은 토큰 타입", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "41302 정지된 사용자", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "48403 태그 / 48405 수신자를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
@@ -60,8 +60,9 @@ public class ChatRequestController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 41103 인증 헤더 오류 또는 토큰 사용자 없음 / 41104 토큰 타입 누락 / 41106 허용되지 않은 토큰 타입", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "41302 정지된 사용자 / 48301 요청 수신자가 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "48401 요청을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "40900 포인트 적립 이벤트 충돌", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 채팅방·포인트·알림 처리 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "44150 포인트 지갑 생성 실패 / 50000 채팅방·포인트·알림 처리 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PostMapping("/respond")
     public ApiResponse<Void> respondRequest(
