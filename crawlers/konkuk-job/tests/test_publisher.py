@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError, URLError
 
+from konkuk_job.http import RunBudgetReached
 from konkuk_job.parser import LIST_URL, parse_detail
 from konkuk_job.publisher import PATH, NoRedirect, PublishError, Publisher, make_payload
 from konkuk_job.runner import run
@@ -72,7 +73,7 @@ class PublisherTests(unittest.TestCase):
         opener = Mock()
         publisher = Publisher('https://api.camnect.site', 'x' * 32, opener=opener)
         publisher.deadline = 0
-        with self.assertRaises(PublishError):
+        with self.assertRaisesRegex(RunBudgetReached, "TIME_BUDGET"):
             publisher.publish(self.record, self.meta, self.store)
         opener.open.assert_not_called()
 

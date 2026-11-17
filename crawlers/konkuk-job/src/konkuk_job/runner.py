@@ -5,8 +5,12 @@ from urllib.parse import urlsplit
 
 from .parser import BLOCK_MARKERS, LIST_URL, SourceBlocked, SourceError, parse_detail, parse_list
 from .storage import now
-from .http import PayloadTooLarge
+from .http import IncompleteMedia, PayloadTooLarge, RunBudgetReached
 from .publisher import PublishError
+
+
+RUN_MEDIA_BYTES = 64_000_000
+FILE_MEDIA_BYTES = 8_000_000
 
 
 def collect_listing(client, max_pages=20):
@@ -36,25 +40,28 @@ def collect_media(record, client, store, budget, max_media=8):
         if urlsplit(url).hostname != 'job.konkuk.ac.kr':
             record['media'].append({'url': url, 'status': 'EXTERNAL_NOT_FETCHED'})
             continue
-        if budget['bytes'] >= 64_000_000:
-            raise SourceBlocked('Run media byte budget exceeded')
-        remaining = 64_000_000 - budget['bytes']
+        remaining = RUN_MEDIA_BYTES - budget['bytes']
+        if remaining <= 0:
+            raise RunBudgetReached('MEDIA_BUDGET')
         try:
-            raw, mime = client.fetch(url, limit=min(8_000_000, remaining))
+            raw, mime = client.fetch(url, limit=min(FILE_MEDIA_BYTES, remaining), media=True)
+        except IncompleteMedia as exc:
+            budget['bytes'] += exc.bytes_read
+            raise
         except PayloadTooLarge as exc:
             budget['bytes'] += exc.bytes_read
-            if remaining < 8_000_000:
-                raise SourceBlocked('Run media byte budget exhausted; resume next run') from exc
+            if remaining < FILE_MEDIA_BYTES:
+                raise RunBudgetReached('MEDIA_BUDGET') from exc
             record['reviewReasons'].append('MEDIA_SIZE_LIMIT')
-            record['media'].append({'url': url, 'status': 'TOO_LARGE'})
+            record['media'].append({'url': url, 'status': 'SIZE_UNVERIFIED' if exc.size_unverified else 'TOO_LARGE'})
             continue
         # The board labels real JPG attachments application/x-msdownload. Use signatures.
+        budget['bytes'] += len(raw)
         detected = media_type(raw)
         if any(marker in raw[:64_000].decode('utf-8', errors='replace').lower() for marker in BLOCK_MARKERS):
             raise SourceBlocked('Source returned a block page for media')
         if mime in ('text/html', 'application/xhtml+xml') or raw.lstrip().lower().startswith((b'<!doctype html', b'<html')):
             raise SourceError('Unexpected media response; original record retained')
-        budget['bytes'] += len(raw)
         if detected is None:
             record['reviewReasons'].append('UNSUPPORTED_MEDIA')
             record['media'].append({'url': url, 'status': 'UNSUPPORTED',
@@ -90,6 +97,7 @@ def run(client, store, max_articles=20, max_pages=20, seconds=480, publisher=Non
                'board': 'student' if student else 'job', 'discovered': 0, 'processed': 0, 'created': 0, 'updated': 0, 'unchanged': 0,
                'articleErrors': [], 'publicationErrors': [], 'deferred': 0,
                'published': 0, 'publicationResults': {}}
+    budget = {'bytes': 0}
     try:
         client.load_robots()
         if student:
@@ -110,54 +118,67 @@ def run(client, store, max_articles=20, max_pages=20, seconds=480, publisher=Non
                     meta['lastSeenAt'] if meta else '', -int(article_id))
         eligible = [i for i in articles if not failures[i] or failures[i]['nextRetryAt'] <= now()]
         summary['deferred'] = len(articles) - len(eligible)
-        ids = sorted(eligible, key=priority)
+        previous = store.get_pending()
+        eligible_set = set(eligible)
+        resume = [i for i in previous if i in eligible_set]
+        ids = resume + sorted(eligible_set.difference(resume), key=priority)
         # Reserve one slot for an eligible retry so a busy board cannot starve repairs.
         retries = [i for i in ids if failures[i]]
         if retries and len(ids) > max_articles:
             chosen = ids[:max_articles]
-            if not any(failures[i] for i in chosen):
+            if chosen[-1] not in resume and not any(failures[i] for i in chosen):
                 chosen[-1] = retries[0]
             ids = chosen
-        budget = {'bytes': 0}
-        for article_id in ids[:max_articles]:
-            if time.monotonic() - started > seconds:
-                summary['stopReason'] = 'TIME_BUDGET'
-                break
-            try:
-                html, raw = client.html(articles[article_id])
-                record = parse_detail(html, article_id, student=student)
-                if not student:
-                    collect_media(record, client, store, budget)
-            except SourceBlocked:
-                raise
-            except SourceError as exc:
-                summary['articleErrors'].append({'articleId': article_id, 'error': str(exc)})
-                store.record_failure(article_id, 'source', exc)
-                continue
-            result = store.save(record, raw)
-            summary[result] += 1
-            summary['processed'] += 1
-            if publisher:
+        batch = ids[:max_articles]
+        pending = resume[max_articles:]
+        try:
+            for index, article_id in enumerate(batch):
                 try:
-                    receipt = publisher.publish(record, store.get(article_id), store)
-                except PublishError as exc:
-                    if exc.fatal:
-                        raise
-                    store.record_failure(article_id, 'publication', exc)
-                    summary['publicationErrors'].append({'articleId': article_id, 'error': str(exc)})
+                    if time.monotonic() >= client.deadline:
+                        raise RunBudgetReached('TIME_BUDGET')
+                    html, raw = client.html(articles[article_id])
+                    record = parse_detail(html, article_id, student=student)
+                    if not student:
+                        collect_media(record, client, store, budget)
+                except SourceBlocked:
+                    raise
+                except SourceError as exc:
+                    summary['articleErrors'].append({'articleId': article_id, 'error': str(exc)})
+                    store.record_failure(article_id, 'source', exc)
                     continue
-                summary['published'] += 1
-                status = receipt['status']
-                summary['publicationResults'][status] = summary['publicationResults'].get(status, 0) + 1
-            store.clear_failure(article_id)
-        summary.update(status='SUCCESS', mediaBytes=budget['bytes'],
-                       remaining=len(articles) - summary['processed'])
+                result = store.save(record, raw)
+                summary[result] += 1
+                summary['processed'] += 1
+                if publisher:
+                    try:
+                        receipt = publisher.publish(record, store.get(article_id), store)
+                    except PublishError as exc:
+                        if exc.fatal:
+                            raise
+                        store.record_failure(article_id, 'publication', exc)
+                        summary['publicationErrors'].append({'articleId': article_id, 'error': str(exc)})
+                        continue
+                    summary['published'] += 1
+                    status = receipt['status']
+                    summary['publicationResults'][status] = summary['publicationResults'].get(status, 0) + 1
+                store.clear_failure(article_id)
+        except RunBudgetReached as exc:
+            summary['stopReason'] = str(exc)
+            pending = batch[index:] + pending
+        if previous != pending:
+            store.save_pending(previous, pending)
+        if pending:
+            summary.update(nextArticleId=pending[0], pendingCount=len(pending))
+        if summary.get('stopReason') and index == 0 and previous[:1] == pending[:1]:
+            raise SourceError(f'Resumed article {pending[0]} exhausted a fresh run budget again')
         if summary['articleErrors'] or summary['publicationErrors']:
             raise SourceError('Some articles failed; healthy articles completed; see run report')
+        summary['status'] = 'SUCCESS'
     except Exception as exc:
         summary.update(status='FAILED', errorType=type(exc).__name__, error=str(exc))
         raise
     finally:
+        summary.update(mediaBytes=budget['bytes'], remaining=summary['discovered'] - summary['processed'])
         summary['finishedAt'] = now()
         store.save_run(summary)
     return summary
