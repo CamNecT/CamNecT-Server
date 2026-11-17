@@ -7,6 +7,7 @@ import CamNecT.server.domain.community.dto.response.PostSummaryResponse;
 import CamNecT.server.domain.community.model.enums.ContentAccessStatus;
 import CamNecT.server.domain.community.model.enums.PostAccessType;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,10 +28,12 @@ public record MyArchiveResponse(
 
     public enum Sort {RECOMMENDED, LATEST}
 
+    @Schema(name = "ArchiveItem", oneOf = {CommunityItem.class, ExternalActivityItem.class, RecruitmentItem.class})
     public sealed interface Item permits CommunityItem, ExternalActivityItem, RecruitmentItem {
     }
 
     // 커뮤니티 카드
+    @Schema(requiredProperties = "postId")
     public record CommunityItem(
             Long postId,
             String boardCode,
@@ -71,6 +74,7 @@ public record MyArchiveResponse(
     }
 
     // 대외활동 카드
+    @Schema(requiredProperties = "activityId")
     public record ExternalActivityItem(
             Long activityId,
             String title,
@@ -87,6 +91,7 @@ public record MyArchiveResponse(
     }
 
     // 팀원모집 카드
+    @Schema(requiredProperties = "recruitId")
     public record RecruitmentItem(
             Long recruitId,
             String activityTitle,

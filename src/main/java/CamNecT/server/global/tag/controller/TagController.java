@@ -1,5 +1,9 @@
 package CamNecT.server.global.tag.controller;
 
+import CamNecT.server.global.common.response.ErrorResponse;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import CamNecT.server.global.common.response.ApiResponse;
 import CamNecT.server.global.tag.dto.TagCategoryDto;
 import CamNecT.server.global.tag.model.enums.TagScope;
@@ -28,7 +32,10 @@ public class TagController {
                     scope=COMMUNITY_QUESTION 이면 '채택 상태' 카테고리 추가,
                     scope=ACTIVITY_RECRUIT 이면 '모집 상태' 카테고리 추가.
                     """)
-    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true)
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 경로·쿼리 자료형 또는 요청값 검증 실패", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     @GetMapping
     public ApiResponse<List<TagCategoryDto>> list(
             @RequestParam(required = false) TagScope scope
