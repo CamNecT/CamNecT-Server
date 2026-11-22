@@ -532,7 +532,7 @@ public class ActivityService {
     public ActivityDetailResponse getActivityDetail(Long userId, Long activityId, boolean countView) {
         if (userId == null) throw new CustomException(ActivityErrorCode.USER_NOT_FOUND);
         // 1. 메인 활동 조회
-        ExternalActivity activity = activityRepository.findById(activityId)
+        ExternalActivity activity = activityRepository.findVisibleOnApp(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
         // 2. Activity → DTO 변환 + 썸네일 presign

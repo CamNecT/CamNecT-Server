@@ -22,6 +22,7 @@ import org.springframework.stereotype.Repository;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static CamNecT.server.domain.activity.ingestion.QActivityImport.activityImport;
 import static CamNecT.server.domain.activity.model.external_activity.QExternalActivity.externalActivity;
 import static CamNecT.server.domain.activity.model.external_activity.QExternalActivityBookmark.externalActivityBookmark;
 import static CamNecT.server.domain.activity.model.external_activity.QExternalActivityTag.externalActivityTag;
@@ -35,6 +36,20 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
 
     private final JPAQueryFactory queryFactory;
 
+    private BooleanExpression visibleOnApp() {
+        return JPAExpressions.selectOne().from(activityImport)
+                .where(activityImport.activityId.eq(externalActivity.activityId),
+                        activityImport.sourceId.startsWith("KONKUK_JOB_4084#")).notExists()
+                .or(JPAExpressions.selectOne().from(externalActivityTag)
+                        .where(externalActivityTag.activity.activityId.eq(externalActivity.activityId)).exists());
+    }
+
+    @Override
+    public Optional<ExternalActivity> findVisibleOnApp(Long id) {
+        return Optional.ofNullable(queryFactory.selectFrom(externalActivity)
+                .where(externalActivity.activityId.eq(id), visibleOnApp()).fetchOne());
+    }
+
     @Override
     public Slice<ActivityPreviewResponse> findActivitiesByCondition(
             Long userId, ActivityCategory category, List<Long> tagIds,
@@ -47,6 +62,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                 .select(externalActivity.activityId)
                 .from(externalActivity)
                 .where(
+                        visibleOnApp(),
                         categoryEq(category),
                         titleContains(title),
                         hasAllTags(tagIds)
@@ -216,6 +232,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                 .from(ea)
                 .leftJoin(b).on(b.activity.activityId.eq(ea.activityId))
                 .where(
+                        visibleOnApp(),
                         category != null ? ea.category.eq(category) : null,
                         ea.status.eq(ActivityStatus.OPEN)
                 )
