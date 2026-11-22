@@ -36,6 +36,10 @@ public class ReportCase {
     @JoinColumn(name = "reported_user_id", nullable = false)
     private Users reportedUser;
 
+    // Existing cases predate server-side verification and must resolve the live target.
+    @Column(name = "verified_author_id", updatable = false)
+    private Long verifiedAuthorId;
+
     @Column(name = "target_id", nullable = false)
     private Long targetId;
 
@@ -78,6 +82,7 @@ public class ReportCase {
     private ReportCase(String targetKey, Users reportedUser, Long targetId, TargetType targetType) {
         this.targetKey = targetKey;
         this.reportedUser = reportedUser;
+        this.verifiedAuthorId = reportedUser.getUserId();
         this.targetId = targetId;
         this.targetType = targetType;
         this.reportCount = 0;

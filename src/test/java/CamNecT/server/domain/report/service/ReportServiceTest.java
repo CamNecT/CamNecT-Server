@@ -102,7 +102,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED)).thenReturn(Optional.of(reportCase));
         when(reportRepository.existsByReporterIdAndReportCase_CaseId(1L, 10L)).thenReturn(true);
 
@@ -121,7 +120,6 @@ class ReportServiceTest {
         order.verify(accountAccessGuard).requireAccessibleForUpdate(1L);
         order.verify(userRepository).lockUserRow(2L);
         order.verify(reportTargetResolver).resolveForCreateLocked(1L, request);
-        order.verify(userRepository).findById(2L);
         order.verify(reportCaseRepository).findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED);
         verify(reportRepository, never()).saveAndFlush(any());
     }
@@ -135,7 +133,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(3L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED)).thenReturn(Optional.of(reportCase));
         when(reportRepository.saveAndFlush(any(Report.class))).thenAnswer(invocation -> {
             Report saved = invocation.getArgument(0);
@@ -147,10 +144,10 @@ class ReportServiceTest {
 
         assertThat(reportId).isEqualTo(101L);
         assertThat(reportCase.getReportCount()).isEqualTo(2L);
-        InOrder order = inOrder(userRepository, accountAccessGuard, reportCaseRepository);
+        InOrder order = inOrder(userRepository, accountAccessGuard, reportTargetResolver, reportCaseRepository);
         order.verify(userRepository).lockUserRow(2L);
         order.verify(accountAccessGuard).requireAccessibleForUpdate(3L);
-        order.verify(userRepository).findById(2L);
+        order.verify(reportTargetResolver).resolveForCreateLocked(3L, request);
         order.verify(reportCaseRepository).findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED);
         verify(reportCaseRepository, never()).saveAndFlush(any());
     }
@@ -197,7 +194,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, actualAuthor));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(actualAuthor));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
                 .thenReturn(Optional.of(forgedCase));
 
@@ -224,7 +220,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
                 .thenReturn(Optional.of(reportCase));
 
@@ -249,7 +244,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
                 .thenReturn(Optional.of(reportCase));
         when(reportRepository.saveAndFlush(any(Report.class)))
@@ -272,7 +266,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
                 .thenReturn(Optional.of(reportCase));
         when(reportRepository.saveAndFlush(any(Report.class))).thenThrow(failure);
@@ -526,7 +519,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED)).thenReturn(Optional.of(reportCase));
         when(reportRepository.saveAndFlush(any(Report.class))).thenAnswer(invocation -> {
             Report saved = invocation.getArgument(0);

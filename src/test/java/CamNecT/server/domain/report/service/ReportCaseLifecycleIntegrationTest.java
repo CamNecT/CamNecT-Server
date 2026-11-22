@@ -1,5 +1,13 @@
 package CamNecT.server.domain.report.service;
 
+import CamNecT.server.domain.community.model.Boards;
+import CamNecT.server.domain.community.model.Posts.Posts;
+import CamNecT.server.domain.community.model.enums.BoardCode;
+import CamNecT.server.domain.community.repository.BoardsRepository;
+import CamNecT.server.domain.community.repository.Posts.PostsRepository;
+import CamNecT.server.domain.report.dto.request.ReportProcessRequest;
+import CamNecT.server.domain.users.model.UserRole;
+import org.junit.jupiter.params.provider.ValueSource;
 import CamNecT.server.domain.report.dto.request.ReportCreateRequest;
 import CamNecT.server.domain.report.model.ReportCategory;
 import CamNecT.server.domain.report.model.ReportStatus;
@@ -57,6 +65,8 @@ class ReportCaseLifecycleIntegrationTest {
     @Autowired UserRepository users;
     @Autowired PlatformTransactionManager transactionManager;
 
+    @Autowired PostsRepository posts;
+    @Autowired BoardsRepository boards;
     @Autowired ReportRetentionService retention;
     @Autowired JdbcTemplate jdbc;
     @Autowired UploadTicketRepository tickets;
@@ -64,6 +74,33 @@ class ReportCaseLifecycleIntegrationTest {
     @MockitoBean S3Client s3;
     @Autowired ReportEvidenceRepository evidence;
     @Autowired UserReportPenaltyRepository penalties;
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void approvalAfterPhysicalDeletionRequiresVerifiedAuthor(boolean verifiedAtSubmission) {
+        var admin = users.saveAndFlush(Users.builder().username(UUID.randomUUID().toString())
+                .passwordHash("unused").name("admin").status(UserStatus.ACTIVE).role(UserRole.ADMIN).build());
+        var author = user();
+        var board = boards.findByCode(BoardCode.INFO).orElseGet(() -> boards.save(Boards.of(BoardCode.INFO, "정보")));
+        var post = posts.saveAndFlush(Posts.create(board, author, "title", "content", false));
+        var reportId = service.createReport(user().getUserId(), new ReportCreateRequest(author.getUserId(),
+                post.getId(), TargetType.COMMUNITY, ReportCategory.OTHER, "title", "context", List.of()));
+        long caseId = reports.findById(reportId).orElseThrow().getReportCase().getCaseId();
+        posts.deleteById(post.getId());
+        var decision = new ReportProcessRequest(ReportStatus.RESOLVED, ReportCategory.OTHER, "reviewed");
+        if (verifiedAtSubmission) {
+            service.processReport(admin.getUserId(), caseId, decision);
+            assertThat(cases.findById(caseId).orElseThrow().getStatus()).isEqualTo(ReportStatus.RESOLVED);
+            assertThat(penalties.countByUser_UserId(author.getUserId())).isOne();
+        } else {
+            jdbc.update("UPDATE report_case SET verified_author_id = NULL WHERE case_id = ?", caseId);
+            assertThat(assertThrows(CustomException.class, () -> service.processReport(admin.getUserId(), caseId, decision))
+                    .getErrorCode()).isEqualTo(ReportErrorCode.REPORT_TARGET_INTEGRITY_UNVERIFIED);
+            assertThat(cases.findById(caseId).orElseThrow().getStatus()).isEqualTo(ReportStatus.RECEIVED);
+            assertThat(penalties.countByUser_UserId(author.getUserId())).isZero();
+        }
+    }
 
     @Test
     void decisionRestartsRetentionAndPermanentRestrictionSurvivesDetailExpiry() {

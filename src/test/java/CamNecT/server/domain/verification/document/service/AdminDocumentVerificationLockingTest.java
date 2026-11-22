@@ -1,5 +1,13 @@
 package CamNecT.server.domain.verification.document.service;
 
+import static org.mockito.Mockito.verifyNoInteractions;
+import org.springframework.test.util.ReflectionTestUtils;
+import CamNecT.server.global.point.model.PointEvent;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.ParameterizedTest;
+import CamNecT.server.domain.profile.components.majors.model.Majors;
+import CamNecT.server.domain.users.model.UserProfile;
+import CamNecT.server.domain.report.service.UserReportPenaltyService;
 import CamNecT.server.domain.profile.components.institutions.repository.InstitutionRepository;
 import CamNecT.server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.server.domain.users.model.UserStatus;
@@ -30,16 +38,41 @@ class AdminDocumentVerificationLockingTest {
     private final DocumentVerificationSubmissionRepository submissionRepository =
             mock(DocumentVerificationSubmissionRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
+    private final UserProfileRepository profiles = mock(UserProfileRepository.class);
+    private final InstitutionRepository institutions = mock(InstitutionRepository.class);
+    private final MajorRepository majors = mock(MajorRepository.class);
+    private final UserReportPenaltyService penalties = mock(UserReportPenaltyService.class);
+    private final PointService points = mock(PointService.class);
     private final AdminDocumentVerificationService service = new AdminDocumentVerificationService(
             submissionRepository,
             userRepository,
-            mock(UserProfileRepository.class),
-            mock(InstitutionRepository.class),
-            mock(MajorRepository.class),
+            profiles, institutions, majors,
             mock(PresignEngine.class),
             mock(ApplicationEventPublisher.class),
-            mock(PointService.class)
+            points, penalties
     );
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void approvalGrantsSignupPointsOnlyToAnUnrestrictedRecipient(boolean restricted) {
+        var user = Users.builder().userId(1L).status(UserStatus.ADMIN_PENDING).build();
+        var submission = DocumentVerificationSubmission.builder()
+                .id(10L).userId(1L).status(VerificationStatus.PENDING).build();
+        when(submissionRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(submission));
+        when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(user));
+        when(institutions.existsById(3L)).thenReturn(true);
+        when(majors.findByMajorIdAndInstitution_InstitutionIdAndIsActiveTrue(4L, 3L))
+                .thenReturn(Optional.of(mock(Majors.class)));
+        when(profiles.findByUserId(1L)).thenReturn(Optional.of(mock(UserProfile.class)));
+        when(penalties.blocksReward(1L, UserStatus.ACTIVE)).thenReturn(restricted);
+        ReflectionTestUtils.setField(service, "rewardSignup", 300);
+        service.review(99L, 10L, new AdminReviewDocumentVerificationRequest(
+                AdminReviewDocumentVerificationRequest.Decision.APPROVE, null, "Student", "2026", 3L, 4L));
+
+        assertThat(user.getStatus()).isEqualTo(UserStatus.ACTIVE);
+        if (restricted) verifyNoInteractions(points);
+        else verify(points).earnPoint(1L, 300, PointEvent.signup(1L));
+    }
 
     @Test
     void approvalRechecksUserStateUnderLock() {

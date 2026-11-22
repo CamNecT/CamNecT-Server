@@ -823,7 +823,7 @@ public class ChatService {
         } else {
             // The organizer accepts, but the applicant receives the reward.
             var status = request.getRequester().getStatus();
-            if (status != UserStatus.ACTIVE || penalties.hasActiveRestriction(opponentId, status)) return;
+            if (penalties.blocksReward(opponentId, status)) return;
             pointService.earnTeamRecruitAccepted(opponentId, targetUserId, requestId, rewardCoffeeChatAccepted);
         }
     }

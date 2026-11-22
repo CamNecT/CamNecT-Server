@@ -491,14 +491,11 @@ public class ActivityService {
 
     @Transactional
     public void deleteForModeration(Long adminId, Long activityId) {
-        ExternalActivity activity = activityRepository.findByIdForUpdate(activityId)
-                .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
         if (!userRepository.existsByUserIdAndRole(adminId, UserRole.ADMIN)) {
             throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
         }
 
-        deleteLockedActivity(activity);
+        activityRepository.findByIdForUpdate(activityId).ifPresent(this::deleteLockedActivity);
     }
 
     private void deleteLockedActivity(ExternalActivity activity) {

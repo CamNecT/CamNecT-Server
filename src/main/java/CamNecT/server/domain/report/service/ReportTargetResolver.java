@@ -97,30 +97,25 @@ public class ReportTargetResolver {
             throw unverifiedTarget();
         }
 
-        Users authoritativeAuthor = switch (reportCase.getTargetType()) {
-            case COMMUNITY -> postsRepository.findById(reportCase.getTargetId())
-                    .map(Posts::getUser)
-                    .orElseThrow(this::unverifiedTarget);
-            case COMMUNITY_COMMENT -> commentsRepository.findById(reportCase.getTargetId())
-                    .map(Comments::getUserId)
-                    .flatMap(userRepository::findById)
-                    .orElseThrow(this::unverifiedTarget);
-            case ACTIVITY_COMMENT -> activityComments.findById(reportCase.getTargetId())
-                    .map(ActivityComment::getUserId).flatMap(userRepository::findById)
-                    .orElseThrow(this::unverifiedTarget);
-            case ACTIVITY -> activityRepository.findById(reportCase.getTargetId())
-                    .map(ExternalActivity::getUser)
-                    .orElseThrow(this::unverifiedTarget);
-            case ACTIVITY_RECRUITMENT -> recruitmentRepository.findById(reportCase.getTargetId())
-                    .map(TeamRecruitment::getUserId)
-                    .flatMap(userRepository::findById)
-                    .orElseThrow(this::unverifiedTarget);
-            case USER -> userRepository.findById(reportCase.getTargetId())
-                    .orElseThrow(this::unverifiedTarget);
-            case CHAT -> resolveStoredChatAuthor(reportCase, submissions);
+        Long targetId = reportCase.getTargetId();
+        var liveAuthor = switch (reportCase.getTargetType()) {
+            case COMMUNITY -> postsRepository.findById(targetId).map(post -> post.getUser().getUserId());
+            case COMMUNITY_COMMENT -> commentsRepository.findById(targetId).map(Comments::getUserId);
+            case ACTIVITY_COMMENT -> activityComments.findById(targetId).map(ActivityComment::getUserId);
+            case ACTIVITY -> activityRepository.findById(targetId).map(activity -> {
+                if (activity.getUser() == null) throw unverifiedTarget();
+                return activity.getUser().getUserId();
+            });
+            case ACTIVITY_RECRUITMENT -> recruitmentRepository.findById(targetId).map(TeamRecruitment::getUserId);
+            case USER -> userRepository.findById(targetId).map(Users::getUserId);
+            case CHAT -> chatRoomRepository.findById(targetId)
+                    .map(room -> resolveStoredChatAuthor(room, submissions).getUserId());
         };
-
-        Long authoritativeUserId = authoritativeAuthor.getUserId();
+        Long authoritativeUserId = liveAuthor.orElse(reportCase.getVerifiedAuthorId());
+        if (authoritativeUserId == null || (reportCase.getVerifiedAuthorId() != null
+                && !reportCase.getVerifiedAuthorId().equals(authoritativeUserId))) {
+            throw unverifiedTarget();
+        }
         String authoritativeKey = Report.targetKeyFor(
                 reportCase.getTargetType(),
                 authoritativeUserId,
@@ -233,9 +228,7 @@ public class ReportTargetResolver {
         return contentTarget(request, room.getId(), targetUser);
     }
 
-    private Users resolveStoredChatAuthor(ReportCase reportCase, List<Report> submissions) {
-        ChatRoom room = chatRoomRepository.findById(reportCase.getTargetId())
-                .orElseThrow(this::unverifiedTarget);
+    private Users resolveStoredChatAuthor(ChatRoom room, List<Report> submissions) {
         Users authoritativeAuthor = null;
 
         for (Report report : submissions) {

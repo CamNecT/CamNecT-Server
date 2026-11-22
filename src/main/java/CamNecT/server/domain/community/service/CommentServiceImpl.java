@@ -182,12 +182,12 @@ public class CommentServiceImpl implements CommentService {
     public void deleteForModeration(Long adminId, Long commentId) {
         if (adminId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
-        Comments comment = commentsRepository.findByIdForUpdate(commentId)
-                .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
-
         if (!userRepository.existsByUserIdAndRole(adminId, UserRole.ADMIN)) {
             throw new CustomException(CommunityErrorCode.COMMENT_FORBIDDEN);
         }
+
+        Comments comment = commentsRepository.findByIdForUpdate(commentId).orElse(null);
+        if (comment == null) return;
         if (!comment.getPost().getStatus().isPublished() || !comment.getStatus().isPublished()) {
             return;
         }

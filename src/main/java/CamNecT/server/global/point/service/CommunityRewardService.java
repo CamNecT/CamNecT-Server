@@ -8,7 +8,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import CamNecT.server.domain.report.service.UserReportPenaltyService;
-import CamNecT.server.domain.users.model.UserStatus;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.LocalDate;
@@ -34,7 +33,7 @@ public class CommunityRewardService {
         }
         points.lockRewardWallet(recipient);
         var status = userRepository.findStatusByUserId(recipient).orElseThrow();
-        if (status != UserStatus.ACTIVE || penalties.hasActiveRestriction(recipient, status)) return false;
+        if (penalties.blocksReward(recipient, status)) return false;
 
         var seoul = ZoneId.of("Asia/Seoul");
         var day = LocalDate.now(clock.withZone(seoul));

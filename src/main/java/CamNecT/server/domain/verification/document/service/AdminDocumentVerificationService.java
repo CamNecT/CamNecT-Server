@@ -1,5 +1,6 @@
 package CamNecT.server.domain.verification.document.service;
 
+import CamNecT.server.domain.report.service.UserReportPenaltyService;
 import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserProfile;
@@ -48,6 +49,7 @@ public class AdminDocumentVerificationService {
     private final PresignEngine presignEngine;
     private final ApplicationEventPublisher eventPublisher;
     private final PointService pointService;
+    private final UserReportPenaltyService penalties;
 
     @Transactional(readOnly = true)
     public Page<AdminDocumentVerificationListItemResponse> list(VerificationStatus status, Pageable pageable) {
@@ -140,10 +142,9 @@ public class AdminDocumentVerificationService {
             ));
 
             Long receiverId = user.getUserId();
-            if (receiverId != null) pointService.earnPoint(receiverId,rewardSignup, PointEvent.signup(receiverId));
-
-
-
+            if (!penalties.blocksReward(receiverId, user.getStatus())) {
+                pointService.earnPoint(receiverId, rewardSignup, PointEvent.signup(receiverId));
+            }
             return;
         }
 

@@ -207,12 +207,12 @@ public class PostServiceImpl implements PostService {
     public void deleteForModeration(Long adminId, Long postId) {
         if (adminId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
-        Posts post = postsRepository.findByIdForUpdate(postId)
-                .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
-
         if (!userRepository.existsByUserIdAndRole(adminId, UserRole.ADMIN)) {
             throw new CustomException(CommunityErrorCode.POST_FORBIDDEN);
         }
+
+        Posts post = postsRepository.findByIdForUpdate(postId).orElse(null);
+        if (post == null) return;
         if (!post.getStatus().isPublished()) {
             return;
         }
