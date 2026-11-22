@@ -69,7 +69,7 @@ public class PasswordService {
         user.changePasswordHash(passwordEncoder.encode(newPassword));
     }
 
-    private void validateRecoverableUser(Users user) {
+    public static void validateRecoverableUser(Users user) {
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new CustomException(AuthErrorCode.USER_SUSPENDED);
         }

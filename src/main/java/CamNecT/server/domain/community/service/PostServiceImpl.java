@@ -1,5 +1,6 @@
 package CamNecT.server.domain.community.service;
 
+import CamNecT.server.global.tag.model.TagIds;
 import CamNecT.server.domain.community.dto.AuthorDto;
 import CamNecT.server.domain.community.dto.request.CreatePostRequest;
 import CamNecT.server.domain.community.dto.request.UpdatePostRequest;
@@ -58,8 +59,6 @@ public class PostServiceImpl implements PostService {
     private int rewardFirstThreeLikes;
     @Value("${app.point.cost.question-view:100}")
     private int questionViewCost;
-    private static final long LEGACY_TAG_ID = 111L;
-    private static final long CANONICAL_TAG_ID = 53L;
 
 
     private final BoardsRepository boardsRepository;
@@ -569,7 +568,7 @@ public class PostServiceImpl implements PostService {
         }
 
         List<Long> normalized = tagIds.stream()
-                .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
+                .map(TagIds::canonical)
                 .toList();
 
         if (new HashSet<>(normalized).size() != normalized.size()) {

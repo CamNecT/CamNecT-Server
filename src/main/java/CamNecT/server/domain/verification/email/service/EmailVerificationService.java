@@ -7,7 +7,6 @@ import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailRequest;
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailResponse;
 import CamNecT.server.domain.auth.service.PasswordService;
 import CamNecT.server.domain.auth.service.SignupService;
-import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.domain.verification.email.event.EmailVerificationCodeIssuedEvent;
@@ -105,7 +104,7 @@ public class EmailVerificationService {
             throw new InvalidPropertiesException(List.of("email"));
         }
 
-        validateRecoverableUser(user);
+        PasswordService.validateRecoverableUser(user);
         String authoritativeEmail = user.getEmail();
         lockEmailBucket(authoritativeEmail);
 
@@ -120,7 +119,7 @@ public class EmailVerificationService {
             Users user = userRepository.findByIdForUpdate(userId)
                     .orElseThrow(() -> new CustomException(AuthErrorCode.USER_NOT_FOUND));
 
-            validateRecoverableUser(user);
+            PasswordService.validateRecoverableUser(user);
             String authoritativeEmail = user.getEmail();
             lockEmailBucket(authoritativeEmail);
 
@@ -299,12 +298,4 @@ public class EmailVerificationService {
         return canonicalEmail(left).equals(canonicalEmail(right));
     }
 
-    private void validateRecoverableUser(Users user) {
-        if (user.getStatus() == UserStatus.SUSPENDED) {
-            throw new CustomException(AuthErrorCode.USER_SUSPENDED);
-        }
-        if (user.getStatus() == UserStatus.WITHDRAWN) {
-            throw new CustomException(AuthErrorCode.USER_WITHDRAWN);
-        }
-    }
 }

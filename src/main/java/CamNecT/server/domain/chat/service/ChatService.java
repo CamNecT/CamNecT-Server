@@ -1,5 +1,6 @@
 package CamNecT.server.domain.chat.service;
 
+import CamNecT.server.global.tag.model.TagIds;
 import CamNecT.server.domain.activity.model.recruitment.TeamRecruitment;
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.server.domain.alumni.dto.ProfileCardDto;
@@ -71,8 +72,6 @@ public class ChatService {
 
     @Value("${app.point.reward.coffee-chat-accepted:500}")
     private int rewardCoffeeChatAccepted;
-    private static final long LEGACY_TAG_ID = 111L;
-    private static final long CANONICAL_TAG_ID = 53L;
 
     private final UserRepository userRepository;
     private final ChatRepository chatRepository;
@@ -149,7 +148,7 @@ public class ChatService {
         }
 
 
-        List<Long> normalizedTagIds = normalizeTagIds(tagIds);
+        List<Long> normalizedTagIds = TagIds.distinctCanonicalIds(tagIds);
 
         List<Tag> tags = tagRepository.findAllById(normalizedTagIds);
         if (tags.size() != normalizedTagIds.size()) {
@@ -826,17 +825,6 @@ public class ChatService {
             if (penalties.blocksReward(opponentId, status)) return;
             pointService.earnTeamRecruitAccepted(opponentId, targetUserId, requestId, rewardCoffeeChatAccepted);
         }
-    }
-
-    private List<Long> normalizeTagIds(List<Long> tagIds) {
-        if (tagIds == null || tagIds.isEmpty()) return List.of();
-
-        // 순서 유지가 필요 없으면 Set으로 가도 되는데, 혹시 프론트가 순서 의미를 두면 LinkedHashSet 권장
-        return tagIds.stream()
-                .filter(Objects::nonNull)
-                .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
-                .distinct()
-                .toList();
     }
 
     private Users requireAuthenticatedUser(Long userId) {

@@ -11,7 +11,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.Locale;
 import java.util.UUID;
 
 @Component
@@ -23,11 +22,13 @@ public class LocalFileStorage implements FileStorage {
 
     @Override
     public String save(String prefix, MultipartFile file) {
-        validatePrefix(prefix);
-        validateFile(file);
+        StorageKeys.validatePrefix(prefix);
+        StorageKeys.validateFile(file);
 
         Path base = baseDir();
-        Path dir = base.resolve(sanitizePrefix(prefix)).normalize();
+        String safePrefix = StorageKeys.sanitizePrefix(prefix);
+        Path dir = base.resolve(safePrefix).normalize();
+        assertUnderBase(base, dir);
 
         try {
             Files.createDirectories(dir);
@@ -35,7 +36,7 @@ public class LocalFileStorage implements FileStorage {
             throw new CustomException(StorageErrorCode.STORAGE_UPLOAD_FAILED, e);
         }
 
-        String ext = resolveExtension(file);
+        String ext = StorageKeys.resolveExtension(file);
         String filename = UUID.randomUUID() + ext;
 
         Path target = dir.resolve(filename).normalize();
@@ -49,13 +50,12 @@ public class LocalFileStorage implements FileStorage {
 
         // DB에는 baseDir 제외한 "상대 key" 저장
         // prefix/uuid.ext 형태로 반환
-        String safePrefix = sanitizePrefix(prefix);
         return (safePrefix + "/" + filename).replaceAll("/+", "/");
     }
 
     @Override
     public void delete(String storageKey) {
-        validateKey(storageKey);
+        StorageKeys.validateKey(storageKey);
 
         Path base = baseDir();
         Path path = base.resolve(sanitizeKey(storageKey)).normalize();
@@ -81,42 +81,12 @@ public class LocalFileStorage implements FileStorage {
         return Paths.get(baseDir).toAbsolutePath().normalize();
     }
 
-    private void validatePrefix(String prefix) {
-        if (!StringUtils.hasText(prefix)) {
-            throw new CustomException(StorageErrorCode.STORAGE_PREFIX_REQUIRED);
-        }
-    }
-
-    private void validateFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new CustomException(StorageErrorCode.STORAGE_EMPTY_FILE);
-        }
-    }
-
-    private void validateKey(String storageKey) {
-        if (!StringUtils.hasText(storageKey)) {
-            throw new CustomException(StorageErrorCode.STORAGE_KEY_REQUIRED);
-        }
-    }
-
-    /**
-     * prefix는 서버가 만든 값만 넣는 전제 (예: "verification/123", "profiles/10")
-     */
-    private String sanitizePrefix(String prefix) {
-        String p = prefix.replace("\\", "/").toLowerCase(Locale.ROOT);
-        p = trimSlashes(p);
-        if (p.contains("..")) {
-            throw new CustomException(StorageErrorCode.STORAGE_INVALID_PREFIX);
-        }
-        return p;
-    }
-
     /**
      * storageKey는 DB에 저장된 값(상대경로). 안전하게 normalize하기 전 최소 방어.
      */
     private String sanitizeKey(String storageKey) {
         String k = storageKey.replace("\\", "/");
-        k = trimSlashes(k);
+        k = StorageKeys.trimSlashes(k);
         if (k.contains("..")) {
             throw new CustomException(StorageErrorCode.STORAGE_INVALID_PREFIX);
         }
@@ -129,17 +99,4 @@ public class LocalFileStorage implements FileStorage {
         }
     }
 
-    private String resolveExtension(MultipartFile file) {
-        String original = file.getOriginalFilename();
-        if (!StringUtils.hasText(original)) return "";
-        String ext = StringUtils.getFilenameExtension(original);
-        if (!StringUtils.hasText(ext)) return "";
-        String safe = ext.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
-        return safe.isEmpty() ? "" : "." + safe;
-    }
-
-    private String trimSlashes(String s) {
-        if (s == null) return "";
-        return s.replaceAll("^/+", "").replaceAll("/+$", "");
-    }
 }
