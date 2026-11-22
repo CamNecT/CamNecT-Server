@@ -1,6 +1,7 @@
 package CamNecT.server.domain.activity;
 
 import CamNecT.server.domain.activity.model.enums.ActivityCategory;
+import CamNecT.server.domain.activity.model.comment.ActivityComment;
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
 import CamNecT.server.domain.activity.model.recruitment.TeamRecruitment;
 import CamNecT.server.domain.users.model.UserProfile;
@@ -49,6 +50,12 @@ class ActivityDetailViewIntegrationTest {
         var recruitment = TeamRecruitment.builder().userId(author.getUserId()).activityId(activity.getActivityId())
                 .title("팀원 모집").content("모집 본문").recruitDeadline(LocalDate.now().plusDays(1)).build();
         em.persist(recruitment);
+        var root = ActivityComment.create(activity, author.getUserId(), null, "댓글");
+        em.persist(root);
+        em.persist(ActivityComment.create(activity, author.getUserId(), root, "답글"));
+        var deleted = ActivityComment.create(activity, author.getUserId(), null, "삭제한 댓글");
+        deleted.deleteSoft();
+        em.persist(deleted);
         em.flush();
 
         String sessionId = UUID.randomUUID().toString();
@@ -60,7 +67,8 @@ class ActivityDetailViewIntegrationTest {
             mvc.perform(get(activityPath)).andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.recruitmentList").isEmpty())
                     .andExpect(jsonPath("$.data.isMine").value(false))
-                    .andExpect(jsonPath("$.data.activity.viewCount").value(0));
+                    .andExpect(jsonPath("$.data.activity.viewCount").value(0))
+                    .andExpect(jsonPath("$.data.commentCount").value(2));
             mvc.perform(get(recruitmentPath)).andExpect(status().isUnauthorized());
             for (String path : new String[]{activityPath, recruitmentPath}) {
                 mvc.perform(head(path).header("Authorization", "Bearer " + access)).andExpect(status().isOk());
@@ -69,10 +77,12 @@ class ActivityDetailViewIntegrationTest {
                     .andExpect(jsonPath("$.data.activity.viewCount").value(1))
                     .andExpect(jsonPath("$.data.recruitmentList[0].viewCount").value(0));
             mvc.perform(get(recruitmentPath).header("Authorization", "Bearer " + access)).andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.recruitment.viewCount").value(1));
+                    .andExpect(jsonPath("$.data.recruitment.viewCount").value(1))
+                    .andExpect(jsonPath("$.data.recruitment.commentCount").value(0));
             mvc.perform(get("/api/activity").param("category", "EXTERNAL").param("title", "활동"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.content[0].viewCount").value(1));
+                    .andExpect(jsonPath("$.data.content[0].viewCount").value(1))
+                    .andExpect(jsonPath("$.data.content[0].commentCount").value(2));
             em.clear();
             assertThat(em.find(ExternalActivity.class, activity.getActivityId()).getViewCount()).isOne();
             assertThat(em.find(TeamRecruitment.class, recruitment.getRecruitId()).getViewCount()).isOne();

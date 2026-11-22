@@ -82,6 +82,10 @@ public class TeamRecruitment {
         this.recruitDeadline = request.recruitDeadline();
     }
 
+    public long getCommentCount() {
+        return 0L;
+    }
+
     public TeamRecruitmentDto toDto(String activityTitle, String userName) {
         return new TeamRecruitmentDto(
                 this.recruitId,
@@ -94,6 +98,7 @@ public class TeamRecruitment {
                 this.recruitCount,
                 this.bookmarkCount,
                 this.viewCount,
+                getCommentCount(),
                 this.createdAt,
                 this.updatedAt
         );

@@ -85,6 +85,7 @@ public record MyArchiveResponse(
             List<String> tags,
             Long bookmarkCount,
             long viewCount,
+            long commentCount,
             String organizer,
             LocalDate applyEndDate,
             ActivityStatus status,
@@ -106,6 +107,7 @@ public record MyArchiveResponse(
             Integer recruitCount,
             long bookmarkCount,
             long viewCount,
+            long commentCount,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) implements Item {

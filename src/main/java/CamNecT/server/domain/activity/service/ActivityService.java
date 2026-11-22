@@ -108,6 +108,7 @@ public class ActivityService {
                 a.tags(),
                 a.bookmarkCount(),
                 a.viewCount(),
+                a.commentCount(),
                 a.organizer(),
                 a.applyEndDate(),
                 a.status(),
@@ -197,6 +198,7 @@ public class ActivityService {
                 null,
                 0L, // 새로 생성된 활동이므로 북마크 수는 0
                 saved.getViewCount(),
+                0L,
                 saved.getOrganizer(),
                 saved.getApplyEndDate(),
                 saved.getStatus(),
@@ -255,6 +257,7 @@ public class ActivityService {
                 null,
                 0L,
                 saved.getViewCount(),
+                0L,
                 saved.getOrganizer(),
                 saved.getApplyEndDate(),
                 saved.getStatus(),
@@ -634,6 +637,7 @@ public class ActivityService {
                 isMine,
                 author,
                 activityDto,
+                activityCommentRepository.publishedCounts(List.of(activityId)).getOrDefault(activityId, 0L),
                 attachmentDtos,
                 tagIds,
                 tags,
@@ -730,6 +734,7 @@ public class ActivityService {
         Map<Long, ExternalActivity> map = activityRepository.findAllById(topIds).stream()
                 .collect(Collectors.toMap(ExternalActivity::getActivityId, a -> a));
 
+        Map<Long, Long> commentCounts = activityCommentRepository.publishedCounts(topIds);
         List<HomeResponse.ContestSection.ContestCard> items = topIds.stream()
                 .map(id -> {
                     ExternalActivity a = map.get(id);
@@ -741,6 +746,7 @@ public class ActivityService {
                             a.getTitle(),
                             a.getOrganizer(),
                             a.getViewCount(),
+                            commentCounts.getOrDefault(id, 0L),
                             thumbUrl
                     );
                 })
