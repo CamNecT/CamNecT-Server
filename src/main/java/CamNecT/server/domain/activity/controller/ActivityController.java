@@ -1,5 +1,6 @@
 package CamNecT.server.domain.activity.controller;
 
+import CamNecT.server.global.common.auth.GuestReadable;
 import org.springdoc.core.annotations.ParameterObject;
 import CamNecT.server.global.common.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -46,6 +47,7 @@ public class ActivityController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 카테고리·태그·페이지 요청 형식 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @GuestReadable
     @GetMapping
     public ApiResponse<Slice<ActivityPreviewResponse>> getActivities(
             @UserId Long userId,
@@ -102,6 +104,7 @@ public class ActivityController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 경로·쿼리 자료형 또는 요청값 검증 실패", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "46401 활동 작성자 / 46402 활동을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @GuestReadable
     @GetMapping("/{activityId}")
     public ApiResponse<ActivityDetailResponse> getActivityDetail(
             @UserId Long userId,

@@ -43,6 +43,8 @@ import org.springframework.util.StringUtils;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 @Slf4j
 @Service
@@ -281,20 +283,28 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public PostDetailResponse getDetail(Long userId, Long postId) {
-        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
         Posts post = postsRepository.findByIdForRead(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
 
         requirePublished(post);
 
-        if (postStatsRepository.incrementView(postId, LocalDateTime.now()) == 0) {
-            throw new CustomException(CommunityErrorCode.POST_STATS_NOT_FOUND);
+        postAccessPolicy.requireGuestReadable(userId, post);
+        PostStats stats;
+        if (userId == null || Objects.equals(userId, post.getUser().getUserId())) {
+            stats = postStatsRepository.findByPost_Id(postId)
+                    .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_STATS_NOT_FOUND));
+        } else {
+            stats = postStatsRepository.findByPostIdForUpdate(postId)
+                    .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_STATS_NOT_FOUND));
+            var day = LocalDate.now(ZoneId.of("Asia/Seoul"));
+            if (postStatsRepository.insertViewer(postId, userId, day) > 0
+                    || postStatsRepository.advanceViewDay(postId, userId, day) > 0) {
+                stats.incView();
+            }
         }
-        PostStats stats = postStatsRepository.findByPost_Id(postId)
-                .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_STATS_NOT_FOUND));
 
-        boolean likedByMe = postLikesRepository.existsByPost_IdAndUser_UserId(postId, userId);
+        boolean likedByMe = userId != null && postLikesRepository.existsByPost_IdAndUser_UserId(postId, userId);
 
         List<Long> tagIds = postTagsRepository.findByPost_Id(postId).stream()
                 .map(pt -> pt.getTag().getId())
@@ -305,7 +315,7 @@ public class PostServiceImpl implements PostService {
                 .map(ac -> ac.getComment().getId())
                 .orElse(null);
 
-        boolean adminRead = userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
+        boolean adminRead = userId != null && userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
         CommunityPostAccessPolicy.AccessDecision accessDecision =
                 postAccessPolicy.evaluate(userId, adminRead, post, acceptedOpt.isPresent());
         ContentAccessStatus accessStatus = accessDecision.status();
@@ -314,7 +324,7 @@ public class PostServiceImpl implements PostService {
         String content = accessDecision.canRead() ? post.getContent() : null;
 
         /// 글쓴이 프로필
-        AuthorDto author = post.isAnonymous()
+        AuthorDto author = userId == null || post.isAnonymous()
                 ? null
                 : authorAssembler
                     .buildAuthorMap(List.of(post.getUser().getUserId()))
@@ -377,7 +387,7 @@ public class PostServiceImpl implements PostService {
                     ))
                     .toList();
         }
-        boolean exists = postBookmarksRepository.existsByPost_IdAndUser_UserId(postId, userId);
+        boolean exists = userId != null && postBookmarksRepository.existsByPost_IdAndUser_UserId(postId, userId);
 
         return new PostDetailResponse(
                 post.getId(),

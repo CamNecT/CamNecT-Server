@@ -8,6 +8,7 @@ import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.jwt.service.TokenSessionService;
 import CamNecT.server.global.jwt.util.JwtUtil;
+import CamNecT.server.global.notification.service.PushDeviceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class PasswordService {
     private final PasswordEncoder passwordEncoder;
     private final TokenSessionService tokenSessionService;
     private final JwtUtil jwtUtil;
+    private final PushDeviceService pushDevices;
 
     @Transactional
     public void updateMyPassword(Long userId, UpdatePasswordRequest req) {
@@ -36,6 +38,7 @@ public class PasswordService {
 
         validatePassword(req.newPassword());
         user.changePasswordHash(passwordEncoder.encode(req.newPassword()));
+        pushDevices.disableAllForUser(userId);
         tokenSessionService.revokeAll(userId);
     }
 
@@ -53,6 +56,7 @@ public class PasswordService {
         }
 
         resetPassword(user, newPassword);
+        pushDevices.disableAllForUser(userId);
         tokenSessionService.revokeAll(userId);
     }
 

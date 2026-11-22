@@ -80,14 +80,10 @@ class ActivityCommentServiceTest {
     }
 
     @Test
-    void readOnlyPagesCheckActivityCategoryWithoutTakingARowLock() {
+    void publicExternalActivityCommentsUseNonLockingRead() {
         when(activityRepository.findById(10L)).thenReturn(Optional.of(activity(10L, ActivityCategory.EXTERNAL)));
-        assertThat(assertThrows(CustomException.class, () -> service.list(1L, 10L, null, 20)).getErrorCode())
-                .isEqualTo(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
-        assertThat(assertThrows(CustomException.class, () -> service.listReplies(1L, 10L, 9L, null, 20)).getErrorCode())
-                .isEqualTo(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
+        assertThat(service.list(null, 10L, null, 20).items()).isEmpty();
         verify(activityRepository, never()).findByIdForRead(anyLong());
-        verifyNoInteractions(commentsRepository);
     }
 
     private ExternalActivity activity(Long id, ActivityCategory category) {

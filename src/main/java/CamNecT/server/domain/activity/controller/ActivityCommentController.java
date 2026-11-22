@@ -1,5 +1,6 @@
 package CamNecT.server.domain.activity.controller;
 
+import CamNecT.server.global.common.auth.GuestReadable;
 import CamNecT.server.global.common.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -51,6 +52,7 @@ public class ActivityCommentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 ID·커서·size 검증 실패 / 46004 댓글을 지원하지 않는 활동 카테고리 / 43040 유효하지 않은 커서", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "46402 활동을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @GuestReadable
     @GetMapping("/{activityId}/comments")
     public ApiResponse<ActivityCommentListResponse> list(@UserId Long userId, @PathVariable @Positive Long activityId,
             @RequestParam(required = false) @Positive Long cursorId, @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
@@ -63,6 +65,7 @@ public class ActivityCommentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 ID·커서·size 검증 실패 / 46004 댓글을 지원하지 않는 활동 카테고리 / 43040 유효하지 않은 커서", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "46402 활동 / 43411 루트 댓글을 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @GuestReadable
     @GetMapping("/{activityId}/comments/{commentId}/replies")
     public ApiResponse<CommentListResponse> replies(@UserId Long userId, @PathVariable @Positive Long activityId,
             @PathVariable @Positive Long commentId, @RequestParam(required = false) @Positive Long cursorId,

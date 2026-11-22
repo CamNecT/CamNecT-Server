@@ -17,9 +17,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.*;
 import java.util.stream.Collectors;
+import CamNecT.server.domain.community.model.enums.BoardCode;
 
 @Component
 @RequiredArgsConstructor
@@ -77,7 +77,7 @@ public class PostSummaryAssembler {
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-        Map<Long, AuthorDto> authorMap = authorAssembler.buildAuthorMap(authorIds);
+        Map<Long, AuthorDto> authorMap = userId == null ? Map.of() : authorAssembler.buildAuthorMap(authorIds);
 
         // ===== access bulk 준비 =====
         List<Long> paywalledIds = posts.stream()
@@ -122,7 +122,9 @@ public class PostSummaryAssembler {
                     acceptedPostIds.contains(p.getId())
             );
 
-            if (!paywalled) {
+            if (userId == null && p.getBoard().getCode() != BoardCode.INFO) {
+                accessStatus = ContentAccessStatus.LOGIN_REQUIRED;
+            } else if (!paywalled) {
                 accessStatus = ContentAccessStatus.GRANTED;
             } else if (userId == null) {
                 accessStatus = ContentAccessStatus.LOGIN_REQUIRED;
@@ -148,7 +150,7 @@ public class PostSummaryAssembler {
                 thumbUrl = publicUrlIssuer.issueImagePublicUrl(thumbKey);
             }
 
-            AuthorDto author = p.isAnonymous() ? null : authorMap.get(p.getUser().getUserId());
+            AuthorDto author = userId == null || p.isAnonymous() ? null : authorMap.get(p.getUser().getUserId());
 
             items.add(new PostSummaryResponse(
                     p.getId(),

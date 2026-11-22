@@ -1,5 +1,6 @@
 package CamNecT.server.domain.community.controller;
 
+import CamNecT.server.global.common.auth.GuestReadable;
 import CamNecT.server.domain.community.dto.request.CreatePostRequest;
 import CamNecT.server.domain.community.dto.request.UpdatePostRequest;
 import CamNecT.server.domain.community.dto.response.*;
@@ -81,6 +82,7 @@ public class PostController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 41103 인증 헤더 누락·형식 오류 / 41104 토큰 타입 누락 / 41106 허용되지 않은 토큰 타입", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @GuestReadable
     @GetMapping
     public ApiResponse<PostListResponse> list(
             @UserId Long userId,
@@ -163,6 +165,7 @@ public class PostController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "43925 공개 상태가 아닌 게시글", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "43510 게시글 통계 누락 / 50000 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @GuestReadable
     @GetMapping("/{postId}")
     public ApiResponse<PostDetailResponse> getDetail(
             @UserId Long userId,
@@ -287,6 +290,7 @@ public class PostController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "43925 공개 상태가 아닌 게시글", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "49902 저장 파일 확인 실패 / 50000 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @GuestReadable
     @GetMapping("/{postId}/attachments/{attachmentId}/download-url")
     public ApiResponse<PresignDownloadResponse> downloadUrl(
             @UserId Long userId,

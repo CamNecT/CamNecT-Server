@@ -14,7 +14,11 @@ public interface PushDeviceRepository extends JpaRepository<PushDevice, Long> {
 
     Optional<PushDevice> findByUserIdAndDeviceId(Long userId, String deviceId);
 
-    List<PushDevice> findAllByUserIdAndEnabledTrue(Long userId);
+    @Query("""
+        select p from PushDevice p where p.userId = :userId and p.enabled = true
+          and not exists (select o.userId from PushOptOut o where o.userId = p.userId)
+        """)
+    List<PushDevice> findDeliverableDevices(@Param("userId") Long userId);
 
     @Query("select p.fcmToken from PushDevice p where p.userId = :userId and p.deviceId = :deviceId")
     Optional<String> findTokenByUserIdAndDeviceId(

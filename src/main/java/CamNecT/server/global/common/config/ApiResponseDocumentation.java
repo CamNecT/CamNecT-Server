@@ -31,10 +31,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.util.AntPathMatcher;
-
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import CamNecT.server.global.common.auth.GuestReadable;
 
 /** Shared responses follow AuthInterceptor/UserIdArgumentResolver and GlobalExceptionHandler. */
 @Component
@@ -53,6 +53,12 @@ public class ApiResponseDocumentation implements GlobalOperationCustomizer, Glob
         boolean bearer = requiresBearer(handler, path);
         if (bearer) {
             operation.addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH));
+            if (handler.hasMethodAnnotation(GuestReadable.class)) {
+                operation.addSecurityItem(new SecurityRequirement());
+                String detail = "비회원은 Authorization 헤더를 생략합니다.";
+                if (path.startsWith("/api/community")) detail += " 질문글은 목록만 공개하며 본문·댓글·첨부는 회원 전용입니다.";
+                operation.setDescription(operation.getDescription() == null ? detail : operation.getDescription() + "\n" + detail);
+            }
             append(operation, ErrorCode.UNAUTHORIZED, AuthErrorCode.INVALID_TOKEN,
                     AuthErrorCode.ACCESS_TOKEN_REQUIRED, AuthErrorCode.TOKEN_TYPE_NOT_ALLOWED);
             if (path.startsWith("/api/auth/")) append(operation, AuthErrorCode.INVALID_TOKEN_FORMAT);

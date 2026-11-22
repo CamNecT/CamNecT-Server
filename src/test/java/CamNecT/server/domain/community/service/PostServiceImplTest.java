@@ -198,8 +198,8 @@ class PostServiceImplTest {
         PostStats stats = PostStats.init(post);
 
         when(postsRepository.findByIdForRead(10L)).thenReturn(Optional.of(post));
-        when(postStatsRepository.incrementView(eq(10L), any())).thenReturn(1);
-        when(postStatsRepository.findByPost_Id(10L)).thenReturn(Optional.of(stats));
+        when(postStatsRepository.insertViewer(eq(10L), anyLong(), any())).thenReturn(1);
+        when(postStatsRepository.findByPostIdForUpdate(10L)).thenReturn(Optional.of(stats));
         when(postTagsRepository.findByPost_Id(10L)).thenReturn(List.of());
         when(acceptedCommentsRepository.findByPost_Id(10L)).thenReturn(Optional.empty());
         when(postAccessPolicy.evaluate(2L, false, post, false)).thenReturn(
@@ -214,7 +214,7 @@ class PostServiceImplTest {
         assertThat(result.anonymous()).isTrue();
         assertThat(result.author()).isNull();
         verifyNoInteractions(authorAssembler);
-        verify(postStatsRepository).incrementView(eq(10L), any());
+        assertThat(stats.getViewCount()).isOne();
     }
 
     @Test
@@ -234,8 +234,8 @@ class PostServiceImplTest {
         AcceptedComments accepted = AcceptedComments.of(post, acceptedComment, 1L);
 
         when(postsRepository.findByIdForRead(10L)).thenReturn(Optional.of(post));
-        when(postStatsRepository.incrementView(eq(10L), any())).thenReturn(1);
-        when(postStatsRepository.findByPost_Id(10L)).thenReturn(Optional.of(stats));
+        when(postStatsRepository.insertViewer(eq(10L), anyLong(), any())).thenReturn(1);
+        when(postStatsRepository.findByPostIdForUpdate(10L)).thenReturn(Optional.of(stats));
         when(postTagsRepository.findByPost_Id(10L)).thenReturn(List.of());
         when(acceptedCommentsRepository.findByPost_Id(10L)).thenReturn(Optional.of(accepted));
         when(userRepository.existsByUserIdAndRole(99L, UserRole.ADMIN)).thenReturn(true);

@@ -8,6 +8,7 @@ import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.jwt.service.TokenSessionService;
 import CamNecT.server.global.jwt.util.JwtUtil;
+import CamNecT.server.global.notification.service.PushDeviceService;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -27,8 +28,9 @@ class PasswordServiceLockingTest {
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final TokenSessionService tokenSessionService = mock(TokenSessionService.class);
     private final JwtUtil jwtUtil = mock(JwtUtil.class);
+    private final PushDeviceService pushDevices = mock(PushDeviceService.class);
     private final PasswordService service =
-            new PasswordService(userRepository, passwordEncoder, tokenSessionService, jwtUtil);
+            new PasswordService(userRepository, passwordEncoder, tokenSessionService, jwtUtil, pushDevices);
 
     @Test
     void updateLocksUserBeforeChangingPassword() {
@@ -47,6 +49,7 @@ class PasswordServiceLockingTest {
         verify(userRepository).findByIdForUpdate(1L);
         verify(userRepository, never()).findById(1L);
         verify(tokenSessionService).revokeAll(1L);
+        verify(pushDevices).disableAllForUser(1L);
     }
 
     @Test
@@ -60,7 +63,7 @@ class PasswordServiceLockingTest {
         );
 
         assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.USER_WITHDRAWN);
-        verifyNoInteractions(passwordEncoder, tokenSessionService);
+        verifyNoInteractions(passwordEncoder, tokenSessionService, pushDevices);
     }
 
     @Test
@@ -80,6 +83,6 @@ class PasswordServiceLockingTest {
         );
 
         assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.INVALID_TOKEN);
-        verifyNoInteractions(passwordEncoder, tokenSessionService);
+        verifyNoInteractions(passwordEncoder, tokenSessionService, pushDevices);
     }
 }

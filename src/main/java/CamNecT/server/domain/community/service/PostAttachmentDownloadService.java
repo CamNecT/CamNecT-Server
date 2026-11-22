@@ -39,7 +39,7 @@ public class PostAttachmentDownloadService {
             throw new CustomException(CommunityErrorCode.POST_NOT_PUBLISHED);
         }
 
-        boolean adminRead = userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
+        boolean adminRead = userId != null && userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
         postAccessPolicy.requireReadable(userId, post, adminRead);
 
         PostAttachments att = postAttachmentsRepository.findByIdAndPost_IdAndStatusTrue(attachmentId, postId)

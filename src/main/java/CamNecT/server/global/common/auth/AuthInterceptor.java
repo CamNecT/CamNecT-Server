@@ -14,6 +14,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.method.HandlerMethod;
 
 @Component
 @RequiredArgsConstructor
@@ -35,6 +36,12 @@ public class AuthInterceptor implements HandlerInterceptor {
         // 1. OPTIONS 요청(Preflight)은 통과시킴 (CORS 문제 방지)
         if (request.getMethod().equals("OPTIONS")) {
             return true;
+        }
+        if ("GET".equals(request.getMethod()) && handler instanceof HandlerMethod method
+                && method.hasMethodAnnotation(GuestReadable.class)) {
+            response.addHeader(HttpHeaders.VARY, HttpHeaders.AUTHORIZATION);
+            response.setHeader(HttpHeaders.CACHE_CONTROL, "private, no-store");
+            if (request.getHeader(HttpHeaders.AUTHORIZATION) == null) return true;
         }
         // 토큰 추출
         String token = extractBearer(request);

@@ -1,5 +1,6 @@
 package CamNecT.server.global.tag.controller;
 
+import CamNecT.server.global.common.auth.GuestReadable;
 import CamNecT.server.global.common.response.ErrorResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -36,6 +37,7 @@ public class TagController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 경로·쿼리 자료형 또는 요청값 검증 실패", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @GuestReadable
     @GetMapping
     public ApiResponse<List<TagCategoryDto>> list(
             @RequestParam(required = false) TagScope scope

@@ -1,5 +1,6 @@
 package CamNecT.server.domain.community.controller;
 
+import CamNecT.server.global.common.auth.GuestReadable;
 import CamNecT.server.domain.community.dto.request.CreateCommentRequest;
 import CamNecT.server.domain.community.dto.request.UpdateCommentRequest;
 import CamNecT.server.domain.community.dto.response.CommentListResponse;
@@ -65,6 +66,7 @@ public class CommentController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "43925 공개 상태가 아닌 게시글", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @GuestReadable
     @GetMapping("/posts/{postId}/comments")
     public ApiResponse<CommentListResponse> list(
             @UserId Long userId,

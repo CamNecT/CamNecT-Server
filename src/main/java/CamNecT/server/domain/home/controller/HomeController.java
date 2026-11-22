@@ -1,5 +1,6 @@
 package CamNecT.server.domain.home.controller;
 
+import CamNecT.server.global.common.auth.GuestReadable;
 import CamNecT.server.domain.home.dto.HomeResponse;
 import CamNecT.server.domain.home.service.HomeService;
 import CamNecT.server.global.common.auth.UserId;
@@ -29,6 +30,7 @@ public class HomeController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 41103 인증 헤더 누락·형식 오류 / 41104 토큰 타입 누락 / 41106 허용되지 않은 토큰 타입", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 홈 구성 데이터 조회 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
+    @GuestReadable
     @GetMapping
     public ApiResponse<HomeResponse> home(
             @UserId Long userId

@@ -52,6 +52,9 @@ public class UserIdArgumentResolver implements HandlerMethodArgumentResolver {
         }
 
         String authHeader = webRequest.getHeader("Authorization");
+        if (authHeader == null && !sessionIdParameter && parameter.hasMethodAnnotation(GuestReadable.class)) {
+            return null;
+        }
         if (authHeader == null || authHeader.isBlank()) {
             throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
         }

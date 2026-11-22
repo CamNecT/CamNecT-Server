@@ -51,7 +51,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                         titleContains(title),
                         hasAllTags(tagIds)
                 )
-                .orderBy(getOrderSpecifier(sortType, userId))
+                .orderBy(getOrderSpecifier(sortType, userId), externalActivity.activityId.desc())
                 .offset(pageable.getOffset())
                 .limit(pageSize + 1)
                 .fetch();
@@ -173,6 +173,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
 
         return switch (sortType.toUpperCase()) {
             case "RECOMMEND" -> {
+                if (userId == null) yield externalActivity.createdAt.desc();
                 NumberExpression<Long> matchCount = Expressions.asNumber(
                         JPAExpressions.select(userTagMap.count())
                                 .from(userTagMap)

@@ -240,12 +240,11 @@ public class CommentServiceImpl implements CommentService {
     @Transactional(readOnly = true)
     @Override
     public CommentListResponse list(Long userId, Long postId, Long cursorId, int size) {
-        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
         Posts post = postsRepository.findByIdForRead(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
         requirePublished(post);
-        boolean adminRead = userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
+        boolean adminRead = userId != null && userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
         postAccessPolicy.requireReadable(userId, post, adminRead);
 
         if (cursorId != null && cursorId <= 0) {
@@ -274,7 +273,7 @@ public class CommentServiceImpl implements CommentService {
                 .distinct()
                 .toList();
 
-        Map<Long, AuthorDto> authorMap = authorAssembler.buildAuthorMap(userIds);
+        Map<Long, AuthorDto> authorMap = userId == null ? Map.of() : authorAssembler.buildAuthorMap(userIds);
 
         // 좋아요 수 배치 집계 (옵션 쿼리 사용)
         Map<Long, Long> likeMap = buildLikeCountMap(roots, children);
@@ -289,11 +288,11 @@ public class CommentServiceImpl implements CommentService {
         }
 
         for (Comments r : roots) {
-            out.add(toRow(r, likeMap.getOrDefault(r.getId(), 0L), authorMap));
+            out.add(toRow(r, likeMap.getOrDefault(r.getId(), 0L), authorMap, userId != null));
 
             List<Comments> kids = childMap.getOrDefault(r.getId(), List.of());
             for (Comments k : kids) {
-                out.add(toRow(k, likeMap.getOrDefault(k.getId(), 0L), authorMap));
+                out.add(toRow(k, likeMap.getOrDefault(k.getId(), 0L), authorMap, userId != null));
             }
         }
 
@@ -327,7 +326,7 @@ public class CommentServiceImpl implements CommentService {
         return map;
     }
 
-    private CommentItemResponse toRow(Comments c, long likeCount, Map<Long, AuthorDto> authorMap) {
+    private CommentItemResponse toRow(Comments c, long likeCount, Map<Long, AuthorDto> authorMap, boolean showAuthor) {
         boolean deleted = c.getStatus().isDeleted();
         String content = deleted ? "삭제된 댓글입니다." : c.getContent();
         Long parentId = (c.getParent() == null) ? null : c.getParent().getId();
@@ -336,7 +335,7 @@ public class CommentServiceImpl implements CommentService {
 
         return new CommentItemResponse(
                 c.getId(),
-                c.getUserId(),
+                showAuthor ? c.getUserId() : null,
                 parentId,
                 content,
                 likeCount,

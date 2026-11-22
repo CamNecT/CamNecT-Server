@@ -31,6 +31,9 @@ public class HomeService {
     private static final int HOME_CONTEST_PREVIEW_SIZE = 4;
 
     public HomeResponse getHome(Long userId) {
+        if (userId == null) {
+            return new HomeResponse(null, null, null, null, null, contestService.getHomeContests(HOME_CONTEST_PREVIEW_SIZE));
+        }
         Users user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new CustomException(AuthErrorCode.INVALID_TOKEN));
 
