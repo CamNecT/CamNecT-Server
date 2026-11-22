@@ -141,6 +141,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                             activity.getThumbnailKey(),
                             tags,
                             bookmarkCount,
+                            activity.getViewCount(),
                             activity.getOrganizer(),
                             activity.getApplyEndDate(),
                             activity.getStatus(),

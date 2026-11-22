@@ -13,6 +13,7 @@ public record TeamRecruitmentDto(
         LocalDate recruitDeadline,
         Integer recruitCount,
         long bookmarkCount,
+        long viewCount,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

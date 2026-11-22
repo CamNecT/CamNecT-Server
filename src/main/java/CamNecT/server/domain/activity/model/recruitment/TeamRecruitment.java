@@ -4,7 +4,6 @@ import CamNecT.server.domain.activity.dto.TeamRecruitmentDto;
 import CamNecT.server.domain.activity.dto.request.RecruitmentRequest;
 import CamNecT.server.domain.activity.model.enums.RecruitStatus;
 import jakarta.persistence.*;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.ColumnDefault;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -23,7 +22,6 @@ public class TeamRecruitment {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long recruitId;
 
-    @JsonIgnore
     @ColumnDefault("0")
     @Column(name = "view_count", nullable = false, insertable = false, updatable = false)
     private long viewCount;
@@ -95,6 +93,7 @@ public class TeamRecruitment {
                 this.recruitDeadline,
                 this.recruitCount,
                 this.bookmarkCount,
+                this.viewCount,
                 this.createdAt,
                 this.updatedAt
         );

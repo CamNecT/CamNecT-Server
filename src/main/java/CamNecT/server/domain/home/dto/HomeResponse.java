@@ -76,6 +76,7 @@ public record HomeResponse(
                 Long contestId,
                 String title,
                 String organizer,
+                long viewCount,
                 String thumbnailUrl
         ) {}
         public static ContestSection empty() {

@@ -15,6 +15,7 @@ public record PostSummaryResponse(
         String preview,
         LocalDateTime createdAt,
         long likeCount,
+        long viewCount,
         long answerCount,     // 질문 탭 표시용(루트댓글 수)
         long commentCount,    // 전체댓글 수
         long bookmarkCount,

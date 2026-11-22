@@ -52,6 +52,7 @@ public class ExternalArchiveAssembler {
                     publicUrlIssuer.issueImagePublicUrl(a.getThumbnailKey()),
                     tagsMap.getOrDefault(a.getActivityId(), List.of()),
                     bookmarkCount,
+                    a.getViewCount(),
                     a.getOrganizer(),
                     a.getApplyEndDate(),
                     a.getStatus(),

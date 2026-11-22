@@ -29,6 +29,8 @@ import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.CoffeeChatErrorCode;
 import CamNecT.server.global.notification.event.SimpleNotifiableEvent;
 import CamNecT.server.global.notification.model.NotificationType;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class RecruitmentService {
+    @PersistenceContext
+    private EntityManager entityManager;
+
 
     private final TeamRecruitmentRepository recruitmentRepository;
     private final ExternalActivityRepository activityRepository;
@@ -105,6 +110,7 @@ public class RecruitmentService {
 
         if (countView) {
             recruitmentRepository.incrementViews(recruitmentId);
+            entityManager.refresh(recruitment);
         }
         return new RecruitmentDetailResponse(
                 author,

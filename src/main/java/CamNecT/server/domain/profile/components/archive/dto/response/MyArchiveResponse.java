@@ -41,6 +41,7 @@ public record MyArchiveResponse(
             String preview,
             LocalDateTime createdAt,
             long likeCount,
+            long viewCount,
             long answerCount,
             long commentCount,
             long bookmarkCount,
@@ -60,6 +61,7 @@ public record MyArchiveResponse(
                     r.preview(),
                     r.createdAt(),
                     r.likeCount(),
+                    r.viewCount(),
                     r.answerCount(),
                     r.commentCount(),
                     r.bookmarkCount(),
@@ -82,6 +84,7 @@ public record MyArchiveResponse(
             String thumbnailUrl,
             List<String> tags,
             Long bookmarkCount,
+            long viewCount,
             String organizer,
             LocalDate applyEndDate,
             ActivityStatus status,
@@ -102,6 +105,7 @@ public record MyArchiveResponse(
             LocalDate recruitDeadline,
             Integer recruitCount,
             long bookmarkCount,
+            long viewCount,
             LocalDateTime createdAt,
             LocalDateTime updatedAt
     ) implements Item {

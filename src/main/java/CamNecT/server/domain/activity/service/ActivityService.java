@@ -41,6 +41,8 @@ import CamNecT.server.global.storage.service.PresignEngine;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import CamNecT.server.global.tag.model.Tag;
 import CamNecT.server.global.tag.repository.TagRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -59,6 +61,9 @@ import static CamNecT.server.domain.activity.service.ActivityAttachmentService.T
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ActivityService {
+    @PersistenceContext
+    private EntityManager entityManager;
+
 
     private static final String DEFAULT_THUMB = "기본이미지";
 
@@ -102,6 +107,7 @@ public class ActivityService {
                 thumbnailUrlOrNull(a.thumbnailUrl()),
                 a.tags(),
                 a.bookmarkCount(),
+                a.viewCount(),
                 a.organizer(),
                 a.applyEndDate(),
                 a.status(),
@@ -190,6 +196,7 @@ public class ActivityService {
                 thumbnailUrlOrNull(saved.getThumbnailKey()),
                 null,
                 0L, // 새로 생성된 활동이므로 북마크 수는 0
+                saved.getViewCount(),
                 saved.getOrganizer(),
                 saved.getApplyEndDate(),
                 saved.getStatus(),
@@ -247,6 +254,7 @@ public class ActivityService {
                 thumbnailUrlOrNull(saved.getThumbnailKey()),
                 null,
                 0L,
+                saved.getViewCount(),
                 saved.getOrganizer(),
                 saved.getApplyEndDate(),
                 saved.getStatus(),
@@ -531,10 +539,6 @@ public class ActivityService {
         ExternalActivity activity = activityRepository.findVisibleOnApp(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
-        // 2. Activity → DTO 변환 + 썸네일 presign
-        ExternalActivityDto activityDto = ExternalActivityDto.from(activity, userId != null)
-                .withThumbnailUrl(thumbnailUrlOrNull(activity.getThumbnailKey()));
-
         // 3. 첨부파일 조회 (카테고리 조건)
         List<ExternalActivityAttachmentDto> attachmentDtos = List.of();
 
@@ -619,7 +623,11 @@ public class ActivityService {
 
         if (countView && userId != null) {
             activityRepository.incrementViews(activityId);
+            entityManager.refresh(activity);
         }
+
+        ExternalActivityDto activityDto = ExternalActivityDto.from(activity, userId != null)
+                .withThumbnailUrl(thumbnailUrlOrNull(activity.getThumbnailKey()));
 
         // 9. Response 생성
         return new ActivityDetailResponse(
@@ -732,6 +740,7 @@ public class ActivityService {
                             a.getActivityId(),
                             a.getTitle(),
                             a.getOrganizer(),
+                            a.getViewCount(),
                             thumbUrl
                     );
                 })

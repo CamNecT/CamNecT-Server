@@ -59,13 +59,20 @@ class ActivityDetailViewIntegrationTest {
             String recruitmentPath = "/api/activity/recruitment/" + recruitment.getRecruitId();
             mvc.perform(get(activityPath)).andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.recruitmentList").isEmpty())
-                    .andExpect(jsonPath("$.data.isMine").value(false));
+                    .andExpect(jsonPath("$.data.isMine").value(false))
+                    .andExpect(jsonPath("$.data.activity.viewCount").value(0));
             mvc.perform(get(recruitmentPath)).andExpect(status().isUnauthorized());
             for (String path : new String[]{activityPath, recruitmentPath}) {
                 mvc.perform(head(path).header("Authorization", "Bearer " + access)).andExpect(status().isOk());
-                mvc.perform(get(path).header("Authorization", "Bearer " + access)).andExpect(status().isOk())
-                        .andExpect(jsonPath("$..viewCount").isEmpty());
             }
+            mvc.perform(get(activityPath).header("Authorization", "Bearer " + access)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.activity.viewCount").value(1))
+                    .andExpect(jsonPath("$.data.recruitmentList[0].viewCount").value(0));
+            mvc.perform(get(recruitmentPath).header("Authorization", "Bearer " + access)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.recruitment.viewCount").value(1));
+            mvc.perform(get("/api/activity").param("category", "EXTERNAL").param("title", "활동"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.content[0].viewCount").value(1));
             em.clear();
             assertThat(em.find(ExternalActivity.class, activity.getActivityId()).getViewCount()).isOne();
             assertThat(em.find(TeamRecruitment.class, recruitment.getRecruitId()).getViewCount()).isOne();
