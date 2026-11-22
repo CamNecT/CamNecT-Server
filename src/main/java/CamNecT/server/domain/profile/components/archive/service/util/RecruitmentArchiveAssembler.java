@@ -61,6 +61,8 @@ public class RecruitmentArchiveAssembler {
                     tr.getRecruitDeadline(),
                     tr.getRecruitCount(),
                     bookmarkCount,
+                    tr.getViewCount(),
+                    tr.getCommentCount(),
                     tr.getCreatedAt(),
                     tr.getUpdatedAt()
             ));

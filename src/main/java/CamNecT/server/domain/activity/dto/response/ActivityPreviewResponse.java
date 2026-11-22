@@ -13,6 +13,8 @@ public record ActivityPreviewResponse(
         String thumbnailUrl,
         List<String> tags,
         Long bookmarkCount,
+        long viewCount,
+        long commentCount,
         String organizer,
         LocalDate applyEndDate,
         ActivityStatus status,

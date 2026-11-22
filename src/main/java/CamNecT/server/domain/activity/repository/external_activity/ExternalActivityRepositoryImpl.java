@@ -1,6 +1,7 @@
 package CamNecT.server.domain.activity.repository.external_activity;
 
 import CamNecT.server.domain.activity.dto.response.ActivityPreviewResponse;
+import CamNecT.server.domain.activity.repository.comment.ActivityCommentRepository;
 import CamNecT.server.domain.activity.model.enums.ActivityCategory;
 import CamNecT.server.domain.activity.model.enums.ActivityStatus;
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
@@ -35,6 +36,7 @@ import static CamNecT.server.global.tag.model.QTag.tag;
 public class ExternalActivityRepositoryImpl implements ExternalActivityRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
+    private final ActivityCommentRepository comments;
 
     private BooleanExpression visibleOnApp() {
         return JPAExpressions.selectOne().from(activityImport)
@@ -124,6 +126,7 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                 ));
 
         // 7. 정렬 순서 유지하며 Response 생성
+        Map<Long, Long> commentCounts = comments.publishedCounts(activityIds);
         List<ActivityPreviewResponse> content = activityIds.stream()
                 .map(id -> {
                     ExternalActivity activity = activityMap.get(id);
@@ -141,6 +144,8 @@ public class ExternalActivityRepositoryImpl implements ExternalActivityRepositor
                             activity.getThumbnailKey(),
                             tags,
                             bookmarkCount,
+                            activity.getViewCount(),
+                            commentCounts.getOrDefault(activity.getActivityId(), 0L),
                             activity.getOrganizer(),
                             activity.getApplyEndDate(),
                             activity.getStatus(),

@@ -12,6 +12,7 @@ public record ActivityDetailResponse(
         boolean isMine,
         AuthorDto author,
         ExternalActivityDto activity,
+        long commentCount,
         List<ExternalActivityAttachmentDto> attachment,
         List<Long> tagIds,
         List<TagDto> tags,

@@ -162,7 +162,7 @@ class ActivityImportIntegrationTest {
         var response = readAsUser("/api/activity/" + id);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(activities.findById(id).orElseThrow().getViewCount()).isEqualTo(2);
-        assertThat(response.getBody().at("/data/activity").has("viewCount")).isFalse();
+        assertThat(response.getBody().at("/data/activity/viewCount").asLong()).isEqualTo(2);
         assertThat(response.getBody().at("/data/activity/thumbnailUrl").asText()).startsWith("https://cdn.camnect.site/");
         String key = activities.findById(id).orElseThrow().getThumbnailKey();
         assertThat(Files.exists(Path.of("build/test-uploads").resolve(key))).isTrue();

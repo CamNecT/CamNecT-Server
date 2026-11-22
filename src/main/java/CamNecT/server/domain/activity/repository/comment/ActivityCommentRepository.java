@@ -12,9 +12,31 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.Optional;
 
 public interface ActivityCommentRepository extends JpaRepository<ActivityComment, Long> {
+
+    interface CommentCount {
+        Long getActivityId();
+        long getCommentCount();
+    }
+
+    @Query("""
+        select c.activity.activityId as activityId, count(c) as commentCount
+        from ActivityComment c
+        where c.activity.activityId in :activityIds
+          and c.status = CamNecT.server.domain.community.model.enums.CommentStatus.PUBLISHED
+        group by c.activity.activityId
+        """)
+    List<CommentCount> countPublishedByActivityIds(@Param("activityIds") Collection<Long> activityIds);
+
+    default Map<Long, Long> publishedCounts(Collection<Long> activityIds) {
+        if (activityIds.isEmpty()) return Map.of();
+        return countPublishedByActivityIds(activityIds).stream()
+                .collect(Collectors.toMap(CommentCount::getActivityId, CommentCount::getCommentCount));
+    }
 
     @Query("select c.activity.activityId from ActivityComment c where c.id = :commentId")
     Optional<Long> findActivityIdByCommentId(@Param("commentId") Long commentId);

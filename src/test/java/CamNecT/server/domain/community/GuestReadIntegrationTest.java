@@ -79,5 +79,7 @@ class GuestReadIntegrationTest {
         em.flush();
         em.clear();
         assertThat(posts.getDetail(null, info.getId()).viewCount()).isOne();
+        mvc.perform(get(feed).param("keyword", "title-INFO"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.items[0].viewCount").value(1));
     }
 }

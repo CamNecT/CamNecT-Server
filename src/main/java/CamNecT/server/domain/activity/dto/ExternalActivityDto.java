@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class ExternalActivityDto {
 
     private final Long activityId;
+    private final long viewCount;
     private final String title;
     private final ActivityCategory category;
     private final String organizer;
@@ -40,6 +41,7 @@ public class ExternalActivityDto {
 
         return ExternalActivityDto.builder()
                 .activityId(entity.getActivityId())
+                .viewCount(entity.getViewCount())
                 .title(entity.getTitle())
                 .category(entity.getCategory())
                 .organizer(entity.getOrganizer())
@@ -62,6 +64,7 @@ public class ExternalActivityDto {
     public ExternalActivityDto withThumbnailUrl(String thumbnailUrl) {
         return ExternalActivityDto.builder()
                 .activityId(activityId)
+                .viewCount(viewCount)
                 .title(title)
                 .category(category)
                 .organizer(organizer)

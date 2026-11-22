@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import CamNecT.server.domain.activity.repository.comment.ActivityCommentRepository;
 
 @Component
 @RequiredArgsConstructor
@@ -17,6 +18,7 @@ import java.util.*;
 public class ExternalArchiveAssembler {
 
     private final ExternalActivityTagRepository externalActivityTagRepository;
+    private final ActivityCommentRepository comments;
     private final PublicUrlIssuer publicUrlIssuer;
 
     public ExternalAssembleResult assemble(List<Object[]> rows) {
@@ -30,6 +32,7 @@ public class ExternalArchiveAssembler {
 
         List<Long> actIds = acts.stream().map(ExternalActivity::getActivityId).distinct().toList();
 
+        Map<Long, Long> commentCounts = comments.publishedCounts(actIds);
         Map<Long, List<String>> tagsMap = new HashMap<>();
         externalActivityTagRepository.findAllByActivity_ActivityIdIn(actIds).forEach(at -> {
             Long aid = at.getActivity().getActivityId();
@@ -52,6 +55,8 @@ public class ExternalArchiveAssembler {
                     publicUrlIssuer.issueImagePublicUrl(a.getThumbnailKey()),
                     tagsMap.getOrDefault(a.getActivityId(), List.of()),
                     bookmarkCount,
+                    a.getViewCount(),
+                    commentCounts.getOrDefault(a.getActivityId(), 0L),
                     a.getOrganizer(),
                     a.getApplyEndDate(),
                     a.getStatus(),

@@ -159,6 +159,7 @@ public class PostSummaryAssembler {
                     preview,
                     p.getCreatedAt(),
                     likeCount,
+                    ps == null ? 0L : ps.getViewCount(),
                     answerCount,
                     commentCount,
                     bookmarkCount,
