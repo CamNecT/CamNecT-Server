@@ -1,6 +1,5 @@
 package CamNecT.server.domain.chat.service;
 
-
 import CamNecT.server.domain.activity.model.recruitment.TeamRecruitment;
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.server.domain.alumni.dto.ProfileCardDto;
@@ -26,6 +25,7 @@ import CamNecT.server.domain.home.dto.HomeResponse;
 import CamNecT.server.domain.profile.dto.ProfileGlobalDto;
 import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.model.UserStatus;
+import CamNecT.server.domain.report.service.UserReportPenaltyService;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
@@ -41,7 +41,6 @@ import CamNecT.server.global.notification.event.CoffeeChatAcceptedEvent;
 import CamNecT.server.global.notification.event.CoffeeChatRequestedEvent;
 import CamNecT.server.global.notification.event.NewChatMessageEvent;
 import CamNecT.server.global.notification.event.TeamRecruitAcceptedEvent;
-import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.global.storage.service.PublicUrlIssuer;
 import CamNecT.server.global.tag.model.Tag;
@@ -56,10 +55,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
-
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Isolation;
 
 @Slf4j
 @Service
@@ -90,12 +89,13 @@ public class ChatService {
     private final ChatPresenceService presenceService;
     private final PointService pointService;
     private final AccountAccessGuard accountAccessGuard;
+    private final UserReportPenaltyService penalties;
 
     /*
       1. 커피챗 요청 보내기
       Requester -> Receiver임.
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public Long sendCoffeeChatRequest(Long requesterId, Long receiverId, List<Long> tagIds, String content) {
         if (requesterId == null) {
             throw new CustomException(AuthErrorCode.INVALID_TOKEN);
@@ -136,6 +136,11 @@ public class ChatService {
                 || chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndStatusAndType(
                 receiverId, requesterId, ChatRequest.RequestStatus.ACCEPTED, ChatRequest.RequestType.COFFEE_CHAT)) {
             throw new CustomException(CoffeeChatErrorCode.CHATROOM_ALREADY_EXISTS);
+        }
+
+        if (chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndTypeAndCreatedAtAfter(
+                requesterId, receiverId, ChatRequest.RequestType.COFFEE_CHAT, LocalDateTime.now().minusDays(1))) {
+            throw new CustomException(CoffeeChatErrorCode.REQUEST_COOLDOWN);
         }
 
         boolean isOpen = userProfileRepository.existsByUserIdAndOpenToCoffeeChatTrue(receiverId);
@@ -816,9 +821,10 @@ public class ChatService {
         if (request.getType() == ChatRequest.RequestType.COFFEE_CHAT) {
             pointService.earnCoffeeChatAccepted(targetUserId, opponentId, requestId, rewardCoffeeChatAccepted);
         } else {
-            // Team recruitment shares this endpoint; retain its existing reward contract.
-            pointService.earnPoint(opponentId, rewardCoffeeChatAccepted,
-                    PointEvent.coffeeChatAccepted(opponentId, requestId));
+            // The organizer accepts, but the applicant receives the reward.
+            var status = request.getRequester().getStatus();
+            if (status != UserStatus.ACTIVE || penalties.hasActiveRestriction(opponentId, status)) return;
+            pointService.earnTeamRecruitAccepted(opponentId, targetUserId, requestId, rewardCoffeeChatAccepted);
         }
     }
 

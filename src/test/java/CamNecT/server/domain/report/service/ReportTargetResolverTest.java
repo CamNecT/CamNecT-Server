@@ -2,6 +2,8 @@ package CamNecT.server.domain.report.service;
 
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityRepository;
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
+import CamNecT.server.domain.activity.repository.comment.ActivityCommentRepository;
+import CamNecT.server.domain.activity.model.comment.ActivityComment;
 import CamNecT.server.domain.chat.model.ChatRoom;
 import CamNecT.server.domain.chat.repository.ChatRoomRepository;
 import CamNecT.server.domain.community.model.Posts.Posts;
@@ -34,6 +36,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class ReportTargetResolverTest {
 
+    @Mock ActivityCommentRepository activityComments;
     @Mock PostsRepository postsRepository;
     @Mock CommentsRepository commentsRepository;
     @Mock ExternalActivityRepository activityRepository;
@@ -83,6 +86,18 @@ class ReportTargetResolverTest {
         );
 
         assertThat(exception.getErrorCode()).isEqualTo(ReportErrorCode.REPORT_INVALID_TARGET);
+    }
+
+    @Test
+    void activityAndCommunityCommentIdsUseIndependentReportCases() {
+        var author = Users.builder().userId(2L).build();
+        var comment = ActivityComment.create(null, 2L, null, "내용");
+        ReflectionTestUtils.setField(comment, "id", 100L);
+        when(activityComments.findById(100L)).thenReturn(Optional.of(comment));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
+        var resolved = resolver.resolve(1L, request(2L, 100L, TargetType.ACTIVITY_COMMENT));
+        assertThat(resolved.targetKey()).isEqualTo("ACTIVITY_COMMENT:100");
+        assertThat(resolved.author().getUserId()).isEqualTo(2L);
     }
 
     @Test

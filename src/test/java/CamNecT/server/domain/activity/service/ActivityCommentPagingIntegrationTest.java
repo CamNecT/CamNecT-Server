@@ -18,18 +18,18 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import CamNecT.server.domain.community.service.CommentPostingLimit;
 
 @DataJpaTest
 @ActiveProfiles("test")
-@Import({ActivityCommentService.class, QuerydslConfig.class})
+@Import({ActivityCommentService.class, CommentPostingLimit.class, QuerydslConfig.class})
 class ActivityCommentPagingIntegrationTest {
+    @Autowired CommentPostingLimit postingLimit;
     @Autowired TestEntityManager entityManager;
     @Autowired ActivityCommentService service;
     @MockitoBean AccountAccessGuard accountAccessGuard;
@@ -108,6 +108,20 @@ class ActivityCommentPagingIntegrationTest {
         assertThatThrownBy(() -> service.listReplies(1L, otherActivity.getActivityId(), root.getId(), null, 20))
                 .isInstanceOfSatisfying(CustomException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(CommunityErrorCode.COMMENT_NOT_FOUND));
+    }
+
+    @Test
+    void deletedActivityCommentStillCountsForThirtySeconds() {
+        var row = comment(activity(), null, CommentStatus.DELETED, "삭제된 댓글");
+        entityManager.flush();
+        var query = entityManager.getEntityManager().createNativeQuery(
+                "UPDATE activity_comments SET created_at = :posted WHERE comment_id = :id");
+        query.setParameter("posted", LocalDateTime.now()).setParameter("id", row.getId()).executeUpdate();
+        assertThatThrownBy(() -> postingLimit.requireAvailable(1L)).isInstanceOfSatisfying(CustomException.class,
+                error -> assertThat(error.getErrorCode()).isEqualTo(CommunityErrorCode.COMMENT_CREATE_COOLDOWN));
+        postingLimit.requireAvailable(2L);
+        query.setParameter("posted", LocalDateTime.now().minusSeconds(31)).executeUpdate();
+        postingLimit.requireAvailable(1L);
     }
 
     private ExternalActivity activity() {

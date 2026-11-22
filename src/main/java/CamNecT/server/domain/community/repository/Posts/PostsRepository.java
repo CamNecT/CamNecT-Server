@@ -18,6 +18,8 @@ import java.util.Optional;
 
 public interface PostsRepository extends JpaRepository<Posts, Long> {
 
+    boolean existsByUser_UserIdAndCreatedAtAfter(Long userId, LocalDateTime cutoff);
+
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_READ)
     @Query("select p from Posts p where p.id = :postId")
     Optional<Posts> findByIdForRead(@Param("postId") Long postId);

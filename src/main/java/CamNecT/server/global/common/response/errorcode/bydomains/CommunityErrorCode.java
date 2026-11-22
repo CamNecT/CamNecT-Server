@@ -25,6 +25,8 @@ public enum CommunityErrorCode implements BaseErrorCode {
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, 43410, "게시글을 찾을 수 없습니다."),
     COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 43411, "댓글을 찾을 수 없습니다."),
     PARENT_COMMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 43412, "부모 댓글을 찾을 수 없습니다."),
+    POST_CREATE_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, 42951, "게시글은 마지막 작성 후 5분 뒤에 작성할 수 있습니다."),
+    COMMENT_CREATE_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, 42953, "댓글은 마지막 작성 후 30초 뒤에 작성할 수 있습니다."),
     BOARD_NOT_FOUND(HttpStatus.NOT_FOUND, 43420, "게시판을 찾을 수 없습니다."),
     POST_STATS_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, 43510, "게시글 통계 데이터가 누락되었습니다."),
     ATTACHMENT_NOT_FOUND(HttpStatus.NOT_FOUND, 43430, "첨부파일을 찾을 수 없습니다."),

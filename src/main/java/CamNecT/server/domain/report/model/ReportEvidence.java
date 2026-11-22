@@ -50,6 +50,13 @@ public class ReportEvidence {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    private LocalDateTime expiredAt;
+
+    public boolean isRetained(LocalDateTime cutoff, LocalDateTime processedAt) {
+        return expiredAt == null && ((createdAt != null && createdAt.isAfter(cutoff))
+                || (processedAt != null && processedAt.isAfter(cutoff)));
+    }
+
     private ReportEvidence(
             Report report,
             String storageKey,

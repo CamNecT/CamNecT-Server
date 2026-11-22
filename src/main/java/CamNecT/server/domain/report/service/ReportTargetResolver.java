@@ -1,6 +1,8 @@
 package CamNecT.server.domain.report.service;
 
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
+import CamNecT.server.domain.activity.model.comment.ActivityComment;
+import CamNecT.server.domain.activity.repository.comment.ActivityCommentRepository;
 import CamNecT.server.domain.activity.model.recruitment.TeamRecruitment;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityRepository;
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
@@ -32,6 +34,7 @@ import java.util.Objects;
 public class ReportTargetResolver {
 
     private final PostsRepository postsRepository;
+    private final ActivityCommentRepository activityComments;
     private final CommentsRepository commentsRepository;
     private final ExternalActivityRepository activityRepository;
     private final TeamRecruitmentRepository recruitmentRepository;
@@ -46,6 +49,10 @@ public class ReportTargetResolver {
         return switch (request.postType()) {
             case COMMUNITY -> fromPost(request);
             case COMMUNITY_COMMENT -> fromComment(request);
+            case ACTIVITY_COMMENT -> {
+                var comment = activityComments.findById(requiredTargetId(request)).orElseThrow(this::invalidTarget);
+                yield contentTarget(request, comment.getId(), comment.getUserId());
+            }
             case ACTIVITY -> fromActivity(request);
             case ACTIVITY_RECRUITMENT -> fromRecruitment(request);
             case USER -> fromUser(request);
@@ -66,6 +73,13 @@ public class ReportTargetResolver {
         return switch (request.postType()) {
             case COMMUNITY -> fromPostForCreateLocked(request);
             case COMMUNITY_COMMENT -> fromCommentForCreateLocked(request);
+            case ACTIVITY_COMMENT -> {
+                Long id = requiredTargetId(request);
+                Long activityId = activityComments.findActivityIdByCommentId(id).orElseThrow(this::invalidTarget);
+                activityRepository.findByIdForRead(activityId).orElseThrow(this::invalidTarget);
+                var comment = activityComments.findByIdAndStatusForRead(id, CommentStatus.PUBLISHED).orElseThrow(this::invalidTarget);
+                yield contentTarget(request, id, comment.getUserId());
+            }
             case ACTIVITY -> fromActivityForCreateLocked(request);
             case ACTIVITY_RECRUITMENT -> fromRecruitmentForCreateLocked(request);
             case USER -> fromUser(request);
@@ -90,6 +104,9 @@ public class ReportTargetResolver {
             case COMMUNITY_COMMENT -> commentsRepository.findById(reportCase.getTargetId())
                     .map(Comments::getUserId)
                     .flatMap(userRepository::findById)
+                    .orElseThrow(this::unverifiedTarget);
+            case ACTIVITY_COMMENT -> activityComments.findById(reportCase.getTargetId())
+                    .map(ActivityComment::getUserId).flatMap(userRepository::findById)
                     .orElseThrow(this::unverifiedTarget);
             case ACTIVITY -> activityRepository.findById(reportCase.getTargetId())
                     .map(ExternalActivity::getUser)

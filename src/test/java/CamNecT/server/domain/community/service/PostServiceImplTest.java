@@ -45,16 +45,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import CamNecT.server.global.point.service.CommunityRewardService;
 
 @ExtendWith(MockitoExtension.class)
 class PostServiceImplTest {
@@ -77,6 +76,7 @@ class PostServiceImplTest {
     @Mock PostAttachmentsService postAttachmentsService;
     @Mock CommunityPostAccessPolicy postAccessPolicy;
     @Mock PointService pointService;
+    @Mock CommunityRewardService communityRewards;
     @Mock AccountAccessGuard accountAccessGuard;
     @Mock PresignEngine presignEngine;
     @Mock ApplicationEventPublisher eventPublisher;
@@ -118,6 +118,16 @@ class PostServiceImplTest {
 
         assertThat(exception.getErrorCode()).isEqualTo(CommunityErrorCode.ANONYMOUS_POST_NOT_SUPPORTED);
         verifyNoInteractions(userRepository, boardsRepository, postsRepository, eventPublisher);
+    }
+
+    @Test
+    void recentPostFromSameAccountBlocksAnotherCreate() {
+        var request = new CreatePostRequest(BoardCode.INFO, "제목", "본문", false, null, null);
+        when(boardsRepository.findByCode(BoardCode.INFO)).thenReturn(Optional.of(Boards.of(BoardCode.INFO, "정보")));
+        when(postsRepository.existsByUser_UserIdAndCreatedAtAfter(eq(1L), any())).thenReturn(true);
+        var error = assertThrows(CustomException.class, () -> service.create(1L, request));
+        assertThat(error.getErrorCode()).isEqualTo(CommunityErrorCode.POST_CREATE_COOLDOWN);
+        verify(postsRepository, never()).save(any());
     }
 
     @Test

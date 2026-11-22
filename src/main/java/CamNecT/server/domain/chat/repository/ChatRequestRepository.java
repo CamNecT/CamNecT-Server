@@ -7,11 +7,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> {
+
+    boolean existsByRequester_UserIdAndReceiver_UserIdAndTypeAndCreatedAtAfter(
+            Long requesterId, Long receiverId, ChatRequest.RequestType type, LocalDateTime cutoff);
 
     // 중복 신청 방지
     @Lock(LockModeType.PESSIMISTIC_WRITE)

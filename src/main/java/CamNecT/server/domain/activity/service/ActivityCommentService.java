@@ -25,9 +25,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.*;
 import java.util.stream.Stream;
+import CamNecT.server.domain.community.service.CommentPostingLimit;
+import org.springframework.transaction.annotation.Isolation;
 
 @Service
 @RequiredArgsConstructor
@@ -37,10 +38,11 @@ public class ActivityCommentService {
     private final ExternalActivityRepository activityRepository;
     private final ActivityCommentRepository commentsRepository;
     private final ActivityCommentLikeRepository likesRepository;
+    private final CommentPostingLimit commentPostingLimit;
     private final AccountAccessGuard accountAccessGuard;
     private final AuthorAssembler authorAssembler;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public CreateCommentResponse create(Long userId, Long activityId, CreateCommentRequest req) {
         requireUser(userId);
         accountAccessGuard.requireAccessibleForUpdate(userId);
@@ -56,6 +58,7 @@ public class ActivityCommentService {
             if (parent.getParent() != null)
                 throw new CustomException(CommunityErrorCode.COMMENT_MAX_DEPTH_EXCEEDED);
         }
+        commentPostingLimit.requireAvailable(userId);
         return new CreateCommentResponse(commentsRepository.save(ActivityComment.create(activity, userId, parent, req.content())).getId());
     }
 
@@ -70,6 +73,14 @@ public class ActivityCommentService {
     }
 
     @Transactional
+    public void deleteForModeration(Long adminId, Long commentId) {
+        if (accountAccessGuard.requireAccessibleForUpdate(adminId).getRole() != UserRole.ADMIN)
+            throw new CustomException(CommunityErrorCode.COMMENT_FORBIDDEN);
+        ActivityComment comment = requireCommentForUpdate(commentId);
+        if (comment.getStatus().isPublished()) comment.deleteSoft();
+    }
+
+    @Transactional
     public void delete(Long userId, Long commentId) {
         requireUser(userId);
         Users actor = accountAccessGuard.requireAccessibleForUpdate(userId);
@@ -80,7 +91,7 @@ public class ActivityCommentService {
         comment.deleteSoft();
     }
 
-    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ToggleCommentLikeResponse toggleLike(Long userId, Long commentId) {
         requireUser(userId);
         accountAccessGuard.requireAccessibleForUpdate(userId);

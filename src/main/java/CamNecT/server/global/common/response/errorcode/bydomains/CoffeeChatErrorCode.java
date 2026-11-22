@@ -30,6 +30,7 @@ public enum CoffeeChatErrorCode implements BaseErrorCode {
     RECEIVER_NOT_FOUND(HttpStatus.NOT_FOUND, 48405, "수신자 정보를 찾을 수 없습니다."),
 
     // 489xx - 충돌/중복 (Conflict)
+    REQUEST_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, 42952, "같은 상대에게는 마지막 커피챗 신청 후 24시간 뒤에 다시 신청할 수 있습니다."),
     DUPLICATE_REQUEST(HttpStatus.CONFLICT, 48901, "이미 대기 중인 커피챗 요청이 존재합니다."),
     CHATROOM_ALREADY_EXISTS(HttpStatus.CONFLICT, 48902, "이미 활성화된 채팅방이 존재합니다."),
     IDEMPOTENCY_KEY_REUSED(HttpStatus.CONFLICT, 48903, "동일한 clientMessageId를 다른 메시지에 재사용할 수 없습니다.");

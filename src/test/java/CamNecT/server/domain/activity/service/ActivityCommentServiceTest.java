@@ -20,16 +20,16 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import CamNecT.server.domain.community.service.CommentPostingLimit;
 
 @ExtendWith(MockitoExtension.class)
 class ActivityCommentServiceTest {
+    @Mock CommentPostingLimit commentPostingLimit;
     @Mock ExternalActivityRepository activityRepository;
     @Mock ActivityCommentRepository commentsRepository;
     @Mock ActivityCommentLikeRepository likesRepository;

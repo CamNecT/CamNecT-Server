@@ -53,6 +53,7 @@ public class PostController {
 
     @Operation(summary = "게시글 작성", description = "새로운 게시글을 등록합니다. 첨부파일이 있는 경우 Presigned URL 발급 API를 먼저 호출해야 합니다.")
     @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "429", description = "42951 게시글 작성 간격 5분", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "40000 요청값 검증 실패 / 43060 유효하지 않은 태그 / 43062 지원하지 않는 익명 게시글 / 49010 만료·사용된 업로드 티켓 / 49011 업로드 파일 불일치 / 49021 첨부 메타데이터 오류 / 49022 첨부 키 중복", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT / 41103 인증 헤더 누락·형식 오류 / 41104 토큰 타입 누락 / 41106 허용되지 않은 토큰 타입", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),

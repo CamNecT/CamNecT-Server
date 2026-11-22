@@ -39,10 +39,11 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import CamNecT.server.global.point.service.CommunityRewardService;
+import org.springframework.transaction.annotation.Isolation;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
@@ -83,13 +84,14 @@ public class PostServiceImpl implements PostService {
     private final PostAttachmentsService postAttachmentsService;
     private final CommunityPostAccessPolicy postAccessPolicy;
     private final PointService pointService;
+    private final CommunityRewardService communityRewards;
     private final AccountAccessGuard accountAccessGuard;
     private final PresignEngine presignEngine;
 
     private final ApplicationEventPublisher eventPublisher;
     private final AuthorAssembler authorAssembler;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     @Override
     public CreatePostResponse create(Long userId, CreatePostRequest req) {
         if (Boolean.TRUE.equals(req.anonymous())) {
@@ -103,6 +105,9 @@ public class PostServiceImpl implements PostService {
 
         PostAccessType accessType = (req.boardCode() == BoardCode.QUESTION) ? PostAccessType.POINT_REQUIRED : PostAccessType.FREE;
 
+        if (postsRepository.existsByUser_UserIdAndCreatedAtAfter(userId, LocalDateTime.now().minusMinutes(5))) {
+            throw new CustomException(CommunityErrorCode.POST_CREATE_COOLDOWN);
+        }
         Posts post = Posts.create(board, user, req.title().trim(), req.content(), false);
         post.applyAccess(accessType);
 
@@ -241,7 +246,7 @@ public class PostServiceImpl implements PostService {
         postsRepository.softDeleteById(postId, LocalDateTime.now());
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     @Override
     public ToggleLikeResponse toggleLike(Long userId, Long postId) {
         Users user = accountAccessGuard.requireAccessibleForUpdate(userId);
@@ -270,11 +275,12 @@ public class PostServiceImpl implements PostService {
             liked = true;
 
             // 좋아요 3개 이상 “첫 1회” 보상 -> 정보글 한정
-            if (stats.getLikeCount() >= 3 && stats.tryMarkLikeRewarded3()
-                    && post.getBoard().getCode() == BoardCode.INFO) {
-                // 작성자에게 지급 (본인 글이면 지급 안 줄지 정책 결정)
+            if (post.getBoard().getCode() == BoardCode.INFO && stats.getLikeCount() >= 3 && !stats.isLikeRewarded3()) {
                 Long authorId = post.getUser().getUserId();
-                pointService.earnPoint(authorId, rewardFirstThreeLikes, PointEvent.threeLikeReward(authorId, postId));
+                if (communityRewards.tryCommunityReward(authorId, rewardFirstThreeLikes,
+                        PointEvent.threeLikeReward(authorId, postId), null)) {
+                    stats.tryMarkLikeRewarded3();
+                }
             }
         }
         return new ToggleLikeResponse(liked, stats.getLikeCount());
@@ -411,7 +417,7 @@ public class PostServiceImpl implements PostService {
         );
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     @Override
     public void acceptComment(Long userId, Long postId, Long commentId) {
         if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
@@ -457,7 +463,7 @@ public class PostServiceImpl implements PostService {
 
         Long receiverId = comment.getUserId();
         if (receiverId != null && !Objects.equals(receiverId, userId)) {
-            pointService.earnPoint(receiverId, rewardAcceptedComment, PointEvent.commentSelection(postId, commentId));
+            communityRewards.tryCommunityReward(receiverId, rewardAcceptedComment, PointEvent.commentSelection(postId, commentId), userId);
             eventPublisher.publishEvent(SimpleNotifiableEvent.of(
                     receiverId,
                     post.isAnonymous() ? null : userId,

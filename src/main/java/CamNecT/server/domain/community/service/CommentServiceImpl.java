@@ -32,10 +32,10 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Stream;
+import org.springframework.transaction.annotation.Isolation;
 
 @Service
 @RequiredArgsConstructor
@@ -48,11 +48,12 @@ public class CommentServiceImpl implements CommentService {
     private final UserRepository userRepository;
     private final AcceptedCommentsRepository acceptedCommentsRepository;
     private final CommunityPostAccessPolicy postAccessPolicy;
+    private final CommentPostingLimit commentPostingLimit;
     private final AccountAccessGuard accountAccessGuard;
     private final AuthorAssembler  authorAssembler;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     @Override
     public CreateCommentResponse create(Long userId, Long postId, CreateCommentRequest req) {
         if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
@@ -85,6 +86,7 @@ public class CommentServiceImpl implements CommentService {
             }
         }
 
+        commentPostingLimit.requireAvailable(userId);
         Comments saved = commentsRepository.save(Comments.create(post, userId, parent, req.content()));
 
         PostStats stats = postStatsRepository.findByPostIdForUpdate(postId)
