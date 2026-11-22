@@ -3,8 +3,6 @@ package CamNecT.server.domain.community.service;
 import CamNecT.server.domain.community.dto.response.CommunityHomeResponse;
 import CamNecT.server.domain.community.dto.response.PostListResponse;
 import CamNecT.server.domain.users.repository.UserTagMapRepository;
-import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import CamNecT.server.global.tag.model.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,7 +20,11 @@ public class CommunityHomeServiceImpl implements CommunityHomeService {
 
     @Override
     public CommunityHomeResponse getHome(Long userId) {
-        if (userId == null) { throw new CustomException(AuthErrorCode.INVALID_TOKEN); }
+        if (userId == null) {
+            var recommended = postQueryService.getPosts(null, PostQueryService.Tab.ALL, PostQueryService.Sort.RECOMMENDED,
+                    List.of(), null, null, null, 10);
+            return new CommunityHomeResponse(null, null, recommended.items(), postQueryService.getWaitingQuestions(null, 3).items());
+        }
 
         Tag picked = pickRandomTagOrNull(userId);
 

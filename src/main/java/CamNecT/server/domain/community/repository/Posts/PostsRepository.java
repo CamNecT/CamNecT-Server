@@ -18,6 +18,8 @@ import java.util.Optional;
 
 public interface PostsRepository extends JpaRepository<Posts, Long> {
 
+    boolean existsByUser_UserIdAndCreatedAtAfter(Long userId, LocalDateTime cutoff);
+
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_READ)
     @Query("select p from Posts p where p.id = :postId")
     Optional<Posts> findByIdForRead(@Param("postId") Long postId);
@@ -41,7 +43,7 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
           and (:code is null or p.board.code = :code)
           and (:cursorId is null or p.id < :cursorId)
           and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
-                           or (p.content like concat('%', :keyword, '%') escape '!'
+                           or ((:viewerUserId is not null or p.board.code <> :questionCode) and p.content like concat('%', :keyword, '%') escape '!'
                                and (:adminRead = true
                                     or p.accessType <> :pointRequiredAccess
                                     or p.board.code <> :questionCode
@@ -103,7 +105,7 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
     where p.status = :status
       and (:code is null or p.board.code = :code)
       and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
-                       or (p.content like concat('%', :keyword, '%') escape '!'
+                       or ((:viewerUserId is not null or p.board.code <> :questionCode) and p.content like concat('%', :keyword, '%') escape '!'
                            and (:adminRead = true
                                 or p.accessType <> :pointRequiredAccess
                                 or p.board.code <> :questionCode
@@ -148,7 +150,7 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
     where p.status = :status
       and (:code is null or p.board.code = :code)
       and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
-                       or (p.content like concat('%', :keyword, '%') escape '!'
+                       or ((:viewerUserId is not null or p.board.code <> :questionCode) and p.content like concat('%', :keyword, '%') escape '!'
                            and (:adminRead = true
                                 or p.accessType <> :pointRequiredAccess
                                 or p.board.code <> :questionCode
@@ -192,7 +194,7 @@ public interface PostsRepository extends JpaRepository<Posts, Long> {
     where p.status = :status
       and (:code is null or p.board.code = :code)
       and (:keyword is null or p.title like concat('%', :keyword, '%') escape '!'
-                       or (p.content like concat('%', :keyword, '%') escape '!'
+                       or ((:viewerUserId is not null or p.board.code <> :questionCode) and p.content like concat('%', :keyword, '%') escape '!'
                            and (:adminRead = true
                                 or p.accessType <> :pointRequiredAccess
                                 or p.board.code <> :questionCode

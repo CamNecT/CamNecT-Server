@@ -32,7 +32,11 @@ public class ExternalActivityDto {
     private final String context;
 
     public static ExternalActivityDto from(ExternalActivity entity) {
-        Long userId = (entity.getUser() == null) ? null : entity.getUser().getUserId();
+        return from(entity, true);
+    }
+
+    public static ExternalActivityDto from(ExternalActivity entity, boolean includeAuthor) {
+        Long userId = (!includeAuthor || entity.getUser() == null) ? null : entity.getUser().getUserId();
 
         return ExternalActivityDto.builder()
                 .activityId(entity.getActivityId())

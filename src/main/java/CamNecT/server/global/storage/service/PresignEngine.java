@@ -273,6 +273,10 @@ public class PresignEngine {
         return new PresignDownloadResponse(url, expiresAt, storageKey);
     }
 
+    public void deleteUploadedObject(String storageKey) {
+        s3.deleteObject(DeleteObjectRequest.builder().bucket(s3Props.bucket()).key(storageKey).build());
+    }
+
     private void registerTxCleanup(String tempKey, String finalKey) {
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

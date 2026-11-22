@@ -1,5 +1,6 @@
 package CamNecT.server.domain.community.service;
 
+import CamNecT.server.global.tag.model.TagIds;
 import CamNecT.server.domain.community.dto.AuthorDto;
 import CamNecT.server.domain.community.dto.request.CreatePostRequest;
 import CamNecT.server.domain.community.dto.request.UpdatePostRequest;
@@ -39,10 +40,13 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import CamNecT.server.global.point.service.CommunityRewardService;
+import org.springframework.transaction.annotation.Isolation;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 @Slf4j
 @Service
@@ -55,8 +59,6 @@ public class PostServiceImpl implements PostService {
     private int rewardFirstThreeLikes;
     @Value("${app.point.cost.question-view:100}")
     private int questionViewCost;
-    private static final long LEGACY_TAG_ID = 111L;
-    private static final long CANONICAL_TAG_ID = 53L;
 
 
     private final BoardsRepository boardsRepository;
@@ -81,13 +83,14 @@ public class PostServiceImpl implements PostService {
     private final PostAttachmentsService postAttachmentsService;
     private final CommunityPostAccessPolicy postAccessPolicy;
     private final PointService pointService;
+    private final CommunityRewardService communityRewards;
     private final AccountAccessGuard accountAccessGuard;
     private final PresignEngine presignEngine;
 
     private final ApplicationEventPublisher eventPublisher;
     private final AuthorAssembler authorAssembler;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     @Override
     public CreatePostResponse create(Long userId, CreatePostRequest req) {
         if (Boolean.TRUE.equals(req.anonymous())) {
@@ -101,6 +104,9 @@ public class PostServiceImpl implements PostService {
 
         PostAccessType accessType = (req.boardCode() == BoardCode.QUESTION) ? PostAccessType.POINT_REQUIRED : PostAccessType.FREE;
 
+        if (postsRepository.existsByUser_UserIdAndCreatedAtAfter(userId, LocalDateTime.now().minusMinutes(5))) {
+            throw new CustomException(CommunityErrorCode.POST_CREATE_COOLDOWN);
+        }
         Posts post = Posts.create(board, user, req.title().trim(), req.content(), false);
         post.applyAccess(accessType);
 
@@ -200,12 +206,12 @@ public class PostServiceImpl implements PostService {
     public void deleteForModeration(Long adminId, Long postId) {
         if (adminId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
-        Posts post = postsRepository.findByIdForUpdate(postId)
-                .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
-
         if (!userRepository.existsByUserIdAndRole(adminId, UserRole.ADMIN)) {
             throw new CustomException(CommunityErrorCode.POST_FORBIDDEN);
         }
+
+        Posts post = postsRepository.findByIdForUpdate(postId).orElse(null);
+        if (post == null) return;
         if (!post.getStatus().isPublished()) {
             return;
         }
@@ -239,7 +245,7 @@ public class PostServiceImpl implements PostService {
         postsRepository.softDeleteById(postId, LocalDateTime.now());
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     @Override
     public ToggleLikeResponse toggleLike(Long userId, Long postId) {
         Users user = accountAccessGuard.requireAccessibleForUpdate(userId);
@@ -268,11 +274,12 @@ public class PostServiceImpl implements PostService {
             liked = true;
 
             // 좋아요 3개 이상 “첫 1회” 보상 -> 정보글 한정
-            if (stats.getLikeCount() >= 3 && stats.tryMarkLikeRewarded3()
-                    && post.getBoard().getCode() == BoardCode.INFO) {
-                // 작성자에게 지급 (본인 글이면 지급 안 줄지 정책 결정)
+            if (post.getBoard().getCode() == BoardCode.INFO && stats.getLikeCount() >= 3 && !stats.isLikeRewarded3()) {
                 Long authorId = post.getUser().getUserId();
-                pointService.earnPoint(authorId, rewardFirstThreeLikes, PointEvent.threeLikeReward(authorId, postId));
+                if (communityRewards.tryCommunityReward(authorId, rewardFirstThreeLikes,
+                        PointEvent.threeLikeReward(authorId, postId), null)) {
+                    stats.tryMarkLikeRewarded3();
+                }
             }
         }
         return new ToggleLikeResponse(liked, stats.getLikeCount());
@@ -281,20 +288,28 @@ public class PostServiceImpl implements PostService {
     @Transactional
     @Override
     public PostDetailResponse getDetail(Long userId, Long postId) {
-        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
         Posts post = postsRepository.findByIdForRead(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
 
         requirePublished(post);
 
-        if (postStatsRepository.incrementView(postId, LocalDateTime.now()) == 0) {
-            throw new CustomException(CommunityErrorCode.POST_STATS_NOT_FOUND);
+        postAccessPolicy.requireGuestReadable(userId, post);
+        PostStats stats;
+        if (userId == null || Objects.equals(userId, post.getUser().getUserId())) {
+            stats = postStatsRepository.findByPost_Id(postId)
+                    .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_STATS_NOT_FOUND));
+        } else {
+            stats = postStatsRepository.findByPostIdForUpdate(postId)
+                    .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_STATS_NOT_FOUND));
+            var day = LocalDate.now(ZoneId.of("Asia/Seoul"));
+            if (postStatsRepository.insertViewer(postId, userId, day) > 0
+                    || postStatsRepository.advanceViewDay(postId, userId, day) > 0) {
+                stats.incView();
+            }
         }
-        PostStats stats = postStatsRepository.findByPost_Id(postId)
-                .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_STATS_NOT_FOUND));
 
-        boolean likedByMe = postLikesRepository.existsByPost_IdAndUser_UserId(postId, userId);
+        boolean likedByMe = userId != null && postLikesRepository.existsByPost_IdAndUser_UserId(postId, userId);
 
         List<Long> tagIds = postTagsRepository.findByPost_Id(postId).stream()
                 .map(pt -> pt.getTag().getId())
@@ -305,7 +320,7 @@ public class PostServiceImpl implements PostService {
                 .map(ac -> ac.getComment().getId())
                 .orElse(null);
 
-        boolean adminRead = userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
+        boolean adminRead = userId != null && userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
         CommunityPostAccessPolicy.AccessDecision accessDecision =
                 postAccessPolicy.evaluate(userId, adminRead, post, acceptedOpt.isPresent());
         ContentAccessStatus accessStatus = accessDecision.status();
@@ -314,7 +329,7 @@ public class PostServiceImpl implements PostService {
         String content = accessDecision.canRead() ? post.getContent() : null;
 
         /// 글쓴이 프로필
-        AuthorDto author = post.isAnonymous()
+        AuthorDto author = userId == null || post.isAnonymous()
                 ? null
                 : authorAssembler
                     .buildAuthorMap(List.of(post.getUser().getUserId()))
@@ -377,7 +392,7 @@ public class PostServiceImpl implements PostService {
                     ))
                     .toList();
         }
-        boolean exists = postBookmarksRepository.existsByPost_IdAndUser_UserId(postId, userId);
+        boolean exists = userId != null && postBookmarksRepository.existsByPost_IdAndUser_UserId(postId, userId);
 
         return new PostDetailResponse(
                 post.getId(),
@@ -401,7 +416,7 @@ public class PostServiceImpl implements PostService {
         );
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     @Override
     public void acceptComment(Long userId, Long postId, Long commentId) {
         if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
@@ -447,7 +462,7 @@ public class PostServiceImpl implements PostService {
 
         Long receiverId = comment.getUserId();
         if (receiverId != null && !Objects.equals(receiverId, userId)) {
-            pointService.earnPoint(receiverId, rewardAcceptedComment, PointEvent.commentSelection(postId, commentId));
+            communityRewards.tryCommunityReward(receiverId, rewardAcceptedComment, PointEvent.commentSelection(postId, commentId), userId);
             eventPublisher.publishEvent(SimpleNotifiableEvent.of(
                     receiverId,
                     post.isAnonymous() ? null : userId,
@@ -553,7 +568,7 @@ public class PostServiceImpl implements PostService {
         }
 
         List<Long> normalized = tagIds.stream()
-                .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
+                .map(TagIds::canonical)
                 .toList();
 
         if (new HashSet<>(normalized).size() != normalized.size()) {

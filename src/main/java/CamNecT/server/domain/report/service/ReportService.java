@@ -21,16 +21,12 @@ import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.auth.AccountAccessGuard;
 import CamNecT.server.global.common.exception.CustomException;
-import CamNecT.server.global.common.response.errorcode.BaseErrorCode;
-import CamNecT.server.global.common.response.errorcode.bydomains.ActivityErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
-import CamNecT.server.global.common.response.errorcode.bydomains.CommunityErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.ReportErrorCode;
 import CamNecT.server.global.common.response.errorcode.bydomains.UserErrorCode;
 import CamNecT.server.global.storage.dto.response.PresignDownloadResponse;
 import CamNecT.server.global.storage.service.PresignEngine;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -38,16 +34,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.hibernate.exception.ConstraintViolationException;
-
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import CamNecT.server.domain.activity.service.ActivityCommentService;
 
 @Service
-@Slf4j
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ReportService {
@@ -65,6 +60,7 @@ public class ReportService {
     private final ReportAttachmentService reportAttachmentService;
     private final PostService postService;
     private final CommentService commentService;
+    private final ActivityCommentService activityCommentService;
     private final ActivityService activityService;
     private final RecruitmentService recruitmentService;
     private final UserReportPenaltyService userReportPenaltyService;
@@ -95,8 +91,7 @@ public class ReportService {
 
         lockActorAndOtherUserInOrder(reporterId, initialTarget.author().getUserId());
         ReportTargetResolver.ResolvedTarget target = reportTargetResolver.resolveForCreateLocked(reporterId, dto);
-        Users targetAuthor = userRepository.findById(target.author().getUserId())
-                .orElseThrow(() -> new CustomException(UserErrorCode.USER_NOT_FOUND));
+        Users targetAuthor = target.author();
 
         ReportCase reportCase = reportCaseRepository.findByTargetKeyAndStatus(target.targetKey(), ReportStatus.RECEIVED)
                 .orElseGet(() -> reportCaseRepository.saveAndFlush(ReportCase.open(
@@ -140,7 +135,7 @@ public class ReportService {
         
         // 증거 이미지가 있으면 최종 경로로 이동 (consume)
         if (!evidenceKeys.isEmpty()) {
-            List<ReportEvidence> evidence = reportAttachmentService.applyOnReportCreate(
+            reportAttachmentService.applyOnReportCreate(
                     reporterId,
                     savedReport,
                     evidenceKeys
@@ -268,44 +263,15 @@ public class ReportService {
      * 신고된 게시글 삭제
      */
     protected void deleteReportedContent(Long adminId, ReportCase reportCase) {
-        if (reportCase.getTargetType() == TargetType.USER) {
-            return;
+        Long targetId = reportCase.getTargetId();
+        switch (reportCase.getTargetType()) {
+            case COMMUNITY -> postService.deleteForModeration(adminId, targetId);
+            case COMMUNITY_COMMENT -> commentService.deleteForModeration(adminId, targetId);
+            case ACTIVITY_COMMENT -> activityCommentService.deleteForModeration(adminId, targetId);
+            case ACTIVITY -> activityService.deleteForModeration(adminId, targetId);
+            case ACTIVITY_RECRUITMENT -> recruitmentService.deleteRecruitmentForModeration(adminId, targetId);
+            case USER, CHAT -> { /* These reports apply a penalty without removing the target. */ }
         }
-
-        Long postId = reportCase.getTargetId();
-        TargetType targetType = reportCase.getTargetType();
-
-        try {
-            switch (targetType) {
-                case COMMUNITY -> postService.deleteForModeration(adminId, postId);
-                case COMMUNITY_COMMENT -> commentService.deleteForModeration(adminId, postId);
-                case ACTIVITY -> activityService.deleteForModeration(adminId, postId);
-                case ACTIVITY_RECRUITMENT -> recruitmentService.deleteRecruitmentForModeration(adminId, postId);
-                case USER -> log.info("Skipping account deletion in report processing. caseId={}", reportCase.getCaseId());
-                case CHAT -> log.info("Skipping chat deletion in report processing. caseId={}", reportCase.getCaseId());
-            }
-        } catch (CustomException e) {
-            if (isIgnorableDeletionFailure(e.getErrorCode())) {
-                log.warn(
-                        "Reported content already missing. continue report process. caseId={}, targetType={}, postId={}, code={}",
-                        reportCase.getCaseId(), targetType, postId, e.getErrorCode().getCode()
-                );
-                return;
-            }
-
-            log.error(
-                    "Failed to delete reported content. caseId={}, targetType={}, postId={}, code={}",
-                    reportCase.getCaseId(), targetType, postId, e.getErrorCode().getCode(), e
-            );
-            throw e;
-        }
-    }
-
-    private boolean isIgnorableDeletionFailure(BaseErrorCode errorCode) {
-        return errorCode == CommunityErrorCode.POST_NOT_FOUND
-                || errorCode == CommunityErrorCode.COMMENT_NOT_FOUND
-                || errorCode == ActivityErrorCode.ACTIVITY_NOT_FOUND
-                || errorCode == ActivityErrorCode.RECRUITMENT_NOT_FOUND;
     }
 
     /**
@@ -322,7 +288,8 @@ public class ReportService {
         if (!reports.isEmpty()) {
             evidenceRepository.findAllByReport_ReportIdInOrderByReport_ReportIdAscSortOrderAsc(
                     reports.stream().map(Report::getReportId).toList()
-            ).forEach(evidence -> evidenceByReportId
+            ).stream().filter(e -> e.isRetained(LocalDateTime.now(clock).minusYears(1), reportCase.getProcessedAt()))
+                    .forEach(evidence -> evidenceByReportId
                     .computeIfAbsent(evidence.getReport().getReportId(), ignored -> new ArrayList<>())
                     .add(ReportEvidenceResponse.from(evidence)));
         }
@@ -337,6 +304,8 @@ public class ReportService {
         List<ReportPenaltyResponse> existingPenalties = penaltyRepository
                 .findAllByUser_UserIdOrderByCreatedAtDesc(reportCase.getReportedUser().getUserId())
                 .stream()
+                .filter(p -> p.getCreatedAt().isAfter(now.minusYears(1)) || (p.getReportCase().getProcessedAt() != null
+                        && p.getReportCase().getProcessedAt().isAfter(now.minusYears(1))))
                 .map(penalty -> ReportPenaltyResponse.from(penalty, now))
                 .toList();
 
@@ -363,6 +332,9 @@ public class ReportService {
                 .findByEvidenceIdAndReport_ReportIdAndReport_ReportCase_CaseId(evidenceId, reportId, caseId)
                 .orElseThrow(() -> new CustomException(ReportErrorCode.REPORT_EVIDENCE_NOT_FOUND));
 
+        if (!evidence.isRetained(LocalDateTime.now(clock).minusYears(1), evidence.getReport().getReportCase().getProcessedAt())) {
+            throw new CustomException(ReportErrorCode.REPORT_EVIDENCE_NOT_FOUND);
+        }
         return presignEvidenceDownload(evidence);
     }
 

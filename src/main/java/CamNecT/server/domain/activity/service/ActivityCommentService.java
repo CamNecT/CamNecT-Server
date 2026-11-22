@@ -25,9 +25,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.*;
 import java.util.stream.Stream;
+import CamNecT.server.domain.community.service.CommentPostingLimit;
+import org.springframework.transaction.annotation.Isolation;
 
 @Service
 @RequiredArgsConstructor
@@ -37,14 +38,16 @@ public class ActivityCommentService {
     private final ExternalActivityRepository activityRepository;
     private final ActivityCommentRepository commentsRepository;
     private final ActivityCommentLikeRepository likesRepository;
+    private final CommentPostingLimit commentPostingLimit;
     private final AccountAccessGuard accountAccessGuard;
     private final AuthorAssembler authorAssembler;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public CreateCommentResponse create(Long userId, Long activityId, CreateCommentRequest req) {
         requireUser(userId);
         accountAccessGuard.requireAccessibleForUpdate(userId);
-        ExternalActivity activity = requireCommentableActivity(activityRepository.findByIdForRead(activityId));
+        ExternalActivity activity = requireCommentableActivity(activityRepository.findByIdForRead(activityId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND)));
         ActivityComment parent = null;
         if (req.parentCommentId() != null) {
             parent = commentsRepository.findByIdForUpdate(req.parentCommentId())
@@ -56,6 +59,7 @@ public class ActivityCommentService {
             if (parent.getParent() != null)
                 throw new CustomException(CommunityErrorCode.COMMENT_MAX_DEPTH_EXCEEDED);
         }
+        commentPostingLimit.requireAvailable(userId);
         return new CreateCommentResponse(commentsRepository.save(ActivityComment.create(activity, userId, parent, req.content())).getId());
     }
 
@@ -70,6 +74,17 @@ public class ActivityCommentService {
     }
 
     @Transactional
+    public void deleteForModeration(Long adminId, Long commentId) {
+        if (accountAccessGuard.requireAccessibleForUpdate(adminId).getRole() != UserRole.ADMIN)
+            throw new CustomException(CommunityErrorCode.COMMENT_FORBIDDEN);
+        commentsRepository.findActivityIdByCommentId(commentId)
+                .flatMap(activityRepository::findByIdForRead)
+                .flatMap(activity -> findCommentForUpdate(commentId, activity))
+                .filter(comment -> comment.getStatus().isPublished())
+                .ifPresent(ActivityComment::deleteSoft);
+    }
+
+    @Transactional
     public void delete(Long userId, Long commentId) {
         requireUser(userId);
         Users actor = accountAccessGuard.requireAccessibleForUpdate(userId);
@@ -80,7 +95,7 @@ public class ActivityCommentService {
         comment.deleteSoft();
     }
 
-    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ToggleCommentLikeResponse toggleLike(Long userId, Long commentId) {
         requireUser(userId);
         accountAccessGuard.requireAccessibleForUpdate(userId);
@@ -94,8 +109,7 @@ public class ActivityCommentService {
 
     @Transactional(readOnly = true)
     public ActivityCommentListResponse list(Long userId, Long activityId, Long cursorId, int size) {
-        requireUser(userId);
-        requireCommentableActivity(activityRepository.findById(activityId));
+        activityRepository.findById(activityId).orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
         if (cursorId != null && cursorId <= 0) throw new CustomException(CommunityErrorCode.INVALID_CURSOR);
         int limit = Math.clamp(size, 1, 50);
         List<CommentStatus> statuses = VISIBLE_STATUSES;
@@ -113,18 +127,18 @@ public class ActivityCommentService {
         List<ActivityComment> visibleChildren = childrenByParent.values().stream()
                 .flatMap(replies -> replies.stream().limit(REPLY_PREVIEW_SIZE)).toList();
         List<ActivityComment> all = Stream.concat(roots.stream(), visibleChildren.stream()).toList();
-        Map<Long, AuthorDto> authors = authorAssembler.buildAuthorMap(all.stream().map(ActivityComment::getUserId).distinct().toList());
+        Map<Long, AuthorDto> authors = userId == null ? Map.of() : authorAssembler.buildAuthorMap(all.stream().map(ActivityComment::getUserId).distinct().toList());
         Map<Long, Long> counts = new HashMap<>();
         if (!all.isEmpty()) likesRepository.countByCommentIds(all.stream().map(ActivityComment::getId).toList())
                 .forEach(row -> counts.put(row.getCommentId(), row.getCnt()));
         List<CommentItemResponse> items = new ArrayList<>();
         List<ActivityCommentListResponse.ReplyPage> replyPages = new ArrayList<>();
         for (ActivityComment root : roots) {
-            items.add(toRow(root, counts, authors));
+            items.add(toRow(root, counts, authors, userId != null));
             List<ActivityComment> replies = childrenByParent.getOrDefault(root.getId(), List.of());
             boolean hasMoreReplies = replies.size() > REPLY_PREVIEW_SIZE;
             List<ActivityComment> preview = replies.subList(0, Math.min(replies.size(), REPLY_PREVIEW_SIZE));
-            for (ActivityComment child : preview) items.add(toRow(child, counts, authors));
+            for (ActivityComment child : preview) items.add(toRow(child, counts, authors, userId != null));
             replyPages.add(new ActivityCommentListResponse.ReplyPage(root.getId(),
                     hasMoreReplies ? preview.getLast().getId() : null, hasMoreReplies));
         }
@@ -133,8 +147,7 @@ public class ActivityCommentService {
 
     @Transactional(readOnly = true)
     public CommentListResponse listReplies(Long userId, Long activityId, Long parentId, Long cursorId, int size) {
-        requireUser(userId);
-        requireCommentableActivity(activityRepository.findById(activityId));
+        activityRepository.findById(activityId).orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
         ActivityComment parent = commentsRepository.findById(parentId)
                 .filter(c -> c.getActivity().getActivityId().equals(activityId)
                         && c.getParent() == null && VISIBLE_STATUSES.contains(c.getStatus()))
@@ -151,23 +164,22 @@ public class ActivityCommentService {
                 cursorId, cursor == null ? null : cursor.getCreatedAt(), PageRequest.of(0, limit + 1));
         boolean hasNext = fetched.size() > limit;
         List<ActivityComment> replies = hasNext ? fetched.subList(0, limit) : fetched;
-        Map<Long, AuthorDto> authors = authorAssembler.buildAuthorMap(replies.stream().map(ActivityComment::getUserId).distinct().toList());
+        Map<Long, AuthorDto> authors = userId == null ? Map.of() : authorAssembler.buildAuthorMap(replies.stream().map(ActivityComment::getUserId).distinct().toList());
         Map<Long, Long> counts = new HashMap<>();
         if (!replies.isEmpty()) likesRepository.countByCommentIds(replies.stream().map(ActivityComment::getId).toList())
                 .forEach(row -> counts.put(row.getCommentId(), row.getCnt()));
-        return new CommentListResponse(replies.stream().map(c -> toRow(c, counts, authors)).toList(),
+        return new CommentListResponse(replies.stream().map(c -> toRow(c, counts, authors, userId != null)).toList(),
                 hasNext ? replies.getLast().getId() : null, hasNext);
     }
 
-    private CommentItemResponse toRow(ActivityComment c, Map<Long, Long> counts, Map<Long, AuthorDto> authors) {
+    private CommentItemResponse toRow(ActivityComment c, Map<Long, Long> counts, Map<Long, AuthorDto> authors, boolean showAuthor) {
         boolean deleted = c.getStatus().isDeleted();
-        return new CommentItemResponse(c.getId(), c.getUserId(), c.getParent() == null ? null : c.getParent().getId(),
+        return new CommentItemResponse(c.getId(), showAuthor ? c.getUserId() : null, c.getParent() == null ? null : c.getParent().getId(),
                 deleted ? "삭제된 댓글입니다." : c.getContent(), counts.getOrDefault(c.getId(), 0L), c.getCreatedAt(),
                 deleted ? null : authors.get(c.getUserId()));
     }
 
-    private ExternalActivity requireCommentableActivity(Optional<ExternalActivity> found) {
-        ExternalActivity activity = found.orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+    private ExternalActivity requireCommentableActivity(ExternalActivity activity) {
         if (activity.getCategory() != ActivityCategory.CLUB && activity.getCategory() != ActivityCategory.STUDY)
             throw new CustomException(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
         return activity;
@@ -176,9 +188,15 @@ public class ActivityCommentService {
     private ActivityComment requireCommentForUpdate(Long commentId) {
         Long activityId = commentsRepository.findActivityIdByCommentId(commentId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
-        requireCommentableActivity(activityRepository.findByIdForRead(activityId));
-        return commentsRepository.findByIdForUpdate(commentId)
+        var activity = activityRepository.findByIdForRead(activityId)
+                .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
+        return findCommentForUpdate(commentId, activity)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
+    }
+
+    private Optional<ActivityComment> findCommentForUpdate(Long commentId, ExternalActivity activity) {
+        requireCommentableActivity(activity);
+        return commentsRepository.findByIdForUpdate(commentId);
     }
 
     private void requirePublished(ActivityComment comment) {

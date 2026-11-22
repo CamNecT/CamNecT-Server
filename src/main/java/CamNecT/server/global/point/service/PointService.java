@@ -1,5 +1,6 @@
 package CamNecT.server.global.point.service;
 
+import CamNecT.server.domain.chat.model.ChatRequest.RequestType;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.point.model.*;
@@ -70,16 +71,29 @@ public class PointService {
         changePoint(userId, amount, TransactionType.EARN, event);
     }
 
+    void lockRewardWallet(long recipient) {
+        ensureWallet(recipient);
+        findBalanceForUpdate(recipient);
+    }
+
     /** Once per recipient/opponent, including rewards paid before pair-based keys existed. */
     @Transactional
     public void earnCoffeeChatAccepted(Long receiverId, Long opponentId, Long requestId, int amount) {
+        earnAcceptanceOnce(receiverId, opponentId, requestId, amount, RequestType.COFFEE_CHAT);
+    }
+
+    @Transactional
+    public void earnTeamRecruitAccepted(Long applicantId, Long organizerId, Long requestId, int amount) {
+        earnAcceptanceOnce(applicantId, organizerId, requestId, amount, RequestType.TEAM_RECRUIT);
+    }
+
+    private void earnAcceptanceOnce(Long receiverId, Long opponentId, Long requestId, int amount, RequestType type) {
         if (receiverId == null || opponentId == null || requestId == null
                 || receiverId.equals(opponentId) || amount <= 0) {
             throw new CustomException(ErrorCode.INTERNAL_ERROR);
         }
         // Serialize the historical check and new grant on the recipient's wallet.
-        ensureWallet(receiverId);
-        findBalanceForUpdate(receiverId);
+        lockRewardWallet(receiverId);
         boolean previouslyRewarded = jdbcTemplate.query("""
                 SELECT pt.point_tx_id
                   FROM point_transaction pt
@@ -87,14 +101,15 @@ public class PointService {
                  WHERE pt.user_id = ?
                    AND pt.source_type = 'COFFEECHAT_ACCEPTANCE'
                    AND pt.transaction_type = 'EARN'
-                   AND cr.request_type = 'COFFEE_CHAT'
+                   AND cr.request_type = ?
                    AND ((cr.requester_id = ? AND cr.receiver_id = ?)
                      OR (cr.requester_id = ? AND cr.receiver_id = ?))
                  LIMIT 1 FOR UPDATE
-                """, rows -> { return rows.next(); }, receiverId, receiverId, opponentId, opponentId, receiverId);
+                """, rows -> { return rows.next(); }, receiverId, type.name(), receiverId, opponentId, opponentId, receiverId);
         if (previouslyRewarded) return;
         changePoint(receiverId, amount, TransactionType.EARN,
-                PointEvent.coffeeChatAccepted(receiverId, opponentId, requestId));
+                type == RequestType.COFFEE_CHAT ? PointEvent.coffeeChatAccepted(receiverId, opponentId, requestId)
+                        : PointEvent.teamRecruitAccepted(receiverId, opponentId, requestId));
     }
 
     @Transactional

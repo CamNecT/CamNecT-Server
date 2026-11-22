@@ -20,16 +20,16 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import CamNecT.server.domain.community.service.CommentPostingLimit;
 
 @ExtendWith(MockitoExtension.class)
 class ActivityCommentServiceTest {
+    @Mock CommentPostingLimit commentPostingLimit;
     @Mock ExternalActivityRepository activityRepository;
     @Mock ActivityCommentRepository commentsRepository;
     @Mock ActivityCommentLikeRepository likesRepository;
@@ -80,14 +80,10 @@ class ActivityCommentServiceTest {
     }
 
     @Test
-    void readOnlyPagesCheckActivityCategoryWithoutTakingARowLock() {
+    void publicExternalActivityCommentsUseNonLockingRead() {
         when(activityRepository.findById(10L)).thenReturn(Optional.of(activity(10L, ActivityCategory.EXTERNAL)));
-        assertThat(assertThrows(CustomException.class, () -> service.list(1L, 10L, null, 20)).getErrorCode())
-                .isEqualTo(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
-        assertThat(assertThrows(CustomException.class, () -> service.listReplies(1L, 10L, 9L, null, 20)).getErrorCode())
-                .isEqualTo(ActivityErrorCode.INVALID_ACTIVITY_CATEGORY);
+        assertThat(service.list(null, 10L, null, 20).items()).isEmpty();
         verify(activityRepository, never()).findByIdForRead(anyLong());
-        verifyNoInteractions(commentsRepository);
     }
 
     private ExternalActivity activity(Long id, ActivityCategory category) {

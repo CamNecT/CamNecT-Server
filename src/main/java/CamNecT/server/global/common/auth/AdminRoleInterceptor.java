@@ -1,6 +1,7 @@
 package CamNecT.server.global.common.auth;
 
 import CamNecT.server.domain.users.model.UserRole;
+import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.exception.CustomException;
 import CamNecT.server.global.common.response.errorcode.ErrorCode;
 import CamNecT.server.global.jwt.util.JwtUtil;
@@ -17,6 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
 public class AdminRoleInterceptor implements HandlerInterceptor {
 
     private final JwtUtil jwtUtil;
+    private final UserRepository users;
 
     @Override
     public boolean preHandle(
@@ -36,7 +38,7 @@ public class AdminRoleInterceptor implements HandlerInterceptor {
         String token = extractBearerToken(authHeader);
 
         UserRole role = jwtUtil.getRole(token);
-        if (role != UserRole.ADMIN) {
+        if (role != UserRole.ADMIN || !users.existsByUserIdAndRole(jwtUtil.getUserId(token), UserRole.ADMIN)) {
             throw new CustomException(ErrorCode.FORBIDDEN, new IllegalArgumentException("관리자 권한이 필요합니다."));
         }
         return true;

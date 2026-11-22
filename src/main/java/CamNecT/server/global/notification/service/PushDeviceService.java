@@ -8,6 +8,7 @@ import CamNecT.server.global.notification.dto.request.RegisterPushTokenRequest;
 import CamNecT.server.global.notification.model.PushDevice;
 import CamNecT.server.global.notification.repository.PushDeviceRepository;
 import CamNecT.server.global.notification.repository.PushTokenLockBucketRepository;
+import CamNecT.server.global.jwt.service.TokenSessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -26,9 +27,10 @@ public class PushDeviceService {
     private final PushDeviceRepository pushDeviceRepository;
     private final PushTokenLockBucketRepository pushTokenLockBucketRepository;
     private final UserRepository userRepository;
+    private final TokenSessionService tokenSessions;
 
     @Transactional
-    public RegisterResult register(Long userId, RegisterPushTokenRequest req) {
+    public RegisterResult register(Long userId, String accessToken, RegisterPushTokenRequest req) {
         String deviceId = req.deviceId().trim();
         String token = req.token().trim();
 
@@ -42,6 +44,8 @@ public class PushDeviceService {
             throw new CustomException(AuthErrorCode.USER_WITHDRAWN);
         }
 
+        // Logout or a password change can complete while this request waits for the user lock.
+        tokenSessions.requireActiveAccess(userId, accessToken);
         String previousToken = pushDeviceRepository
                 .findTokenByUserIdAndDeviceId(userId, deviceId)
                 .orElse(null);
@@ -72,7 +76,7 @@ public class PushDeviceService {
 
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public List<String> findEnabledTokens(Long userId) {
-        return pushDeviceRepository.findAllByUserIdAndEnabledTrue(userId)
+        return pushDeviceRepository.findDeliverableDevices(userId)
                 .stream()
                 .map(PushDevice::getFcmToken)
                 .distinct()

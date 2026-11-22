@@ -154,7 +154,7 @@ class AuthRefreshIntegrationTest {
         assertDoesNotThrow(
                 () -> tokenSessionService.requireActiveAccess(user.getUserId(), otherDevice.accessToken())
         );
-        assertThat(pushDeviceRepository.findAllByUserIdAndEnabledTrue(user.getUserId())).isEmpty();
+        assertThat(pushDeviceRepository.findDeliverableDevices(user.getUserId())).isEmpty();
     }
 
     @Test

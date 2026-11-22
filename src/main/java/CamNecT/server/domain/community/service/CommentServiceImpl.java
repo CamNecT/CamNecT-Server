@@ -32,10 +32,10 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Stream;
+import org.springframework.transaction.annotation.Isolation;
 
 @Service
 @RequiredArgsConstructor
@@ -48,11 +48,12 @@ public class CommentServiceImpl implements CommentService {
     private final UserRepository userRepository;
     private final AcceptedCommentsRepository acceptedCommentsRepository;
     private final CommunityPostAccessPolicy postAccessPolicy;
+    private final CommentPostingLimit commentPostingLimit;
     private final AccountAccessGuard accountAccessGuard;
     private final AuthorAssembler  authorAssembler;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     @Override
     public CreateCommentResponse create(Long userId, Long postId, CreateCommentRequest req) {
         if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
@@ -85,6 +86,7 @@ public class CommentServiceImpl implements CommentService {
             }
         }
 
+        commentPostingLimit.requireAvailable(userId);
         Comments saved = commentsRepository.save(Comments.create(post, userId, parent, req.content()));
 
         PostStats stats = postStatsRepository.findByPostIdForUpdate(postId)
@@ -180,12 +182,12 @@ public class CommentServiceImpl implements CommentService {
     public void deleteForModeration(Long adminId, Long commentId) {
         if (adminId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
-        Comments comment = commentsRepository.findByIdForUpdate(commentId)
-                .orElseThrow(() -> new CustomException(CommunityErrorCode.COMMENT_NOT_FOUND));
-
         if (!userRepository.existsByUserIdAndRole(adminId, UserRole.ADMIN)) {
             throw new CustomException(CommunityErrorCode.COMMENT_FORBIDDEN);
         }
+
+        Comments comment = commentsRepository.findByIdForUpdate(commentId).orElse(null);
+        if (comment == null) return;
         if (!comment.getPost().getStatus().isPublished() || !comment.getStatus().isPublished()) {
             return;
         }
@@ -240,12 +242,11 @@ public class CommentServiceImpl implements CommentService {
     @Transactional(readOnly = true)
     @Override
     public CommentListResponse list(Long userId, Long postId, Long cursorId, int size) {
-        if (userId == null) throw new CustomException(AuthErrorCode.INVALID_TOKEN);
 
         Posts post = postsRepository.findByIdForRead(postId)
                 .orElseThrow(() -> new CustomException(CommunityErrorCode.POST_NOT_FOUND));
         requirePublished(post);
-        boolean adminRead = userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
+        boolean adminRead = userId != null && userRepository.existsByUserIdAndRole(userId, UserRole.ADMIN);
         postAccessPolicy.requireReadable(userId, post, adminRead);
 
         if (cursorId != null && cursorId <= 0) {
@@ -274,7 +275,7 @@ public class CommentServiceImpl implements CommentService {
                 .distinct()
                 .toList();
 
-        Map<Long, AuthorDto> authorMap = authorAssembler.buildAuthorMap(userIds);
+        Map<Long, AuthorDto> authorMap = userId == null ? Map.of() : authorAssembler.buildAuthorMap(userIds);
 
         // 좋아요 수 배치 집계 (옵션 쿼리 사용)
         Map<Long, Long> likeMap = buildLikeCountMap(roots, children);
@@ -289,11 +290,11 @@ public class CommentServiceImpl implements CommentService {
         }
 
         for (Comments r : roots) {
-            out.add(toRow(r, likeMap.getOrDefault(r.getId(), 0L), authorMap));
+            out.add(toRow(r, likeMap.getOrDefault(r.getId(), 0L), authorMap, userId != null));
 
             List<Comments> kids = childMap.getOrDefault(r.getId(), List.of());
             for (Comments k : kids) {
-                out.add(toRow(k, likeMap.getOrDefault(k.getId(), 0L), authorMap));
+                out.add(toRow(k, likeMap.getOrDefault(k.getId(), 0L), authorMap, userId != null));
             }
         }
 
@@ -327,7 +328,7 @@ public class CommentServiceImpl implements CommentService {
         return map;
     }
 
-    private CommentItemResponse toRow(Comments c, long likeCount, Map<Long, AuthorDto> authorMap) {
+    private CommentItemResponse toRow(Comments c, long likeCount, Map<Long, AuthorDto> authorMap, boolean showAuthor) {
         boolean deleted = c.getStatus().isDeleted();
         String content = deleted ? "삭제된 댓글입니다." : c.getContent();
         Long parentId = (c.getParent() == null) ? null : c.getParent().getId();
@@ -336,7 +337,7 @@ public class CommentServiceImpl implements CommentService {
 
         return new CommentItemResponse(
                 c.getId(),
-                c.getUserId(),
+                showAuthor ? c.getUserId() : null,
                 parentId,
                 content,
                 likeCount,

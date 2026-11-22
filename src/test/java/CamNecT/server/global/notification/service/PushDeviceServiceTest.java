@@ -12,6 +12,7 @@ import CamNecT.server.global.notification.model.PushTokenLockBucket;
 import CamNecT.server.global.notification.repository.PushDeviceRepository;
 import CamNecT.server.global.notification.repository.PushTokenLockBucketRepository;
 import org.junit.jupiter.api.Test;
+import CamNecT.server.global.jwt.service.TokenSessionService;
 import org.mockito.InOrder;
 
 import java.util.List;
@@ -33,15 +34,16 @@ class PushDeviceServiceTest {
     private final PushDeviceRepository pushDeviceRepository = mock(PushDeviceRepository.class);
     private final PushTokenLockBucketRepository lockBucketRepository =
             mock(PushTokenLockBucketRepository.class);
+    private final TokenSessionService sessions = mock(TokenSessionService.class);
     private final PushDeviceService pushDeviceService = new PushDeviceService(
             pushDeviceRepository,
             lockBucketRepository,
-            userRepository
+            userRepository, sessions
     );
 
     @Test
     void findEnabledTokensRemovesDuplicateTokens() {
-        when(pushDeviceRepository.findAllByUserIdAndEnabledTrue(1L)).thenReturn(List.of(
+        when(pushDeviceRepository.findDeliverableDevices(1L)).thenReturn(List.of(
                 device("token-a"),
                 device("token-a"),
                 device("token-b")
@@ -63,7 +65,7 @@ class PushDeviceServiceTest {
                 .thenReturn(PushDevice.builder().id(10L).userId(1L).deviceId("device")
                         .platform(Platform.WEB).fcmToken("shared-token").enabled(true).build());
 
-        pushDeviceService.register(1L, request);
+        pushDeviceService.register(1L, "access", request);
 
         verify(pushDeviceRepository).disableActiveToken("shared-token");
     }
@@ -92,7 +94,7 @@ class PushDeviceServiceTest {
                     .build();
         });
 
-        pushDeviceService.register(1L, request);
+        pushDeviceService.register(1L, "access", request);
 
         verify(pushDeviceRepository).disableActiveToken("token");
         verify(pushDeviceRepository).findByUserIdAndDeviceId(1L, "device");
@@ -111,7 +113,7 @@ class PushDeviceServiceTest {
 
         CustomException exception = assertThrows(
                 CustomException.class,
-                () -> pushDeviceService.register(1L, request)
+                () -> pushDeviceService.register(1L, "access", request)
         );
 
         assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.USER_WITHDRAWN);
@@ -141,10 +143,11 @@ class PushDeviceServiceTest {
                 .thenReturn(Optional.of(existing));
         when(pushDeviceRepository.save(existing)).thenReturn(existing);
 
-        pushDeviceService.register(1L, request);
+        pushDeviceService.register(1L, "access", request);
 
-        InOrder order = inOrder(userRepository, pushDeviceRepository, lockBucketRepository);
+        InOrder order = inOrder(userRepository, sessions, pushDeviceRepository, lockBucketRepository);
         order.verify(userRepository).lockUserRow(1L);
+        order.verify(sessions).requireActiveAccess(1L, "access");
         order.verify(pushDeviceRepository).findTokenByUserIdAndDeviceId(1L, "device");
         order.verify(lockBucketRepository).findByIdForUpdate((short) 1);
         order.verify(lockBucketRepository).findByIdForUpdate((short) 2);

@@ -110,6 +110,30 @@ class PointServiceConcurrencyIntegrationTest {
         }
     }
 
+    @Test
+    void legacyTeamRewardCountsForTeamButNotCoffeeWithTheSamePerson() {
+        var applicant = users.saveAndFlush(CamNecT.server.domain.users.model.Users.builder()
+                .username("applicant-" + UUID.randomUUID()).passwordHash("hash").name("applicant").build());
+        var organizer = users.saveAndFlush(CamNecT.server.domain.users.model.Users.builder()
+                .username("organizer-" + UUID.randomUUID()).passwordHash("hash").name("organizer").build());
+        var old = requests.saveAndFlush(CamNecT.server.domain.chat.model.ChatRequest.builder()
+                .requester(applicant).receiver(organizer).content("old application")
+                .type(CamNecT.server.domain.chat.model.ChatRequest.RequestType.TEAM_RECRUIT).build());
+        long user = applicant.getUserId(), other = organizer.getUserId(), id = old.getId();
+        try {
+            pointService.earnPoint(user, 500, new PointEvent(PointSource.COFFEECHAT_ACCEPTANCE, null, id,
+                    "COFFEECHAT_ACCEPTANCE:" + user + ":" + id));
+            pointService.earnTeamRecruitAccepted(user, other, id + 1, 500);
+            assertThat(pointService.getBalance(user)).isEqualTo(500);
+            pointService.earnCoffeeChatAccepted(user, other, id + 2, 500);
+            assertThat(pointService.getBalance(user)).isEqualTo(1000);
+        } finally {
+            requests.deleteById(id);
+            users.delete(applicant);
+            users.delete(organizer);
+        }
+    }
+
     @AfterEach
     void cleanUp() {
         transactionRepository.deleteAll();

@@ -57,8 +57,11 @@ class ActivityDetailViewIntegrationTest {
         try {
             String activityPath = "/api/activity/" + activity.getActivityId();
             String recruitmentPath = "/api/activity/recruitment/" + recruitment.getRecruitId();
+            mvc.perform(get(activityPath)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.recruitmentList").isEmpty())
+                    .andExpect(jsonPath("$.data.isMine").value(false));
+            mvc.perform(get(recruitmentPath)).andExpect(status().isUnauthorized());
             for (String path : new String[]{activityPath, recruitmentPath}) {
-                mvc.perform(get(path)).andExpect(status().isUnauthorized());
                 mvc.perform(head(path).header("Authorization", "Bearer " + access)).andExpect(status().isOk());
                 mvc.perform(get(path).header("Authorization", "Bearer " + access)).andExpect(status().isOk())
                         .andExpect(jsonPath("$..viewCount").isEmpty());

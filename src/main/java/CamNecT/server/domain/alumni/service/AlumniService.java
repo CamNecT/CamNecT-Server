@@ -1,5 +1,6 @@
 package CamNecT.server.domain.alumni.service;
 
+import CamNecT.server.global.tag.model.TagIds;
 import CamNecT.server.domain.alumni.dto.AlumniHomeResponse;
 import CamNecT.server.domain.alumni.dto.ProfileCardDto;
 import CamNecT.server.domain.alumni.dto.response.AlumniPreviewResponse;
@@ -37,8 +38,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AlumniService {
 
-    private static final long LEGACY_TAG_ID = 111L;
-    private static final long CANONICAL_TAG_ID = 53L;
 
     private final UserTagMapRepository userTagMapRepository;
     private final UserProfileRepository userProfileRepository;
@@ -50,7 +49,7 @@ public class AlumniService {
     @Transactional(readOnly = true)
     public Slice<AlumniPreviewResponse> searchAlumni(Long userId, String name, List<Long> tagIdList, Pageable pageable) {
         requireAuthenticatedUser(userId);
-        List<Long> normalizedTagIds = normalizeTagIds(tagIdList);
+        List<Long> normalizedTagIds = TagIds.distinctCanonicalIds(tagIdList);
         // 1. ID 페이징 조회
         List<Long> targetIds = alumniRepository.findAlumniIdsByConditions(userId, name, normalizedTagIds, pageable);
 
@@ -159,16 +158,6 @@ public class AlumniService {
                 .toList();
 
         return new HomeResponse.AlumniSection(items, hasMore);
-    }
-
-    private List<Long> normalizeTagIds(List<Long> tagIds) {
-        if (tagIds == null || tagIds.isEmpty()) return List.of();
-
-        return tagIds.stream()
-                .filter(Objects::nonNull)
-                .map(id -> id == LEGACY_TAG_ID ? CANONICAL_TAG_ID : id)
-                .distinct()
-                .toList();
     }
 
     private void requireAuthenticatedUser(Long userId) {

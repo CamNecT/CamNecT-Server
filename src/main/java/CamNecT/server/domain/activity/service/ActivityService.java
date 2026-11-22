@@ -491,14 +491,11 @@ public class ActivityService {
 
     @Transactional
     public void deleteForModeration(Long adminId, Long activityId) {
-        ExternalActivity activity = activityRepository.findByIdForUpdate(activityId)
-                .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
-
         if (!userRepository.existsByUserIdAndRole(adminId, UserRole.ADMIN)) {
             throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
         }
 
-        deleteLockedActivity(activity);
+        activityRepository.findByIdForUpdate(activityId).ifPresent(this::deleteLockedActivity);
     }
 
     private void deleteLockedActivity(ExternalActivity activity) {
@@ -530,13 +527,12 @@ public class ActivityService {
 
     @Transactional
     public ActivityDetailResponse getActivityDetail(Long userId, Long activityId, boolean countView) {
-        if (userId == null) throw new CustomException(ActivityErrorCode.USER_NOT_FOUND);
         // 1. 메인 활동 조회
         ExternalActivity activity = activityRepository.findVisibleOnApp(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
         // 2. Activity → DTO 변환 + 썸네일 presign
-        ExternalActivityDto activityDto = ExternalActivityDto.from(activity)
+        ExternalActivityDto activityDto = ExternalActivityDto.from(activity, userId != null)
                 .withThumbnailUrl(thumbnailUrlOrNull(activity.getThumbnailKey()));
 
         // 3. 첨부파일 조회 (카테고리 조건)
@@ -547,7 +543,7 @@ public class ActivityService {
                 .map(Users::getUserId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.USER_NOT_FOUND));
 
-        AuthorDto author = authorAssembler.buildAuthorMap(List.of(authorId))
+        AuthorDto author = userId == null ? null : authorAssembler.buildAuthorMap(List.of(authorId))
                 .get(authorId);
 
         if (activity.getCategory() == ActivityCategory.CLUB || activity.getCategory() == ActivityCategory.STUDY) {
@@ -598,7 +594,7 @@ public class ActivityService {
         List<Long> tagIds = tags.stream().map(TagDto::id).toList();
 
         // 5. 팀원 공고 리스트 조회
-        List<TeamRecruitment> recruitmentList =
+        List<TeamRecruitment> recruitmentList = userId == null ? List.of() :
                 teamRecruitmentRepository.findAllByActivityId(activityId);
 
         // 3. 스트림을 이용한 변환
@@ -619,9 +615,9 @@ public class ActivityService {
         Long bookmarkCount = activityBookmarkRepository.countByActivity_ActivityId(activityId);
 
         // 8. 북마크 여부 조회
-        boolean isBookmarked = activityBookmarkRepository.existsByUser_UserIdAndActivity_ActivityId(userId, activityId);
+        boolean isBookmarked = userId != null && activityBookmarkRepository.existsByUser_UserIdAndActivity_ActivityId(userId, activityId);
 
-        if (countView) {
+        if (countView && userId != null) {
             activityRepository.incrementViews(activityId);
         }
 

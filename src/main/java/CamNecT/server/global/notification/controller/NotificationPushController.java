@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,12 +31,13 @@ public class NotificationPushController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 푸시 토큰 저장 또는 내부 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    @io.swagger.v3.oas.annotations.Operation(summary = "알림 개발 환경 테스트: registerToken")
+    @io.swagger.v3.oas.annotations.Operation(summary = "내 기기의 푸시 토큰 등록 또는 갱신")
     public ApiResponse<RegisterPushTokenResponse> registerToken(
             @UserId Long userId,
+            @io.swagger.v3.oas.annotations.Parameter(hidden = true) @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
             @RequestBody @Valid RegisterPushTokenRequest req
     ) {
-        var r = pushDeviceService.register(userId, req);
+        var r = pushDeviceService.register(userId, authorization.substring("Bearer ".length()), req);
         return ApiResponse.success(new RegisterPushTokenResponse(r.pushDeviceId(), r.created()));
     }
 

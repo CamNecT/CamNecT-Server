@@ -177,7 +177,7 @@ class ActivityImportIntegrationTest {
     }
 
     @Test void rejectsDisabledForgedExpiredAndMalformedUploads() throws Exception {
-        assertThat(http.getForEntity("/api/activity", String.class).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(http.getForEntity("/api/activity", String.class).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(http.getForEntity(ActivityImportAuth.PATH + "/other", String.class).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(post(payload(1), "wrong-secret-key", Instant.now().getEpochSecond()).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(post(payload(1), SECRET, 0).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);

@@ -32,7 +32,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
@@ -40,10 +39,10 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
+import CamNecT.server.domain.activity.service.ActivityCommentService;
 
 @ExtendWith(MockitoExtension.class)
 class ReportServiceTest {
@@ -78,6 +77,7 @@ class ReportServiceTest {
                 reportAttachmentService,
                 postService,
                 commentService,
+                mock(ActivityCommentService.class),
                 activityService,
                 recruitmentService,
                 userReportPenaltyService,
@@ -102,7 +102,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED)).thenReturn(Optional.of(reportCase));
         when(reportRepository.existsByReporterIdAndReportCase_CaseId(1L, 10L)).thenReturn(true);
 
@@ -121,7 +120,6 @@ class ReportServiceTest {
         order.verify(accountAccessGuard).requireAccessibleForUpdate(1L);
         order.verify(userRepository).lockUserRow(2L);
         order.verify(reportTargetResolver).resolveForCreateLocked(1L, request);
-        order.verify(userRepository).findById(2L);
         order.verify(reportCaseRepository).findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED);
         verify(reportRepository, never()).saveAndFlush(any());
     }
@@ -135,7 +133,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(3L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED)).thenReturn(Optional.of(reportCase));
         when(reportRepository.saveAndFlush(any(Report.class))).thenAnswer(invocation -> {
             Report saved = invocation.getArgument(0);
@@ -147,10 +144,10 @@ class ReportServiceTest {
 
         assertThat(reportId).isEqualTo(101L);
         assertThat(reportCase.getReportCount()).isEqualTo(2L);
-        InOrder order = inOrder(userRepository, accountAccessGuard, reportCaseRepository);
+        InOrder order = inOrder(userRepository, accountAccessGuard, reportTargetResolver, reportCaseRepository);
         order.verify(userRepository).lockUserRow(2L);
         order.verify(accountAccessGuard).requireAccessibleForUpdate(3L);
-        order.verify(userRepository).findById(2L);
+        order.verify(reportTargetResolver).resolveForCreateLocked(3L, request);
         order.verify(reportCaseRepository).findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED);
         verify(reportCaseRepository, never()).saveAndFlush(any());
     }
@@ -197,7 +194,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, actualAuthor));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(actualAuthor));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
                 .thenReturn(Optional.of(forgedCase));
 
@@ -224,7 +220,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
                 .thenReturn(Optional.of(reportCase));
 
@@ -249,7 +244,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
                 .thenReturn(Optional.of(reportCase));
         when(reportRepository.saveAndFlush(any(Report.class)))
@@ -272,7 +266,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED))
                 .thenReturn(Optional.of(reportCase));
         when(reportRepository.saveAndFlush(any(Report.class))).thenThrow(failure);
@@ -304,7 +297,7 @@ class ReportServiceTest {
     void alreadyProcessedCaseCannotApplyPenaltyAgain() {
         Users author = user(2L, UserRole.USER, UserStatus.ACTIVE);
         ReportCase reportCase = reportCase(10L, author, 100L, TargetType.COMMUNITY);
-        reportCase.reject(9L, "rejected", java.time.LocalDateTime.now());
+        reportCase.reject(9L, "rejected", LocalDateTime.now());
         when(reportCaseRepository.findReportedUserIdByCaseId(10L)).thenReturn(Optional.of(2L));
         when(reportCaseRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(reportCase));
 
@@ -493,6 +486,7 @@ class ReportServiceTest {
                 1024L,
                 0
         );
+        ReflectionTestUtils.setField(evidence, "createdAt", LocalDateTime.of(2026, 7, 20, 12, 0));
         ReflectionTestUtils.setField(evidence, "evidenceId", 1001L);
         PresignDownloadResponse expected = new PresignDownloadResponse(
                 "https://s3.example/presigned",
@@ -525,7 +519,6 @@ class ReportServiceTest {
 
         when(reportTargetResolver.resolve(1L, request))
                 .thenReturn(new ReportTargetResolver.ResolvedTarget("COMMUNITY:100", 100L, author));
-        when(userRepository.findById(2L)).thenReturn(Optional.of(author));
         when(reportCaseRepository.findByTargetKeyAndStatus("COMMUNITY:100", ReportStatus.RECEIVED)).thenReturn(Optional.of(reportCase));
         when(reportRepository.saveAndFlush(any(Report.class))).thenAnswer(invocation -> {
             Report saved = invocation.getArgument(0);
@@ -560,7 +553,9 @@ class ReportServiceTest {
                 report, "final/first.png", "first.png", "image/png", 100L, 0);
         ReportEvidence second = ReportEvidence.create(
                 report, "final/second.jpg", "second.jpg", "image/jpeg", 200L, 1);
+        ReflectionTestUtils.setField(first, "createdAt", LocalDateTime.of(2026, 7, 20, 12, 0));
         ReflectionTestUtils.setField(first, "evidenceId", 1001L);
+        ReflectionTestUtils.setField(second, "createdAt", LocalDateTime.of(2026, 7, 20, 12, 0));
         ReflectionTestUtils.setField(second, "evidenceId", 1002L);
 
         when(userRepository.findByUserId(9L)).thenReturn(Optional.of(admin));

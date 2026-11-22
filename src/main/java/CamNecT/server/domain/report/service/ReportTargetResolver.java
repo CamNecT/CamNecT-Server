@@ -1,6 +1,8 @@
 package CamNecT.server.domain.report.service;
 
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
+import CamNecT.server.domain.activity.model.comment.ActivityComment;
+import CamNecT.server.domain.activity.repository.comment.ActivityCommentRepository;
 import CamNecT.server.domain.activity.model.recruitment.TeamRecruitment;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityRepository;
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
@@ -32,6 +34,7 @@ import java.util.Objects;
 public class ReportTargetResolver {
 
     private final PostsRepository postsRepository;
+    private final ActivityCommentRepository activityComments;
     private final CommentsRepository commentsRepository;
     private final ExternalActivityRepository activityRepository;
     private final TeamRecruitmentRepository recruitmentRepository;
@@ -46,6 +49,10 @@ public class ReportTargetResolver {
         return switch (request.postType()) {
             case COMMUNITY -> fromPost(request);
             case COMMUNITY_COMMENT -> fromComment(request);
+            case ACTIVITY_COMMENT -> {
+                var comment = activityComments.findById(requiredTargetId(request)).orElseThrow(this::invalidTarget);
+                yield contentTarget(request, comment.getId(), comment.getUserId());
+            }
             case ACTIVITY -> fromActivity(request);
             case ACTIVITY_RECRUITMENT -> fromRecruitment(request);
             case USER -> fromUser(request);
@@ -66,6 +73,13 @@ public class ReportTargetResolver {
         return switch (request.postType()) {
             case COMMUNITY -> fromPostForCreateLocked(request);
             case COMMUNITY_COMMENT -> fromCommentForCreateLocked(request);
+            case ACTIVITY_COMMENT -> {
+                Long id = requiredTargetId(request);
+                Long activityId = activityComments.findActivityIdByCommentId(id).orElseThrow(this::invalidTarget);
+                activityRepository.findByIdForRead(activityId).orElseThrow(this::invalidTarget);
+                var comment = activityComments.findByIdAndStatusForRead(id, CommentStatus.PUBLISHED).orElseThrow(this::invalidTarget);
+                yield contentTarget(request, id, comment.getUserId());
+            }
             case ACTIVITY -> fromActivityForCreateLocked(request);
             case ACTIVITY_RECRUITMENT -> fromRecruitmentForCreateLocked(request);
             case USER -> fromUser(request);
@@ -83,27 +97,25 @@ public class ReportTargetResolver {
             throw unverifiedTarget();
         }
 
-        Users authoritativeAuthor = switch (reportCase.getTargetType()) {
-            case COMMUNITY -> postsRepository.findById(reportCase.getTargetId())
-                    .map(Posts::getUser)
-                    .orElseThrow(this::unverifiedTarget);
-            case COMMUNITY_COMMENT -> commentsRepository.findById(reportCase.getTargetId())
-                    .map(Comments::getUserId)
-                    .flatMap(userRepository::findById)
-                    .orElseThrow(this::unverifiedTarget);
-            case ACTIVITY -> activityRepository.findById(reportCase.getTargetId())
-                    .map(ExternalActivity::getUser)
-                    .orElseThrow(this::unverifiedTarget);
-            case ACTIVITY_RECRUITMENT -> recruitmentRepository.findById(reportCase.getTargetId())
-                    .map(TeamRecruitment::getUserId)
-                    .flatMap(userRepository::findById)
-                    .orElseThrow(this::unverifiedTarget);
-            case USER -> userRepository.findById(reportCase.getTargetId())
-                    .orElseThrow(this::unverifiedTarget);
-            case CHAT -> resolveStoredChatAuthor(reportCase, submissions);
+        Long targetId = reportCase.getTargetId();
+        var liveAuthor = switch (reportCase.getTargetType()) {
+            case COMMUNITY -> postsRepository.findById(targetId).map(post -> post.getUser().getUserId());
+            case COMMUNITY_COMMENT -> commentsRepository.findById(targetId).map(Comments::getUserId);
+            case ACTIVITY_COMMENT -> activityComments.findById(targetId).map(ActivityComment::getUserId);
+            case ACTIVITY -> activityRepository.findById(targetId).map(activity -> {
+                if (activity.getUser() == null) throw unverifiedTarget();
+                return activity.getUser().getUserId();
+            });
+            case ACTIVITY_RECRUITMENT -> recruitmentRepository.findById(targetId).map(TeamRecruitment::getUserId);
+            case USER -> userRepository.findById(targetId).map(Users::getUserId);
+            case CHAT -> chatRoomRepository.findById(targetId)
+                    .map(room -> resolveStoredChatAuthor(room, submissions).getUserId());
         };
-
-        Long authoritativeUserId = authoritativeAuthor.getUserId();
+        Long authoritativeUserId = liveAuthor.orElse(reportCase.getVerifiedAuthorId());
+        if (authoritativeUserId == null || (reportCase.getVerifiedAuthorId() != null
+                && !reportCase.getVerifiedAuthorId().equals(authoritativeUserId))) {
+            throw unverifiedTarget();
+        }
         String authoritativeKey = Report.targetKeyFor(
                 reportCase.getTargetType(),
                 authoritativeUserId,
@@ -216,9 +228,7 @@ public class ReportTargetResolver {
         return contentTarget(request, room.getId(), targetUser);
     }
 
-    private Users resolveStoredChatAuthor(ReportCase reportCase, List<Report> submissions) {
-        ChatRoom room = chatRoomRepository.findById(reportCase.getTargetId())
-                .orElseThrow(this::unverifiedTarget);
+    private Users resolveStoredChatAuthor(ChatRoom room, List<Report> submissions) {
         Users authoritativeAuthor = null;
 
         for (Report report : submissions) {

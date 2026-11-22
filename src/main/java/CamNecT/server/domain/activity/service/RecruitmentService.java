@@ -309,14 +309,11 @@ public class RecruitmentService {
 
     @Transactional
     public void deleteRecruitmentForModeration(Long adminId, Long recruitId) {
-        TeamRecruitment recruitment = recruitmentRepository.findByIdForUpdate(recruitId)
-                .orElseThrow(() -> new CustomException(ActivityErrorCode.RECRUITMENT_NOT_FOUND));
-
         if (!userRepository.existsByUserIdAndRole(adminId, UserRole.ADMIN)) {
             throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
         }
 
-        deleteLockedRecruitment(recruitment);
+        recruitmentRepository.findByIdForUpdate(recruitId).ifPresent(this::deleteLockedRecruitment);
     }
 
     private void deleteLockedRecruitment(TeamRecruitment recruitment) {

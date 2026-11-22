@@ -18,6 +18,7 @@ import CamNecT.server.domain.chat.repository.ChatRoomRepository;
 import CamNecT.server.domain.profile.components.majors.repository.MajorRepository;
 import CamNecT.server.domain.users.model.UserProfile;
 import CamNecT.server.domain.users.model.UserStatus;
+import CamNecT.server.domain.report.service.UserReportPenaltyService;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserProfileRepository;
 import CamNecT.server.domain.users.repository.UserRepository;
@@ -68,6 +69,7 @@ class ChatServiceTest {
     @Mock ChatPresenceService presenceService;
     @Mock PointService pointService;
     @Mock AccountAccessGuard accountAccessGuard;
+    @Mock UserReportPenaltyService penalties;
 
     @InjectMocks ChatService chatService;
 
@@ -91,7 +93,7 @@ class ChatServiceTest {
     }
 
     @Test
-    void teamRecruitmentKeepsItsExistingRequestScopedReward() {
+    void teamRecruitmentRewardsTheApplicantForThisOrganizer() {
         var request = ChatRequest.builder().requester(activeUser(1L)).receiver(activeUser(2L))
                 .content("팀 모집 요청").type(ChatRequest.RequestType.TEAM_RECRUIT).recruitmentId(30L).build();
         org.springframework.test.util.ReflectionTestUtils.setField(request, "id", 10L);
@@ -101,7 +103,7 @@ class ChatServiceTest {
         when(room.getId()).thenReturn(20L);
         when(chatRoomRepository.save(any(ChatRoom.class))).thenReturn(room);
         chatService.respondToRequest(10L, 2L, true);
-        verify(pointService).earnPoint(1L, 500, CamNecT.server.global.point.model.PointEvent.coffeeChatAccepted(1L, 10L));
+        verify(pointService).earnTeamRecruitAccepted(1L, 2L, 10L, 500);
         verifyNoMoreInteractions(pointService);
     }
 
@@ -577,6 +579,17 @@ class ChatServiceTest {
         accessOrder.verify(accountAccessGuard).requireAccessibleForUpdate(1L);
         accessOrder.verify(chatRoomRepository).findByIdForUpdate(99L);
         verify(eventPublisher).publishEvent(any(ChatMessageCommittedEvent.class));
+    }
+
+    @Test
+    void repeatedCoffeeChatRequestToSameRecipientIsRateLimited() {
+        when(userRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(activeUser(1L)));
+        when(accountAccessGuard.requireAccessibleForUpdate(2L)).thenReturn(activeUser(2L));
+        when(chatRequestRepository.existsByRequester_UserIdAndReceiver_UserIdAndTypeAndCreatedAtAfter(
+                eq(2L), eq(1L), eq(ChatRequest.RequestType.COFFEE_CHAT), any())).thenReturn(true);
+        var error = assertThrows(CustomException.class, () -> chatService.sendCoffeeChatRequest(2L, 1L, List.of(), "재신청"));
+        assertThat(error.getErrorCode()).isEqualTo(CoffeeChatErrorCode.REQUEST_COOLDOWN);
+        verify(chatRequestRepository, never()).save(any());
     }
 
     @Test

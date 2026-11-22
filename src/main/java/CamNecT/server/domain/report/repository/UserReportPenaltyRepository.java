@@ -13,10 +13,15 @@ public interface UserReportPenaltyRepository extends JpaRepository<UserReportPen
 
     boolean existsByReportCase_CaseId(Long caseId);
 
-    long countByUser_UserId(Long userId);
+    @Query(value = """
+            SELECT (SELECT COUNT(*) FROM user_report_penalty WHERE user_id = :userId)
+                 + COALESCE((SELECT penalty_count FROM expired_penalty_summary WHERE user_id = :userId), 0)
+            """, nativeQuery = true)
+    long countByUser_UserId(@Param("userId") Long userId);
 
     @Query("""
-            select case when count(p) > 0 then true else false end
+            select case when count(p) > 0 or exists (select s.userId from ExpiredPenaltySummary s
+                where s.userId = :userId and s.permanentlyBanned = true) then true else false end
             from UserReportPenalty p
             where p.user.userId = :userId
               and (

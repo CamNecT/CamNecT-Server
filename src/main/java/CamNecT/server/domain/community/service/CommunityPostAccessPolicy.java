@@ -13,8 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.Objects;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 
 @Component
 @RequiredArgsConstructor
@@ -78,6 +78,7 @@ public class CommunityPostAccessPolicy {
     }
 
     public void requireReadable(Long userId, Posts post, boolean adminRead) {
+        requireGuestReadable(userId, post);
         if (!isPaywallActive(post)) return;
 
         if (userId != null && (adminRead
@@ -88,6 +89,12 @@ public class CommunityPostAccessPolicy {
         }
 
         throw new CustomException(CommunityErrorCode.POST_FORBIDDEN);
+    }
+
+    public void requireGuestReadable(Long userId, Posts post) {
+        if (userId == null && post.getBoard().getCode() != BoardCode.INFO) {
+            throw new CustomException(AuthErrorCode.ACCESS_TOKEN_REQUIRED);
+        }
     }
 
     public boolean isAcceptedAnswerAuthor(Long userId, Long postId) {

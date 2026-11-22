@@ -74,6 +74,10 @@ public class UserReportPenaltyService {
         );
     }
 
+    public boolean blocksReward(Long userId, UserStatus status) {
+        return status != UserStatus.ACTIVE || hasActiveRestriction(userId, status);
+    }
+
     public long countPenalties(Long userId) {
         return penaltyRepository.countByUser_UserId(userId);
     }
