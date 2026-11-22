@@ -190,7 +190,7 @@ class OpenApiResponseContractTest {
         assertThat(document.at("/paths/~1api~1profile~1me~1phone~1verification~1send/post/responses/503/description").asText())
                 .contains("42540", "50310");
         assertThat(document.at("/paths/~1api~1points~1transactions/get/responses/503/headers/Retry-After").isMissingNode()).isFalse();
-        for (String path : List.of("/api/internal/activity-imports/konkuk-job", "/api/internal/activity-imports/konkuk-student")) {
+        for (String path : List.of("/api/internal/activity-imports/konkuk-job/tagged", "/api/internal/activity-imports/konkuk-student")) {
             JsonNode operation = document.path("paths").path(path).path("post");
             assertThat(operation.path("security").toString()).contains("crawlerSignature").doesNotContain("bearerAuth");
             assertThat(operation.path("requestBody").path("content").path("application/json").has("schema")).isTrue();
