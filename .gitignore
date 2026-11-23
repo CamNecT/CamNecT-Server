@@ -57,4 +57,4 @@ Thumbs.db
 src/main/generated/
 
 # Local handoff documents
-docs/chat/
+/docs/

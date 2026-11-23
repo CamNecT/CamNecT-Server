@@ -78,7 +78,7 @@ s3를 쓰지 못하는 local환경에서 application-local을 사용하시면 �
 ### 1) 프로젝트 클론
 
 ```bash
-git clone https://github.com/Konkuk-KUIT/CamNecT-Server.git
+git clone https://github.com/CamNecT/CamNecT-Server.git
 cd CamNecT-Server
 ```
 
@@ -130,6 +130,6 @@ Swagger 설정이 포함되어 있으므로, 서버 실행 후 아래 경로로 
 예시:
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
-
-
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
+```

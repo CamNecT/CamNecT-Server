@@ -49,7 +49,7 @@ jobs:
           chmod +x gradlew
           ./gradlew test --no-daemon
       - name: Test deployment scripts
-        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+        run: python3 -m unittest discover -s .github/deploy -p 'test_*.py'
       - name: Save test reports
         if: always()
         uses: actions/upload-artifact@v4

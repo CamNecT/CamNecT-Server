@@ -33,7 +33,7 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew test --no-daemon
-          python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 -m unittest discover -s .github/deploy -p 'test_*.py'
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Login to Docker Hub
@@ -54,14 +54,14 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/camnect-server:sha-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Upload docker-compose.prod.yml to EC2
+      - name: Upload production Compose and deployment check to EC2
         if: github.event_name != 'workflow_dispatch' || inputs.deploy
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
-          source: "docker-compose.prod.yml,scripts/check-phone-deployment.py"
+          source: "docker-compose.prod.yml,.github/deploy/check-phone-deployment.py"
           target: "/home/${{ secrets.USERNAME }}/camnect-project/"
           overwrite: true
       - name: Deploy to EC2
@@ -79,7 +79,7 @@ jobs:
               exit 1
             fi
             export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
-            sudo -E python3 scripts/check-phone-deployment.py --compose docker-compose.prod.yml --check-network
+            sudo -E python3 .github/deploy/check-phone-deployment.py --compose docker-compose.prod.yml --check-network
             if command -v docker-compose >/dev/null 2>&1; then
               DC="docker-compose"
             else
