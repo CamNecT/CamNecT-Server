@@ -6,11 +6,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
 import java.util.List;
-import java.util.Optional;
-import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
 
 public interface ExternalActivityRepositoryCustom {
-    Optional<ExternalActivity> findVisibleOnApp(Long id);
     Slice<ActivityPreviewResponse> findActivitiesByCondition(
             Long userId,
             ActivityCategory category,

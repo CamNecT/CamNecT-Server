@@ -539,7 +539,7 @@ public class ActivityService {
     @Transactional
     public ActivityDetailResponse getActivityDetail(Long userId, Long activityId, boolean countView) {
         // 1. 메인 활동 조회
-        ExternalActivity activity = activityRepository.findVisibleOnApp(activityId)
+        ExternalActivity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new CustomException(ActivityErrorCode.ACTIVITY_NOT_FOUND));
 
         // 3. 첨부파일 조회 (카테고리 조건)

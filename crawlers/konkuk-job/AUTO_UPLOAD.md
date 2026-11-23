@@ -41,10 +41,12 @@ APP_ACTIVITYIMPORT_SHAREDSECRET=<새로 생성한 충분히 긴 무작위 서명
 
 `app.activity-import.*`를 환경 변수로 바꿀 때 하이픈을 제거하는 것은 [Spring Boot 바인딩 규칙](https://docs.spring.io/spring-boot/reference/features/external-config.html#features.external-config.typesafe-configuration-properties.relaxed-binding.environment-variables)에 따른다. 설정/키가 없으면 새 API는 닫힌 상태다. 실제 키를 Git·명령 출력·문서에 기록하지 않는다.
 
-별도의 `POST /api/internal/activity-imports/konkuk-job` 경로만 사용자 JWT 대신 전용 HMAC 인증을 사용한다. 나머지 사용자 API의 인증은 유지한다. `X-Crawler-Timestamp`는 Unix 초이며 허용 시차는 5분이다. `X-Crawler-Signature`는 다음 문자열의 HMAC-SHA256 소문자 hex다.
+취업 공고는 추천 태그가 0개여도 게시한다. 태그가 있으면 활성 태그 ID만 보내며 기존 수동 편집을 보존한다. 운영 4084 Lambda를 배포할 때는 비공개 v1.3.1 판독기와 게시기를 포함한 릴리스 패키지를 사용한다. 공개 소스만 빌드하면 태그 추천이 생략된다.
+
+별도의 `POST /api/internal/activity-imports/konkuk-job/tagged` 경로만 사용자 JWT 대신 전용 HMAC 인증을 사용한다. 나머지 사용자 API의 인증은 유지한다. `X-Crawler-Timestamp`는 Unix 초이며 허용 시차는 5분이다. `X-Crawler-Signature`는 다음 문자열의 HMAC-SHA256 소문자 hex다.
 
 ```text
-{timestamp}\nPOST\n/api/internal/activity-imports/konkuk-job\n{SHA256(rawBody)}
+{timestamp}\nPOST\n/api/internal/activity-imports/konkuk-job/tagged\n{SHA256(rawBody)}
 ```
 
 ## 봇 설정과 배포

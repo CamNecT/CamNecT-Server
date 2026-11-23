@@ -12,7 +12,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .http import RunBudgetReached
 
-PATH = '/api/internal/activity-imports/konkuk-job'
+PATH = '/api/internal/activity-imports/konkuk-job/tagged'
 MAPPING_VERSION = 1
 
 
