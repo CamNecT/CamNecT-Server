@@ -36,6 +36,7 @@ jobs:
           chmod +x gradlew
           ./gradlew test --no-daemon
           python3 -m unittest discover -s .github/deploy -p 'test_*.py'
+          python3 -m unittest discover -s tag-suggestions
 
   build:
     runs-on: ubuntu-latest
@@ -91,7 +92,7 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
-          source: "docker-compose.prod.yml,.github/deploy/check-phone-deployment.py"
+          source: "docker-compose.prod.yml,.github/deploy/check-phone-deployment.py,tag-suggestions/worker.py"
           target: "/home/${{ secrets.USERNAME }}/camnect-project/"
           overwrite: true
       - name: Deploy to EC2
@@ -112,6 +113,7 @@ jobs:
               exit 1
             fi
             export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
+            echo 'a988b4c1209582541db1df0bcc18c2c5fcf334440aa00dc21a9b83e02762f4b9  /etc/camnect/readers/camnect-v1.3.1.zip' | sudo sha256sum -c -
             sudo -E python3 .github/deploy/check-phone-deployment.py --compose docker-compose.prod.yml --check-network
             if command -v docker-compose >/dev/null 2>&1; then
               DC="docker-compose"
@@ -121,4 +123,10 @@ jobs:
             echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
             sudo env CAMNECT_SERVER_IMAGE="$CAMNECT_SERVER_IMAGE" $DC -f docker-compose.prod.yml pull
             sudo env CAMNECT_SERVER_IMAGE="$CAMNECT_SERVER_IMAGE" $DC -f docker-compose.prod.yml up -d --remove-orphans
+            reader=$(sudo env CAMNECT_SERVER_IMAGE="$CAMNECT_SERVER_IMAGE" $DC -f docker-compose.prod.yml ps -q tag-reader)
+            for attempt in $(seq 1 15); do
+              if sudo docker exec "$reader" python -Ic "from urllib.request import urlopen; urlopen('http://127.0.0.1:8081/ready',timeout=2).close()"; then break; fi
+              if [ "$attempt" = 15 ]; then exit 1; fi
+              sleep 2
+            done
             sudo docker image prune -f

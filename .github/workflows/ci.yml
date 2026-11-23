@@ -50,6 +50,8 @@ jobs:
           ./gradlew test --no-daemon
       - name: Test deployment scripts
         run: python3 -m unittest discover -s .github/deploy -p 'test_*.py'
+      - name: Test draft suggestions
+        run: python3 -m unittest discover -s tag-suggestions
       - name: Save test reports
         if: always()
         uses: actions/upload-artifact@v4

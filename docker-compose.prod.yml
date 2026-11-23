@@ -3,6 +3,7 @@ services:
     image: ${CAMNECT_SERVER_IMAGE:-${DOCKER_USERNAME}/camnect-server:latest}
     container_name: camnect-server
     restart: always
+    networks: [default, suggestions]
     ports:
       - "127.0.0.1:8080:8080"
     env_file:
@@ -14,3 +15,31 @@ services:
         SPRING_PROFILES_ACTIVE: prod
         JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70.0
         GOOGLE_APPLICATION_CREDENTIALS: /var/app/secrets/firebase-admin.json
+
+  tag-reader:
+    image: python:3.13-slim@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
+    command: ["python", "-IB", "/opt/worker.py"]
+    restart: unless-stopped
+    networks: [suggestions]
+    read_only: true
+    user: "65534:65534"
+    mem_limit: 192m
+    cpus: 0.75
+    pids_limit: 12
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    volumes:
+      - ./tag-suggestions/worker.py:/opt/worker.py:ro
+      - /etc/camnect/readers/camnect-v1.3.1.zip:/opt/reader/camnect-v1.3.1.zip:ro
+    healthcheck:
+      test: ["CMD", "python", "-Ic", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8081/ready',timeout=2).close()"]
+      interval: 30s
+      timeout: 4s
+      start_period: 10s
+      retries: 3
+
+networks:
+  suggestions:
+    internal: true

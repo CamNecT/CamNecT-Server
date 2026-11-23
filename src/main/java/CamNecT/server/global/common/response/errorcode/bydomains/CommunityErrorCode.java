@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 @Getter
 @RequiredArgsConstructor
 public enum CommunityErrorCode implements BaseErrorCode {
+    TAG_SUGGESTIONS_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, 50351, "추천 태그를 잠시 조회할 수 없습니다."),
 
     // 430xx - 요청/검증
     INVALID_CURSOR(HttpStatus.BAD_REQUEST, 43040, "잘못된 커서 요청입니다."),
