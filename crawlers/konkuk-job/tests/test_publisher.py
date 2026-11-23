@@ -21,7 +21,7 @@ class PublisherTests(unittest.TestCase):
             def load_robots(self): pass
             def html(self, url, fields=None):
                 return (listing(('2', '3')), b'list') if url == LIST_URL else (detail(url.split('/')[-2]), b'html')
-        publisher = Mock(url='https://api.camnect.site/api/internal/activity-imports/konkuk-job')
+        publisher = Mock(url='https://api.camnect.site' + PATH)
         def publish(record, meta, store):
             if record['articleId'] == '3':
                 raise PublishError('Publication HTTP 400')

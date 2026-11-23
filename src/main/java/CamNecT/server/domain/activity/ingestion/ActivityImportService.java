@@ -57,9 +57,8 @@ public class ActivityImportService {
         // One configured author row serializes imports, including the first insertion of a source ID.
         var author = lockAuthor();
         List<Long> tagIds = request.tagIds() == null ? List.of() : request.tagIds();
-        if ((student && !tagIds.isEmpty()) || (!student && (tagIds.isEmpty()
-                || new HashSet<>(tagIds).size() != tagIds.size()
-                || tags.findExistingActiveIds(tagIds).size() != tagIds.size())))
+        if (!tagIds.isEmpty() && (student || new HashSet<>(tagIds).size() != tagIds.size()
+                || tags.findExistingActiveIds(tagIds).size() != tagIds.size()))
             throw new CustomException(ErrorCode.BAD_REQUEST);
         String sourceId = (student ? "KONKUK_STUDENT_238#" : "KONKUK_JOB_4084#") + request.articleId();
         if (student && request.thumbnail() != null) throw new CustomException(ErrorCode.BAD_REQUEST);
@@ -151,7 +150,7 @@ public class ActivityImportService {
     }
 
     private void fillEmptyTags(ExternalActivity activity, List<Long> ids) {
-        if (!storedTagIds(activity).isEmpty()) return;
+        if (ids.isEmpty() || !storedTagIds(activity).isEmpty()) return;
         for (Long id : ids) {
             activityTags.save(ExternalActivityTag.builder().activity(activity).tag(tags.getReferenceById(id)).build());
         }

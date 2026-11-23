@@ -201,11 +201,28 @@ class ActivityImportIntegrationTest {
         assertThat(imports.count()).isEqualTo(1);
     }
 
-    @Test void missingInactiveOrUnknownTagsNeverCreatePublicActivity() throws Exception {
+    @Test void untaggedJobIsVisibleAndCanReceiveTagsLater() throws Exception {
         var feed = payload(1);
         feed.remove("tagIds");
-        assertThat(post(feed).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        for (var ids : List.of(List.<Long>of(), List.of(Long.MAX_VALUE), List.of(tagId, tagId))) {
+        var received = post(feed);
+        assertThat(received.getStatusCode()).isEqualTo(HttpStatus.OK);
+        long id = received.getBody().at("/data/activityId").asLong();
+        feed.put("tagIds", List.of());
+        assertThat(post(feed).getBody().at("/data/status").asText()).isEqualTo("UNCHANGED");
+        assertThat(activityTags.findTagsForDetail(id)).isEmpty();
+        assertThat(readAsUser("/api/activity/" + id).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(readAsUser("/api/activity?category=EXTERNAL&size=20").getBody()
+                .at("/data/content").size()).isOne();
+        var enriched = payload(2);
+        enriched.put("contentHash", "c".repeat(64));
+        assertThat(post(enriched).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(activityTags.findTagsForDetail(id)).extracting(tag -> tag.id()).containsExactly(tagId);
+        assertThat(activities.count()).isOne();
+    }
+
+    @Test void duplicateInactiveOrUnknownTagsAreRejected() throws Exception {
+        var feed = payload(1);
+        for (var ids : List.of(List.of(Long.MAX_VALUE), List.of(tagId, tagId))) {
             feed.put("tagIds", ids);
             assertThat(post(feed).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
@@ -239,9 +256,9 @@ class ActivityImportIntegrationTest {
         assertThat(post(payload(1)).getStatusCode()).isEqualTo(HttpStatus.OK);
         long id = imports.findAll().getFirst().getActivityId();
         activityTags.deleteAll();
-        assertThat(readAsUser("/api/activity/" + id).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(readAsUser("/api/activity/" + id).getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(readAsUser("/api/activity?category=EXTERNAL&size=20").getBody()
-                .at("/data/content").size()).isZero();
+                .at("/data/content").size()).isOne();
         assertThat(post(payload(2)).getBody().at("/data/status").asText()).isEqualTo("MANUAL_OVERRIDE");
     }
 
@@ -362,7 +379,7 @@ class ActivityImportIntegrationTest {
 
     @Test
     @EnabledIfEnvironmentVariable(named = "CRAWLER_LIVE_CAPTURE", matches = "true")
-    void actualPythonPublisherUploadsOnlyTaggedCapturedArticlesToThisTestServer() throws Exception {
+    void actualPythonPublisherUploadsCapturedArticlesWithOptionalTags() throws Exception {
         // Match the real reader's vocabulary in this disposable H2 database.
         long category = tags.findById(tagId).orElseThrow().getCategory().getId();
         var runtime = Path.of(Objects.requireNonNull(System.getenv("CAMNECT_TEST_READER_PATH"),
@@ -391,7 +408,7 @@ class ActivityImportIntegrationTest {
         JsonNode results = mapper.readTree(Files.readAllLines(log).getFirst()).get("publicationResults");
         int created = results.path("CREATED").asInt();
         assertThat(created).isPositive();
-        assertThat(created + results.path("AWAITING_TAGS").asInt()).isEqualTo(49);
+        assertThat(created).isEqualTo(49);
         assertThat(imports.count()).isEqualTo(created);
         assertThat(activities.count()).isEqualTo(created);
         assertThat(service.getActivities(authorId, ActivityCategory.EXTERNAL, null, null, "LATEST", PageRequest.of(0, 100)).getContent()).hasSize(created);
@@ -399,7 +416,6 @@ class ActivityImportIntegrationTest {
         assertThat(listed.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(listed.getBody().at("/data/content").size()).isEqualTo(created);
         for (var item : activities.findAll()) {
-            assertThat(activityTags.findTagsForDetail(item.getActivityId())).isNotEmpty();
             assertThat(service.getActivityDetail(authorId, item.getActivityId(), true).activity().getOfficialUrl()).contains("job.konkuk.ac.kr");
         }
         // A complete second delivery must be idempotent through the real HTTP boundary.
