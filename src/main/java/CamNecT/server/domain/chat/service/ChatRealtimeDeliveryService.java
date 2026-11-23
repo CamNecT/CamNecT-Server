@@ -12,6 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -26,17 +29,10 @@ public class ChatRealtimeDeliveryService {
         sendSafely("/sub/chat/room/" + roomId, event.message(), "message-room");
 
         try {
-            long receiverRoomUnread = chatRepository
-                    .countByRoom_IdAndReceiver_UserIdAndIsReadFalse(roomId, event.receiverId());
-            long senderRoomUnread = chatRepository
-                    .countByRoom_IdAndReceiver_UserIdAndIsReadFalse(roomId, event.senderId());
-            long receiverTotalUnread = chatRepository.countVisibleUnreadByUserId(event.receiverId());
-            long senderTotalUnread = chatRepository.countVisibleUnreadByUserId(event.senderId());
-
-            ChatRoomListUpdateDto receiverUpdate = roomListUpdate(
-                    event, receiverRoomUnread, receiverTotalUnread);
-            ChatRoomListUpdateDto senderUpdate = roomListUpdate(
-                    event, senderRoomUnread, senderTotalUnread);
+            var counts = chatRepository.countForDelivery(roomId, List.of(event.receiverId(), event.senderId())).stream()
+                    .collect(Collectors.toMap(ChatRepository.RecipientUnread::getUserId, row -> row));
+            ChatRoomListUpdateDto receiverUpdate = roomListUpdate(event, counts.get(event.receiverId()));
+            ChatRoomListUpdateDto senderUpdate = roomListUpdate(event, counts.get(event.senderId()));
 
             sendSafely("/sub/user/" + event.receiverId() + "/rooms",
                     receiverUpdate, "message-receiver-list");
@@ -77,15 +73,14 @@ public class ChatRealtimeDeliveryService {
 
     private ChatRoomListUpdateDto roomListUpdate(
             ChatMessageCommittedEvent event,
-            long unreadCount,
-            long totalUnreadCount
+            ChatRepository.RecipientUnread counts
     ) {
         return ChatRoomListUpdateDto.builder()
                 .roomId(event.message().getRoomId())
                 .lastMessage(event.lastMessage())
-                .unreadCount(unreadCount)
+                .unreadCount(counts == null ? 0L : counts.getRoomUnread())
                 .time(event.lastMessageTime())
-                .totalUnreadCount(totalUnreadCount)
+                .totalUnreadCount(counts == null ? 0L : counts.getTotalUnread())
                 .build();
     }
 

@@ -3,7 +3,6 @@ package CamNecT.server.domain.chat.service;
 import CamNecT.server.domain.activity.repository.recruitment.TeamRecruitmentRepository;
 import CamNecT.server.domain.chat.dto.message.ChatReadEvent;
 import CamNecT.server.domain.chat.event.ChatReadCommittedEvent;
-import CamNecT.server.domain.chat.model.Chat;
 import CamNecT.server.domain.chat.repository.ChatRepository;
 import CamNecT.server.domain.chat.repository.ChatRequestRepository;
 import CamNecT.server.domain.chat.repository.ChatRoomRepository;
@@ -28,7 +27,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -57,16 +56,17 @@ class ChatReadStateTest {
     @Test
     void markAllAsReadPublishesGreatestOrderedMessageIdAndVisibleUnreadTotal() {
         Users reader = Users.builder().userId(1L).status(UserStatus.ACTIVE).build();
-        Chat older = mock(Chat.class);
-        Chat newer = mock(Chat.class);
-        when(newer.getId()).thenReturn(20L);
-        when(newer.getContent()).thenReturn("newer");
-        when(newer.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 1, 1, 10, 1));
+        var boundary = mock(ChatRepository.UnreadBoundary.class);
+        when(boundary.getFirstId()).thenReturn(10L);
+        when(boundary.getLastId()).thenReturn(20L);
+        when(boundary.getContent()).thenReturn("newer");
+        when(boundary.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 1, 1, 10, 1));
 
         when(accountAccessGuard.requireAccessibleForUpdate(1L)).thenReturn(reader);
         when(chatRoomRepository.existsAccessibleByUserId(99L, 1L)).thenReturn(true);
-        when(chatRepository.findUnreadMessages(99L, 1L)).thenReturn(List.of(older, newer));
-        chatService.markAllAsRead(99L, reader);
+        when(chatRepository.findUnreadBoundary(99L, 1L)).thenReturn(Optional.of(boundary));
+        when(chatRepository.markUnreadRange(eq(99L), eq(1L), eq(10L), eq(20L), any())).thenReturn(2);
+        assertThat(chatService.markAllAsRead(99L, reader)).isEqualTo(10L);
 
         ArgumentCaptor<ChatReadCommittedEvent> eventCaptor =
                 ArgumentCaptor.forClass(ChatReadCommittedEvent.class);

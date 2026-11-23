@@ -263,11 +263,11 @@ class CommentServiceImplTest {
         when(commentsRepository.findRootPage(
                 eq(10L), eq(List.of(CommentStatus.PUBLISHED, CommentStatus.DELETED)), eq(40L), any(Pageable.class)
         )).thenReturn(List.of(first, second, extra));
-        when(commentsRepository.findByPost_IdAndParent_IdInAndStatusInOrderByParent_IdAscCreatedAtAsc(
+        when(commentsRepository.findRepliesInDisplayOrder(
                 eq(10L), eq(List.of(30L, 20L)), eq(List.of(CommentStatus.PUBLISHED, CommentStatus.DELETED))
         )).thenReturn(List.of());
         when(authorAssembler.buildAuthorMap(anyList())).thenReturn(Map.of());
-        when(commentLikesRepository.countByCommentIds(anyList())).thenReturn(List.of());
+        when(commentLikesRepository.countForRootPage(eq(10L), eq(List.of(30L, 20L)), anyList())).thenReturn(List.of());
 
         CommentListResponse response = service.list(2L, 10L, 40L, 2);
 

@@ -50,10 +50,14 @@ public interface CommentsRepository extends JpaRepository<Comments, Long> {
     );
 
     // 루트 댓글 여러 개에 대한 답글을 한 번에 조회(부모 아래 created_at 정렬)
-    List<Comments> findByPost_IdAndParent_IdInAndStatusInOrderByParent_IdAscCreatedAtAsc(
-            Long postId,
-            Collection<Long> parentIds,
-            Collection<CommentStatus> statuses
+    @Query("""
+            select c from Comments c where c.post.id = :postId and c.parent.id in :parentIds
+            and c.status in :statuses order by c.parent.id, c.createdAt, c.id
+            """)
+    List<Comments> findRepliesInDisplayOrder(
+            @Param("postId") Long postId,
+            @Param("parentIds") Collection<Long> parentIds,
+            @Param("statuses") Collection<CommentStatus> statuses
     );
 
     // 게시글 삭제 시: 자기참조 FK를 지키기 위해 대댓글을 먼저 삭제한다.

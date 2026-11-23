@@ -266,19 +266,24 @@ public class CommentServiceImpl implements CommentService {
         List<Long> rootIds = roots.stream().map(Comments::getId).toList();
 
         // 자식 댓글: 부모 아래 created_at asc
-        List<Comments> children = rootIds.isEmpty() ? List.of() : mergeChildren(postId, rootIds);
+        List<Comments> children = rootIds.isEmpty() ? List.of() :
+                commentsRepository.findRepliesInDisplayOrder(postId, rootIds, visibleStatuses);
 
         // author bulk
-        List<Long> userIds = Stream.concat(roots.stream(), children.stream())
+        Map<Long, AuthorDto> authorMap = userId == null ? Map.of() :
+                authorAssembler.buildAuthorMap(Stream.concat(roots.stream(), children.stream())
                 .map(Comments::getUserId)
                 .filter(Objects::nonNull)
                 .distinct()
-                .toList();
-
-        Map<Long, AuthorDto> authorMap = userId == null ? Map.of() : authorAssembler.buildAuthorMap(userIds);
+                .toList());
 
         // 좋아요 수 배치 집계 (옵션 쿼리 사용)
-        Map<Long, Long> likeMap = buildLikeCountMap(roots, children);
+        Map<Long, Long> likeMap = new HashMap<>();
+        if (!rootIds.isEmpty()) {
+            for (var row : commentLikesRepository.countForRootPage(postId, rootIds, visibleStatuses)) {
+                likeMap.put(row.getCommentId(), row.getCnt());
+            }
+        }
 
         // flat list 구성: 루트 -> 자식 순서로 내려줌
         List<CommentItemResponse> out = new ArrayList<>();
@@ -299,33 +304,6 @@ public class CommentServiceImpl implements CommentService {
         }
 
         return new CommentListResponse(out, nextCursorId, hasNext);
-    }
-
-    private List<Comments> mergeChildren(Long postId, List<Long> rootIds) {
-        List<Comments> children = new ArrayList<>(
-                commentsRepository.findByPost_IdAndParent_IdInAndStatusInOrderByParent_IdAscCreatedAtAsc(
-                        postId, rootIds, List.of(CommentStatus.PUBLISHED, CommentStatus.DELETED)
-                )
-        );
-        // parent_id asc, created_at asc 유지되도록 한 번 더 안정 정렬
-        children.sort(Comparator
-                .comparing((Comments c) -> c.getParent().getId())
-                .thenComparing(Comments::getCreatedAt)
-                .thenComparing(Comments::getId));
-        return children;
-    }
-
-    private Map<Long, Long> buildLikeCountMap(List<Comments> roots, List<Comments> children) {
-        List<Long> ids = new ArrayList<>(roots.size() + children.size());
-        for (Comments c : roots) ids.add(c.getId());
-        for (Comments c : children) ids.add(c.getId());
-        if (ids.isEmpty()) return Map.of();
-
-        Map<Long, Long> map = new HashMap<>();
-        for (CommentLikesRepository.LikeCountRow row : commentLikesRepository.countByCommentIds(ids)) {
-            map.put(row.getCommentId(), row.getCnt());
-        }
-        return map;
     }
 
     private CommentItemResponse toRow(Comments c, long likeCount, Map<Long, AuthorDto> authorMap, boolean showAuthor) {

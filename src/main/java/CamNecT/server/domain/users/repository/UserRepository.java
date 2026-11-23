@@ -38,9 +38,6 @@ public interface UserRepository extends JpaRepository<Users, Long> {
     @Query("select u from Users u where u.userId = :userId")
     Optional<Users> findByIdForUpdate(@Param("userId") Long userId);
 
-    @Query("select u.name from Users u where u.userId = :userId")
-    Optional<String> findNameByUserId(@Param("userId") Long userId);
-
     @Query("""
             select u.userId
             from Users u

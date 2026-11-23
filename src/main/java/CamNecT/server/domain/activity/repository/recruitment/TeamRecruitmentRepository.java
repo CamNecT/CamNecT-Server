@@ -32,5 +32,15 @@ public interface TeamRecruitmentRepository extends JpaRepository<TeamRecruitment
 
     boolean existsByActivityId(Long activityId);
 
-    List<TeamRecruitment> findAllByActivityId(Long activityId);
+    interface WithAuthor {
+        TeamRecruitment getRecruitment();
+        String getAuthorName();
+    }
+
+    @Query("""
+            select r as recruitment, coalesce(u.name, '알 수 없는 사용자') as authorName
+            from TeamRecruitment r left join Users u on u.userId = r.userId
+            where r.activityId = :activityId order by r.recruitId
+            """)
+    List<WithAuthor> findWithAuthorsByActivityId(@Param("activityId") Long activityId);
 }

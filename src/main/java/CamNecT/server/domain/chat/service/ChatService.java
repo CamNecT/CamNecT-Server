@@ -407,6 +407,7 @@ public class ChatService {
         Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdInWithUser(opponentIds)
                 .stream()
                 .collect(Collectors.toMap(UserProfile::getUserId, p -> p));
+        Map<Long, String> majorNames = loadMajorNames(profileMap.values());
 
         // 안 읽은 개수 조회
         Map<Long, Long> unreadCounts = chatRepository.countUnreadMessagesByRooms(myRooms, userId)
@@ -434,9 +435,7 @@ public class ChatService {
                     if (opProfile != null) {
                         studentNo = (opProfile.getStudentNo() != null) ? opProfile.getStudentNo() : "미입력";
                         if (opProfile.getMajorId() != null) {
-                            majorName = majorRepository.findById(opProfile.getMajorId())
-                                    .map(Majors::getMajorNameKor)
-                                    .orElse("알 수 없는 전공");
+                            majorName = majorNames.getOrDefault(opProfile.getMajorId(), "알 수 없는 전공");
                         }
 
                     }
@@ -475,36 +474,16 @@ public class ChatService {
 
     private Long markAllAsReadAfterAccessCheck(Long roomId, Long readerId) {
 
-        List<Chat> unreadMessages = chatRepository.findUnreadMessages(roomId, readerId);
-
-        if (unreadMessages.isEmpty()) {
-            return null;
-        }
-
-        Long firstUnreadMessageId = unreadMessages.getFirst().getId();
-        unreadMessages.forEach(Chat::markAsRead);
-        chatRepository.saveAll(unreadMessages);
-
-        log.info("📚 읽음 처리 완료: {}건 저장됨.", unreadMessages.size());
-
-        Long lastMessageId = unreadMessages.getLast().getId();
-
-        ChatReadEvent chatReadEvent = ChatReadEvent.of(
-                roomId,
-                lastMessageId,
-                LocalDateTime.now().toString()
-                // typee ->  ReadEvent 내부에서 READ로 자동 설정됨
-        );
-
-        String lastContent = unreadMessages.getLast().getContent();
-        String lastTime = unreadMessages.getLast().getCreatedAt().toString();
+        // Entry points hold the reader's account lock. A later arrival must stay outside this receipt.
+        var boundary = chatRepository.findUnreadBoundary(roomId, readerId).orElse(null);
+        if (boundary == null) return null;
+        LocalDateTime at = LocalDateTime.now();
+        int changed = chatRepository.markUnreadRange(roomId, readerId, boundary.getFirstId(), boundary.getLastId(), at);
+        if (changed == 0) return null;
         eventPublisher.publishEvent(new ChatReadCommittedEvent(
-                chatReadEvent,
-                readerId,
-                lastContent,
-                lastTime
-        ));
-        return firstUnreadMessageId;
+                ChatReadEvent.of(roomId, boundary.getLastId(), at.toString()), readerId,
+                boundary.getContent(), boundary.getCreatedAt().toString()));
+        return boundary.getFirstId();
     }
 
     @Transactional
@@ -651,15 +630,7 @@ public class ChatService {
         Map<Long, UserProfile> profileMap = userProfileRepository.findAllByUserIdInWithUser(senderIds).stream()
                 .collect(Collectors.toMap(UserProfile::getUserId, profile -> profile));
 
-        List<Long> majorIds = profileMap.values().stream()
-                .map(UserProfile::getMajorId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-        Map<Long, String> majorNameMap = majorIds.isEmpty()
-                ? Map.of()
-                : majorRepository.findAllById(majorIds).stream()
-                        .collect(Collectors.toMap(Majors::getMajorId, Majors::getMajorNameKor));
+        Map<Long, String> majorNameMap = loadMajorNames(profileMap.values());
 
         Map<Long, List<String>> tagMap = userTagMapRepository.findTagNamesWithUserIdByUserIdIn(senderIds).stream()
                 .collect(Collectors.groupingBy(
@@ -688,6 +659,12 @@ public class ChatService {
                 .toList();
 
         return new HomeResponse.RecruitmentSection(inbox.pendingCount(), previews);
+    }
+
+    private Map<Long, String> loadMajorNames(Collection<UserProfile> profiles) {
+        List<Long> ids = profiles.stream().map(UserProfile::getMajorId).filter(Objects::nonNull).distinct().toList();
+        if (ids.isEmpty()) return Collections.emptyMap();
+        return majorRepository.findAllById(ids).stream().collect(Collectors.toMap(Majors::getMajorId, Majors::getMajorNameKor));
     }
 
     private HomeRequestInbox getHomeRequestInbox(Long userId, ChatRequest.RequestType type, int limit) {

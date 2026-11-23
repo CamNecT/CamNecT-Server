@@ -34,10 +34,8 @@ public class ExternalArchiveAssembler {
 
         Map<Long, Long> commentCounts = comments.publishedCounts(actIds);
         Map<Long, List<String>> tagsMap = new HashMap<>();
-        externalActivityTagRepository.findAllByActivity_ActivityIdIn(actIds).forEach(at -> {
-            Long aid = at.getActivity().getActivityId();
-            tagsMap.computeIfAbsent(aid, k -> new ArrayList<>()).add(at.getTag().getName());
-        });
+        externalActivityTagRepository.findNamesForArchive(actIds).forEach(row ->
+                tagsMap.computeIfAbsent(row.getActivityId(), k -> new ArrayList<>()).add(row.getName()));
 
         List<MyArchiveResponse.Item> items = new ArrayList<>(rows.size());
         for (Object[] r : rows) {
