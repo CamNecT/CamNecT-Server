@@ -122,7 +122,8 @@ jobs:
             fi
             echo "${{ secrets.DOCKER_PASSWORD }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
             sudo env CAMNECT_SERVER_IMAGE="$CAMNECT_SERVER_IMAGE" $DC -f docker-compose.prod.yml pull
-            sudo env CAMNECT_SERVER_IMAGE="$CAMNECT_SERVER_IMAGE" $DC -f docker-compose.prod.yml up -d --remove-orphans
+            worker_sha=$(sha256sum tag-suggestions/worker.py | cut -d' ' -f1)
+            sudo env CAMNECT_SERVER_IMAGE="$CAMNECT_SERVER_IMAGE" CAMNECT_TAG_WORKER_SHA="$worker_sha" $DC -f docker-compose.prod.yml up -d --remove-orphans
             reader=$(sudo env CAMNECT_SERVER_IMAGE="$CAMNECT_SERVER_IMAGE" $DC -f docker-compose.prod.yml ps -q tag-reader)
             for attempt in $(seq 1 15); do
               if sudo docker exec "$reader" python -Ic "from urllib.request import urlopen; urlopen('http://127.0.0.1:8081/ready',timeout=2).close()"; then break; fi
