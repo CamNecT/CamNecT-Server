@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${DOCKER_USERNAME}/camnect-server:latest
+    image: ${CAMNECT_SERVER_IMAGE:-${DOCKER_USERNAME}/camnect-server:latest}
     container_name: camnect-server
     restart: always
     ports:
