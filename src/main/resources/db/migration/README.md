@@ -19,7 +19,7 @@ Do not edit an already deployed migration. Add a new sequential migration instea
 - V21 stores account phone verification, hashed one-time challenges and serialized SMS quotas. Existing users start with no phone and no verification.
 - V22 adds nullable order-time buyer/recipient phone snapshots. Existing order contacts are not reconstructed.
 - These migrations supersede the unapplied, conflicting V18/V19 from alternatives #304/#305. The current V18 and V19 checksums remain unchanged.
-- See [phone verification and deployment prerequisites](../../../../../docs/phone-number-removal.md). Do not deploy before SENS and frontend readiness checks pass.
+- Run the production phone configuration preflight and confirm SENS and frontend readiness before deploying.
 
 ## V18: comment content capacity (priority rollout)
 
@@ -44,7 +44,6 @@ Do not edit an already deployed migration. Add a new sequential migration instea
 - `V14__Separate_signup_completion_notification.sql` adds `verification_complete_notified` to `user_profile` without changing `initial_setup_completed` or account approval status.
 - Existing ACTIVE/SUSPENDED users who completed initial setup retain HOME behavior. Optional bio/image/tag values are not used to infer onboarding completion.
 - New and pending users start with notification=false. Login records notification=true only after approval, onboarding completion, and successful access/refresh session creation.
-- See [the signup and token contract](../../../../../docs/signup-token-flow.md) for frontend coordination and rollout checks.
 
 ## V13: remove phone numbers and deliver gifticons by email
 
@@ -53,6 +52,6 @@ Do not edit an already deployed migration. Add a new sequential migration instea
 - `recipient_email` is backfilled only for orders without an explicit recipient phone or with a recipient phone matching the buyer snapshot (falling back to the user's phone only if the snapshot is absent). Spaces and hyphens are ignored when comparing. Other recipients remain NULL; no email address is guessed.
 - The exporter includes these unresolved orders with `deliveryStatus=EMAIL_REQUIRED`. Admins must confirm the intended recipient's email before external purchase/delivery. `buyerEmail` is a contact address, not a substitute recipient address.
 - Already exported orders retain their batch and delivery state. Existing READY batches continue their normal retries; cached spreadsheets using the old columns are rebuilt in email format before sending. SUBMITTED/LEGACY_UNKNOWN batches are not queued again. Previously sent spreadsheets must be reconciled separately before continuing fulfillment.
-- See [the rollout and API checklist](../../../../../docs/phone-number-removal.md) before deploying. Stop old application instances and export jobs before migrating because old versions still depend on the removed columns.
+- Stop old application instances and export jobs before migrating because old versions still depend on the removed columns.
 
 The single-column phone unique index is removed by MySQL when the column is dropped ([MySQL ALTER TABLE documentation](https://dev.mysql.com/doc/refman/8.4/en/alter-table.html)). Historical `V0` retains its original schema and checksum; empty databases execute through V13 to reach the new schema.

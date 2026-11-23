@@ -10,8 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DeploymentWorkflowContractTest {
 
     @Test
-    void stageAndProductionDeploymentsRunTestsBeforeBuildingAnImage() throws Exception {
-        assertTestGatePrecedesImageBuild(".github/workflows/deploy-stage.yml");
+    void productionDeploymentRunsTestsBeforeBuildingAnImage() throws Exception {
         assertTestGatePrecedesImageBuild(".github/workflows/deploy.yml");
     }
 

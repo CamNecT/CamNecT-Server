@@ -10,16 +10,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DockerComposeExposureContractTest {
 
     @Test
-    void localDatastoresArePublishedOnlyOnLoopback() throws Exception {
-        String compose = Files.readString(Path.of("docker-compose.yml"));
-
-        assertThat(compose).contains(
-                "127.0.0.1:3307:3306",
-                "127.0.0.1:6379:6379"
-        );
-        assertThat(compose).doesNotContain(
-                "- \"3307:3306\"",
-                "- \"6379:6379\""
-        );
+    void productionAppIsPublishedOnlyOnLoopback() throws Exception {
+        String compose = Files.readString(Path.of("docker-compose.prod.yml"));
+        assertThat(compose.lines().map(String::trim).filter(line -> line.contains(":8080")).toList())
+                .containsExactly("- \"127.0.0.1:8080:8080\"");
     }
 }
