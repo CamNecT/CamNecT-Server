@@ -1,7 +1,6 @@
 package CamNecT.server.domain.verification.email.service;
 
 import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailRequest;
-import CamNecT.server.domain.auth.dto.signup.VerifySignupEmailResponse;
 import CamNecT.server.domain.auth.service.PasswordService;
 import CamNecT.server.domain.auth.service.SignupService;
 import CamNecT.server.domain.users.model.UserRole;
@@ -14,6 +13,8 @@ import CamNecT.server.domain.verification.email.model.EmailVerificationToken;
 import CamNecT.server.domain.verification.email.repository.EmailVerificationLockBucketRepository;
 import CamNecT.server.domain.verification.email.repository.EmailVerificationTokenRepository;
 import CamNecT.server.global.jwt.util.JwtUtil;
+import CamNecT.server.global.common.exception.CustomException;
+import CamNecT.server.global.common.response.errorcode.bydomains.AuthErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +36,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
@@ -215,16 +217,15 @@ class EmailVerificationServiceIssuanceTest {
 
     @Test
     void signupVerificationLocksEmailBeforeRecheckingExistingUser() {
-        Users existing = activeUser();
         short bucketId = stubBucket(EMAIL);
-        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(existing));
+        when(userRepository.existsByEmail(EMAIL)).thenReturn(true);
 
-        VerifySignupEmailResponse response = service.verifySignupAndCreateUser(signupRequest());
-
-        assertThat(response.alreadyVerified()).isTrue();
+        assertThatThrownBy(() -> service.verifySignupAndCreateUser(signupRequest()))
+                .isInstanceOfSatisfying(CustomException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(AuthErrorCode.EMAIL_ALREADY_EXISTS));
         InOrder order = inOrder(lockBucketRepository, userRepository);
         order.verify(lockBucketRepository).findByIdForUpdate(bucketId);
-        order.verify(userRepository).findByEmail(EMAIL);
+        order.verify(userRepository).existsByEmail(EMAIL);
         verify(tokenRepository, never()).findByActiveEmailForUpdate(ACTIVE_EMAIL);
     }
 

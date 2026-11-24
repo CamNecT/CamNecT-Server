@@ -171,12 +171,8 @@ public class EmailVerificationService {
             String normalizedEmail = normalize(req.email());
             lockEmailBucket(normalizedEmail);
 
-            // 인증 성공 후에만 사용자를 생성하므로, 같은 이메일의 사용자가 있으면 이미 가입 완료된 상태다.
-            Users existing = userRepository.findByEmail(normalizedEmail).orElse(null);
-            if (existing != null) {
-                return VerificationTransactionResult.success(
-                        new VerifySignupEmailResponse(existing.getUserId(), true, null, 0L)
-                );
+            if (userRepository.existsByEmail(normalizedEmail)) {
+                throw new CustomException(AuthErrorCode.EMAIL_ALREADY_EXISTS);
             }
 
             EmailVerificationToken token = tokenRepository

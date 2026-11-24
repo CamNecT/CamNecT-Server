@@ -115,6 +115,23 @@ class SignupEmailVerificationIntegrationTest {
     }
 
     @Test
+    void retryAfterCompletedSignupUsesTheExistingConflictContract() throws Exception {
+        String username = "retry-" + suffix();
+        String email = username + "@example.com";
+        tokenRepository.saveAndFlush(EmailVerificationToken.issueForEmail(email, VALID_CODE, 30));
+        verifySignup(email, username, VALID_CODE)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").isNumber())
+                .andExpect(jsonPath("$.tempToken").isNotEmpty());
+
+        verifySignup(email, username, VALID_CODE)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(41901))
+                .andExpect(jsonPath("$.userId").doesNotExist())
+                .andExpect(jsonPath("$.tempToken").doesNotExist());
+    }
+
+    @Test
     void duplicateUsernameReturnsConflictWithoutUnexpectedRollback() throws Exception {
         String firstSuffix = suffix();
         String duplicateUsername = "duplicate-" + suffix();
