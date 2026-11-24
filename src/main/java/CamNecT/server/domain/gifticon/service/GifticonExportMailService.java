@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.mail.MailException;
+import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -49,8 +50,9 @@ public class GifticonExportMailService {
             return GifticonExportMailResult.failed("FILE_MISSING: " + batch.getFilePath());
         }
 
+        MimeMessage mimeMessage;
         try {
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            mimeMessage = mailSender.createMimeMessage();
 
             MimeMessageHelper helper = new MimeMessageHelper(
                     mimeMessage,
@@ -101,7 +103,12 @@ public class GifticonExportMailService {
             helper.setText(text, html);
 
             helper.addAttachment(batch.getFileName(), new FileSystemResource(file));
+        } catch (MessagingException | MailException e) {
+            log.error("[gifticon-mail] prepare failed batchId={}", batch.getId(), e);
+            return GifticonExportMailResult.failed(describe(e));
+        }
 
+        try {
             log.info("[gifticon-mail] send export excel to={} file={}", to, batch.getFileName());
             mailSender.send(mimeMessage);
 
@@ -109,9 +116,12 @@ public class GifticonExportMailService {
                     to, batch.getId(), batch.getFileName());
             return GifticonExportMailResult.delivered();
 
-        } catch (MessagingException | MailException e) {
-            log.error("[gifticon-mail] submit failed to={} batchId={}", to, batch.getId(), e);
+        } catch (MailAuthenticationException e) {
+            log.error("[gifticon-mail] authentication failed batchId={}", batch.getId(), e);
             return GifticonExportMailResult.failed(describe(e));
+        } catch (MailException e) {
+            log.error("[gifticon-mail] submit failed to={} batchId={}", to, batch.getId(), e);
+            return GifticonExportMailResult.unconfirmed(describe(e));
         }
     }
 

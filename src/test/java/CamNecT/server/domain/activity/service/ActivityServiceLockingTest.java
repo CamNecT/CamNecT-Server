@@ -48,6 +48,7 @@ class ActivityServiceLockingTest {
     @Mock ExternalActivityBookmarkRepository activityBookmarkRepository;
     @Mock TagRepository tagRepository;
     @Mock TeamRecruitmentRepository teamRecruitmentRepository;
+    @Mock RecruitmentService recruitmentService;
     @Mock UserRepository userRepository;
     @Mock AccountAccessGuard accountAccessGuard;
     @Mock AuthorAssembler authorAssembler;
@@ -133,7 +134,7 @@ class ActivityServiceLockingTest {
         );
         order.verify(accountAccessGuard).requireAccessibleForUpdate(1L);
         order.verify(activityRepository).findByIdForUpdate(10L);
-        order.verify(teamRecruitmentRepository).existsByActivityId(10L);
+        order.verify(teamRecruitmentRepository).findAnyRecruitmentIdIncludingHidden(10L);
         order.verify(activityAttachmentRepository).findAllByActivity_ActivityId(10L);
         order.verify(activityTagRepository).deleteAllByActivityId(10L);
         order.verify(activityBookmarkRepository).deleteAllByActivityId(10L);
@@ -155,7 +156,7 @@ class ActivityServiceLockingTest {
                 .build();
         when(accountAccessGuard.requireAccessibleForUpdate(1L)).thenReturn(owner);
         when(activityRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(activity));
-        when(teamRecruitmentRepository.existsByActivityId(10L)).thenReturn(true);
+        when(teamRecruitmentRepository.findAnyRecruitmentIdIncludingHidden(10L)).thenReturn(Optional.of(20L));
 
         CustomException exception = assertThrows(CustomException.class, () -> service.delete(10L, 1L));
 
@@ -175,12 +176,12 @@ class ActivityServiceLockingTest {
                 .build();
         when(activityRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(activity));
         when(userRepository.existsByUserIdAndRole(9L, UserRole.ADMIN)).thenReturn(true);
-        when(activityAttachmentRepository.findAllByActivity_ActivityId(10L)).thenReturn(List.of());
-
         service.deleteForModeration(9L, 10L);
 
         verifyNoInteractions(accountAccessGuard);
-        verify(activityRepository).delete(activity);
+        verify(recruitmentService).hideForModeratedActivity(10L);
+        assertThat(activity.isModerationHidden()).isTrue();
+        verify(activityRepository, never()).delete(any());
     }
 
     @Test

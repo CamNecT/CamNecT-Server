@@ -74,6 +74,7 @@ public class ActivityService {
     private final ExternalActivityBookmarkRepository activityBookmarkRepository;
     private final TagRepository tagRepository;
     private final TeamRecruitmentRepository teamRecruitmentRepository;
+    private final RecruitmentService recruitmentService;
     private final UserRepository userRepository;
     private final AccountAccessGuard accountAccessGuard;
 
@@ -505,12 +506,15 @@ public class ActivityService {
             throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
         }
 
-        activityRepository.findByIdForUpdate(activityId).ifPresent(this::deleteLockedActivity);
+        activityRepository.findByIdForUpdate(activityId).ifPresent(activity -> {
+            recruitmentService.hideForModeratedActivity(activityId);
+            activity.hideForModeration();
+        });
     }
 
     private void deleteLockedActivity(ExternalActivity activity) {
         Long activityId = activity.getActivityId();
-        if (teamRecruitmentRepository.existsByActivityId(activityId)) {
+        if (teamRecruitmentRepository.findAnyRecruitmentIdIncludingHidden(activityId).isPresent()) {
             throw new CustomException(ActivityErrorCode.ACTIVITY_HAS_RECRUITMENTS);
         }
 

@@ -19,10 +19,6 @@ public class GifticonPurchaseExportScheduler {
     @Scheduled(cron = "${app.gifticon.export-cron:0 10 3 * * *}")
     public void exportPurchases() {
         try {
-            for (Long batchId : deliveryService.findDueReadyBatchIds()) {
-                deliverSafely(batchId);
-            }
-
             GifticonExportBatch batch = exportService.exportRequestedPurchasesToXlsx();
             if (batch != null) {
                 log.info("[GifticonPurchaseExportScheduler] exported: {} ({})",
@@ -33,6 +29,13 @@ public class GifticonPurchaseExportScheduler {
             }
         } catch (Exception e) {
             log.error("[GifticonPurchaseExportScheduler] export failed", e);
+        }
+    }
+
+    @Scheduled(cron = "${app.gifticon.export-retry-cron:0 */10 * * * *}")
+    public void retryDueBatches() {
+        for (Long batchId : deliveryService.findDueReadyBatchIds()) {
+            deliverSafely(batchId);
         }
     }
 

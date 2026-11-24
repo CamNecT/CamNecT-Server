@@ -115,6 +115,13 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
             @Param("status") ChatRequest.RequestStatus status
     );
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select q from ChatRequest q where q.recruitmentId in :ids and q.type = TEAM_RECRUIT
+              and q.status = WAITING order by q.id
+            """)
+    List<ChatRequest> findWaitingTeamRequestsForUpdate(@Param("ids") List<Long> ids);
+
     @Query("""
         select (count(cr) > 0)
         from ChatRequest cr

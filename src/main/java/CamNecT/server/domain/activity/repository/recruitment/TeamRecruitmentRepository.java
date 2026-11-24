@@ -30,7 +30,13 @@ public interface TeamRecruitmentRepository extends JpaRepository<TeamRecruitment
     @Query("select r.userId from TeamRecruitment r where r.recruitId = :recruitId")
     Optional<Long> findUserIdByRecruitId(@Param("recruitId") Long recruitId);
 
-    boolean existsByActivityId(Long activityId);
+    // Physical deletion must respect even a hidden recruitment's foreign key.
+    @Query(value = "select recruit_id from team_recruitments where activity_id = :activityId limit 1 for update", nativeQuery = true)
+    Optional<Long> findAnyRecruitmentIdIncludingHidden(@Param("activityId") Long activityId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from TeamRecruitment r where r.activityId = :activityId order by r.recruitId")
+    List<TeamRecruitment> findAllForModeration(@Param("activityId") Long activityId);
 
     interface WithAuthor {
         TeamRecruitment getRecruitment();

@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -21,21 +22,17 @@ class GifticonPurchaseExportSchedulerTest {
     @Mock GifticonExportDeliveryService deliveryService;
 
     @Test
-    void restartDeliversExistingReadyBatchesBeforePreparingAndDeliveringNewBatch() {
+    void dailyExportDeliversNewBatch() {
         GifticonExportBatch newBatch = GifticonExportBatch.builder()
                 .id(30L)
                 .fileName("batch-30.xlsx")
                 .itemCount(1)
                 .build();
-        when(deliveryService.findDueReadyBatchIds()).thenReturn(List.of(10L, 20L));
         when(exportService.exportRequestedPurchasesToXlsx()).thenReturn(newBatch);
 
         new GifticonPurchaseExportScheduler(exportService, deliveryService).exportPurchases();
 
         InOrder order = inOrder(deliveryService, exportService);
-        order.verify(deliveryService).findDueReadyBatchIds();
-        order.verify(deliveryService).deliverBatch(10L);
-        order.verify(deliveryService).deliverBatch(20L);
         order.verify(exportService).exportRequestedPurchasesToXlsx();
         order.verify(deliveryService).deliverBatch(30L);
     }
@@ -43,13 +40,12 @@ class GifticonPurchaseExportSchedulerTest {
     @Test
     void restartStillDeliversReadyBatchWhenThereAreNoNewPurchases() {
         when(deliveryService.findDueReadyBatchIds()).thenReturn(List.of(10L));
-        when(exportService.exportRequestedPurchasesToXlsx()).thenReturn(null);
 
-        new GifticonPurchaseExportScheduler(exportService, deliveryService).exportPurchases();
+        new GifticonPurchaseExportScheduler(exportService, deliveryService).retryDueBatches();
 
         InOrder order = inOrder(deliveryService, exportService);
         order.verify(deliveryService).findDueReadyBatchIds();
         order.verify(deliveryService).deliverBatch(10L);
-        order.verify(exportService).exportRequestedPurchasesToXlsx();
+        verifyNoInteractions(exportService);
     }
 }

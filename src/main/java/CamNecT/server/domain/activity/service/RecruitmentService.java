@@ -319,7 +319,25 @@ public class RecruitmentService {
             throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
         }
 
-        recruitmentRepository.findByIdForUpdate(recruitId).ifPresent(this::deleteLockedRecruitment);
+        recruitmentRepository.findByIdForUpdate(recruitId)
+                .ifPresent(recruitment -> hideLockedRecruitments(List.of(recruitment)));
+    }
+
+    // The caller holds the parent activity lock, also taken when a recruitment is created.
+    @Transactional
+    void hideForModeratedActivity(Long activityId) {
+        hideLockedRecruitments(recruitmentRepository.findAllForModeration(activityId));
+    }
+
+    private void hideLockedRecruitments(List<TeamRecruitment> recruitments) {
+        if (recruitments.isEmpty()) return;
+        List<Long> ids = recruitments.stream().map(TeamRecruitment::getRecruitId).toList();
+        List<ChatRequest> waiting = chatRequestRepository.findWaitingTeamRequestsForUpdate(ids);
+        if (!waiting.isEmpty()) {
+            teamApplicationRepository.rejectApplicationsForRequests(waiting.stream().map(ChatRequest::getId).toList());
+            waiting.forEach(ChatRequest::reject);
+        }
+        recruitments.forEach(TeamRecruitment::hideForModeration);
     }
 
     private void deleteLockedRecruitment(TeamRecruitment recruitment) {

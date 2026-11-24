@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.file.Path;
 import java.time.Clock;
@@ -32,6 +34,7 @@ public class GifticonExportDeliveryService {
     private final GifticonExportFileService fileService;
     private final GifticonExportMailService mailService;
     private final Clock clock;
+    private final TransactionTemplate transaction;
 
     @Value("${app.gifticon.export-mail.delete-after-send:true}")
     private boolean deleteAfterSend;
@@ -45,25 +48,45 @@ public class GifticonExportDeliveryService {
         );
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public DeliveryOutcome deliverBatch(Long batchId) {
+        Preparation preparation = transaction.execute(status -> prepare(batchId));
+        if (preparation.outcome() != null) return preparation.outcome();
+        GifticonExportBatch batch = preparation.batch();
+        GifticonExportMailResult result;
+        try {
+            result = mailService.sendExportExcel(batch);
+        } catch (RuntimeException e) {
+            log.error("[gifticon-export] verify SMTP delivery before retrying batchId={}", batchId, e);
+            return DeliveryOutcome.UNCONFIRMED;
+        }
+        if (result.requiresConfirmation()) {
+            log.error("[gifticon-export] verify SMTP delivery before retrying batchId={}", batchId);
+            return DeliveryOutcome.UNCONFIRMED;
+        }
+        return transaction.execute(status -> finish(batch, result));
+    }
+
+    private record Preparation(GifticonExportBatch batch, DeliveryOutcome outcome) {}
+
+    private Preparation prepare(Long batchId) {
         LocalDateTime now = LocalDateTime.now(clock);
         GifticonExportBatch batch = batchRepository.findByIdForDelivery(batchId).orElse(null);
         if (batch == null || !batch.isDue(now)) {
-            return DeliveryOutcome.SKIPPED;
+            return new Preparation(null, DeliveryOutcome.SKIPPED);
         }
 
         List<GifticonPurchase> purchases = purchaseRepository.findAllForExportBatch(batchId);
         if (purchases.isEmpty()) {
-            return recordFailure(batch, now, "BATCH_PURCHASES_EMPTY");
+            return new Preparation(null, recordFailure(batch, now, "BATCH_PURCHASES_EMPTY"));
         }
         if (batch.getItemCount() == null || batch.getItemCount() != purchases.size()) {
-            return recordFailure(
+            return new Preparation(null, recordFailure(
                     batch,
                     now,
                     "BATCH_ITEM_COUNT_MISMATCH: expected=" + batch.getItemCount()
                             + ", actual=" + purchases.size()
-            );
+            ));
         }
 
         Path filePath;
@@ -72,24 +95,27 @@ public class GifticonExportDeliveryService {
             fileService.ensureFile(filePath, purchases);
         } catch (Exception e) {
             log.error("[gifticon-export] file generation failed batchId={}", batchId, e);
-            return recordFailure(batch, now, describe("FILE_ERROR", e));
+            return new Preparation(null, recordFailure(batch, now, describe("FILE_ERROR", e)));
         }
 
-        GifticonExportMailResult mailResult;
-        try {
-            mailResult = mailService.sendExportExcel(batch);
-        } catch (RuntimeException e) {
-            log.error("[gifticon-export] unexpected mail failure batchId={}", batchId, e);
-            return recordFailure(batch, now, describe("MAIL_ERROR", e));
-        }
+        batch.beginSubmission(now);
+        return new Preparation(batch, null);
+    }
 
+    private DeliveryOutcome finish(GifticonExportBatch claimed, GifticonExportMailResult mailResult) {
+        GifticonExportBatch batch = batchRepository.findByIdForDelivery(claimed.getId()).orElseThrow();
+        if (batch.getDeliveryStatus() != GifticonExportDeliveryStatus.SENDING
+                || !batch.getDeliveryAttemptCount().equals(claimed.getDeliveryAttemptCount())) {
+            return DeliveryOutcome.SKIPPED;
+        }
+        LocalDateTime now = LocalDateTime.now(clock);
         if (!mailResult.successful()) {
             return recordFailure(batch, now, mailResult.error());
         }
 
         batch.markSubmitted(now);
         if (deleteAfterSend) {
-            fileService.deleteAfterCommit(filePath);
+            fileService.deleteAfterCommit(Path.of(batch.getFilePath()));
         }
         return DeliveryOutcome.SUBMITTED;
     }
@@ -121,6 +147,7 @@ public class GifticonExportDeliveryService {
     public enum DeliveryOutcome {
         SUBMITTED,
         RETRY_SCHEDULED,
+        UNCONFIRMED,
         FAILED,
         SKIPPED
     }
