@@ -38,6 +38,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -115,6 +117,24 @@ class ActivityDetailViewIntegrationTest {
         assertThat(em.find(ChatRequest.class, waiting.getId()).getStatus()).isEqualTo(ChatRequest.RequestStatus.REJECTED);
         assertThat(em.find(ChatRequest.class, joined.getId()).getStatus()).isEqualTo(ChatRequest.RequestStatus.ACCEPTED);
         assertThat(em.find(ChatRoom.class, room.getId()).getStatus()).isEqualTo(ChatRoom.RoomStatus.OPEN);
+
+        String sessionId = UUID.randomUUID().toString();
+        String access = jwt.generateAccessToken(author.getUserId(), UserRole.USER, sessionId);
+        sessions.create(author.getUserId(), access, jwt.generateRefreshToken(author.getUserId(), UserRole.USER, sessionId));
+        try {
+            String recruitPath = "/api/activity/recruitment/" + recruitment.getRecruitId();
+            mvc.perform(get(recruitPath).header("Authorization", "Bearer " + access))
+                    .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value(46403));
+            mvc.perform(post(recruitPath + "/apply").header("Authorization", "Bearer " + access)
+                            .contentType(APPLICATION_JSON).content("{\"content\":\"지원\"}"))
+                    .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value(46403));
+            mvc.perform(post("/api/request/respond").header("Authorization", "Bearer " + access)
+                            .contentType(APPLICATION_JSON)
+                            .content("{\"requestId\":" + waiting.getId() + ",\"isAccepted\":true}"))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value(48002));
+        } finally {
+            sessions.revokeSession(author.getUserId(), sessionId);
+        }
     }
 
     private Users createUser(UserRole role) {
