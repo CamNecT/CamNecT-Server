@@ -191,11 +191,9 @@ public class PresignEngine {
             throw new CustomException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED, e);
         }
 
-        if (head.contentLength() != null && head.contentLength() > t.getSize()) {
-            throw new CustomException(StorageErrorCode.UPLOAD_TICKET_MISMATCHED_OBJECT);
-        }
-        if (StringUtils.hasText(head.contentType())
-                && !normalize(head.contentType()).equals(normalize(t.getContentType()))) {
+        if (!StringUtils.hasText(head.eTag()) || head.contentLength() == null
+                || head.contentLength() > t.getSize()
+                || !normalize(head.contentType()).equals(normalize(t.getContentType()))) {
             throw new CustomException(StorageErrorCode.UPLOAD_TICKET_MISMATCHED_OBJECT);
         }
 
@@ -208,12 +206,18 @@ public class PresignEngine {
                 CopyObjectRequest copyReq = CopyObjectRequest.builder()
                         .sourceBucket(s3Props.bucket())
                         .sourceKey(tempKey)
+                        .copySourceIfMatch(head.eTag())
                         .destinationBucket(s3Props.bucket())
                         .destinationKey(finalKey)
+                        .metadataDirective(MetadataDirective.REPLACE)
+                        .contentType(t.getContentType())
                         .build();
 
                 s3.copyObject(copyReq);
             } catch (S3Exception e) {
+                if (e.statusCode() == 412) {
+                    throw new CustomException(StorageErrorCode.UPLOAD_TICKET_MISMATCHED_OBJECT, e);
+                }
                 throw new CustomException(StorageErrorCode.STORAGE_MOVE_FAILED, e);
             }
 

@@ -13,6 +13,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -53,7 +57,9 @@ class GifticonExportDeliveryServiceTest {
                 purchaseRepository,
                 fileService,
                 mailService,
-                CLOCK
+                CLOCK,
+                new TransactionTemplate(new DataSourceTransactionManager(
+                        new DriverManagerDataSource("jdbc:h2:mem:gifticon-delivery")))
         );
         ReflectionTestUtils.setField(service, "deleteAfterSend", true);
     }
@@ -92,6 +98,23 @@ class GifticonExportDeliveryServiceTest {
         assertThat(batch.getDeliveryAttemptCount()).isEqualTo(1);
         assertThat(batch.getNextAttemptAt()).isEqualTo(NOW.plusHours(1));
         assertThat(batch.getLastError()).isEqualTo("MAIL_DISABLED");
+        verify(fileService, never()).deleteAfterCommit(any());
+    }
+
+    @Test
+    void uncertainSubmissionCannotBePickedUpAgain() {
+        GifticonExportBatch batch = readyBatch(0);
+        stubLockedBatch(batch);
+        when(mailService.sendExportExcel(batch)).thenAnswer(call -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            assertThat(batch.getDeliveryStatus()).isEqualTo(GifticonExportDeliveryStatus.SENDING);
+            return GifticonExportMailResult.unconfirmed("confirmation required");
+        });
+
+        assertThat(service.deliverBatch(batch.getId())).isEqualTo(GifticonExportDeliveryService.DeliveryOutcome.UNCONFIRMED);
+        assertThat(service.deliverBatch(batch.getId())).isEqualTo(GifticonExportDeliveryService.DeliveryOutcome.SKIPPED);
+        assertThat(batch.getDeliveryAttemptCount()).isEqualTo(1);
+        verify(mailService).sendExportExcel(batch);
         verify(fileService, never()).deleteAfterCommit(any());
     }
 

@@ -31,6 +31,7 @@ jobs:
     env:
       PHONE_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/phone_integration_test?allowPublicKeyRetrieval=true&useSSL=false
       PHONE_MYSQL_MIGRATION_URL: jdbc:mysql://127.0.0.1:3306/phone_migration_test?allowPublicKeyRetrieval=true&useSSL=false
+      QUERY_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/query_integration_test?allowPublicKeyRetrieval=true&useSSL=false
       PHONE_MYSQL_USERNAME: root
       PHONE_MYSQL_PASSWORD: disposable-ci-password
     steps:
@@ -40,10 +41,11 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: gradle
-      - name: Prepare separate migration database
+      - name: Prepare disposable databases
         # Historical V1 compares explicitly unicode_ci tables with the database's default tables.
         run: |
           docker exec -e MYSQL_PWD="$PHONE_MYSQL_PASSWORD" ${{ job.services.mysql.id }} mysql -uroot -e 'ALTER DATABASE phone_integration_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE phone_migration_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+          docker exec -e MYSQL_PWD="$PHONE_MYSQL_PASSWORD" ${{ job.services.mysql.id }} mysql -uroot -e 'CREATE DATABASE query_integration_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
       - name: Run server tests
         run: |
           chmod +x gradlew

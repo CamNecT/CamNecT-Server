@@ -14,7 +14,6 @@ import CamNecT.server.domain.activity.model.external_activity.ExternalActivity;
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivityAttachment;
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivityBookmark;
 import CamNecT.server.domain.activity.model.external_activity.ExternalActivityTag;
-import CamNecT.server.domain.activity.model.recruitment.TeamRecruitment;
 import CamNecT.server.domain.activity.repository.comment.ActivityCommentRepository;
 import CamNecT.server.domain.activity.repository.comment.ActivityCommentLikeRepository;
 import CamNecT.server.domain.activity.repository.external_activity.ExternalActivityAttachmentRepository;
@@ -75,6 +74,7 @@ public class ActivityService {
     private final ExternalActivityBookmarkRepository activityBookmarkRepository;
     private final TagRepository tagRepository;
     private final TeamRecruitmentRepository teamRecruitmentRepository;
+    private final RecruitmentService recruitmentService;
     private final UserRepository userRepository;
     private final AccountAccessGuard accountAccessGuard;
 
@@ -506,12 +506,15 @@ public class ActivityService {
             throw new CustomException(ActivityErrorCode.NOT_AUTHOR);
         }
 
-        activityRepository.findByIdForUpdate(activityId).ifPresent(this::deleteLockedActivity);
+        activityRepository.findByIdForUpdate(activityId).ifPresent(activity -> {
+            recruitmentService.hideForModeratedActivity(activityId);
+            activity.hideForModeration();
+        });
     }
 
     private void deleteLockedActivity(ExternalActivity activity) {
         Long activityId = activity.getActivityId();
-        if (teamRecruitmentRepository.existsByActivityId(activityId)) {
+        if (teamRecruitmentRepository.findAnyRecruitmentIdIncludingHidden(activityId).isPresent()) {
             throw new CustomException(ActivityErrorCode.ACTIVITY_HAS_RECRUITMENTS);
         }
 
@@ -601,18 +604,10 @@ public class ActivityService {
         List<Long> tagIds = tags.stream().map(TagDto::id).toList();
 
         // 5. 팀원 공고 리스트 조회
-        List<TeamRecruitment> recruitmentList = userId == null ? List.of() :
-                teamRecruitmentRepository.findAllByActivityId(activityId);
-
-        // 3. 스트림을 이용한 변환
-        List<TeamRecruitmentDto> recruitmentDtoList = recruitmentList.stream()
-                .map(recruitment -> {
-
-                    String userName = userRepository.findNameByUserId(recruitment.getUserId()).orElse("알 수 없는 사용자");
-
-                    return recruitment.toDto(activity.getTitle(), userName);
-                })
-                .toList();
+        List<TeamRecruitmentDto> recruitmentDtoList = userId == null ? List.of() :
+                teamRecruitmentRepository.findWithAuthorsByActivityId(activityId).stream()
+                        .map(row -> row.getRecruitment().toDto(activity.getTitle(), row.getAuthorName()))
+                        .toList();
 
         // 6. 본인 글 여부
         boolean isMine = activity.getUser() != null && Objects.equals(activity.getUser().getUserId(), userId);

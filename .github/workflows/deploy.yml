@@ -130,4 +130,14 @@ jobs:
               if [ "$attempt" = 15 ]; then exit 1; fi
               sleep 2
             done
+            # The guest activity list reads MySQL even when the table is empty.
+            for attempt in $(seq 1 60); do
+              status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 3 'http://127.0.0.1:8080/api/activity?size=1') || status=000
+              if [ "$status" = 200 ]; then break; fi
+              if [ "$attempt" = 60 ]; then
+                echo "[ERROR] Application and database readiness check failed (HTTP $status)"
+                exit 1
+              fi
+              sleep 2
+            done
             sudo docker image prune -f

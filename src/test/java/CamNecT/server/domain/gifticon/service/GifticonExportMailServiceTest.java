@@ -101,6 +101,7 @@ class GifticonExportMailServiceTest {
 
         assertThat(result.successful()).isFalse();
         assertThat(result.error()).contains("MailSendException", "smtp down");
+        assertThat(result.requiresConfirmation()).isTrue();
     }
 
     private GifticonExportBatch batch(Path file) {

@@ -8,6 +8,7 @@ import CamNecT.server.domain.users.model.Users;
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.SQLRestriction;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -16,11 +17,20 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "external_activities")
+@SQLRestriction("moderation_hidden = false")
 @Getter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ExternalActivity {
+
+    @ColumnDefault("false")
+    @Column(name = "moderation_hidden", nullable = false)
+    private boolean moderationHidden;
+
+    public void hideForModeration() {
+        moderationHidden = true;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

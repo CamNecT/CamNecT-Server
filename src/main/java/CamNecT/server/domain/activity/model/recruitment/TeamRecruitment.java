@@ -5,6 +5,7 @@ import CamNecT.server.domain.activity.dto.request.RecruitmentRequest;
 import CamNecT.server.domain.activity.model.enums.RecruitStatus;
 import jakarta.persistence.*;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.SQLRestriction;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -14,10 +15,19 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "team_recruitments")
+@SQLRestriction("moderation_hidden = false")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor @Builder
 public class TeamRecruitment {
+
+    @ColumnDefault("false")
+    @Column(name = "moderation_hidden", nullable = false)
+    private boolean moderationHidden;
+
+    public void hideForModeration() {
+        moderationHidden = true;
+    }
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long recruitId;

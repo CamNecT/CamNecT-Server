@@ -201,7 +201,7 @@ class ChatServiceTest {
 
         when(accountAccessGuard.requireAccessibleForUpdate(1L)).thenReturn(reader);
         when(chatRoomRepository.findByUserIdWithDetails(99L, 1L)).thenReturn(Optional.of(room));
-        when(chatRepository.findUnreadMessages(99L, 1L)).thenReturn(List.of());
+        when(chatRepository.findUnreadBoundary(99L, 1L)).thenReturn(Optional.empty());
         when(chatRepository.findTop1000ByRoomId(eq(99L), any())).thenReturn(List.of());
 
         assertDoesNotThrow(() -> chatService.getChatHistory(99L, 1L));
@@ -209,10 +209,10 @@ class ChatServiceTest {
         InOrder accessOrder = inOrder(accountAccessGuard, chatRoomRepository, chatRepository);
         accessOrder.verify(accountAccessGuard).requireAccessibleForUpdate(1L);
         accessOrder.verify(chatRoomRepository).findByUserIdWithDetails(99L, 1L);
-        accessOrder.verify(chatRepository).findUnreadMessages(99L, 1L);
+        accessOrder.verify(chatRepository).findUnreadBoundary(99L, 1L);
         verify(accountAccessGuard, times(1)).requireAccessibleForUpdate(1L);
-        verify(chatRepository).findUnreadMessages(99L, 1L);
-        verify(chatRepository, never()).findUnreadMessages(99L, 2L);
+        verify(chatRepository).findUnreadBoundary(99L, 1L);
+        verify(chatRepository, never()).findUnreadBoundary(99L, 2L);
     }
 
     @Test
@@ -292,7 +292,7 @@ class ChatServiceTest {
 
         when(accountAccessGuard.requireAccessibleForUpdate(1L)).thenReturn(me);
         when(chatRoomRepository.findByUserIdWithDetails(99L, 1L)).thenReturn(Optional.of(room));
-        when(chatRepository.findUnreadMessages(99L, 1L)).thenReturn(List.of());
+        when(chatRepository.findUnreadBoundary(99L, 1L)).thenReturn(Optional.empty());
         when(chatRepository.findTop1000ByRoomId(eq(99L), any())).thenReturn(List.of());
         when(room.getId()).thenReturn(99L);
         when(room.getRequester()).thenReturn(me);

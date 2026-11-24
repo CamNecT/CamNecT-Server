@@ -14,6 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -29,19 +30,23 @@ class ChatRealtimeDeliveryServiceTest {
     @Test
     void messageDeliveryUpdatesRoomAndBothRoomLists() {
         ChatMessageCommittedEvent event = messageEvent();
-        when(chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(99L, 2L)).thenReturn(4L);
-        when(chatRepository.countByRoom_IdAndReceiver_UserIdAndIsReadFalse(99L, 1L)).thenReturn(3L);
-        when(chatRepository.countVisibleUnreadByUserId(2L)).thenReturn(7L);
-        when(chatRepository.countVisibleUnreadByUserId(1L)).thenReturn(2L);
+        var sender = mock(ChatRepository.RecipientUnread.class);
+        when(sender.getUserId()).thenReturn(1L);
+        when(sender.getRoomUnread()).thenReturn(3L);
+        when(sender.getTotalUnread()).thenReturn(5L);
+        when(chatRepository.countForDelivery(99L, List.of(2L, 1L))).thenReturn(List.of(sender));
 
         deliveryService.deliverMessage(event);
 
         verify(messagingTemplate).convertAndSend("/sub/chat/room/99", event.message());
-        verify(messagingTemplate).convertAndSend(eq("/sub/user/2/rooms"), any(Object.class));
+        var receiverUpdate = ArgumentCaptor.forClass(ChatRoomListUpdateDto.class);
+        verify(messagingTemplate).convertAndSend(eq("/sub/user/2/rooms"), receiverUpdate.capture());
+        assertThat(receiverUpdate.getValue().getTotalUnreadCount()).isZero();
         ArgumentCaptor<ChatRoomListUpdateDto> senderUpdate =
                 ArgumentCaptor.forClass(ChatRoomListUpdateDto.class);
         verify(messagingTemplate).convertAndSend(eq("/sub/user/1/rooms"), senderUpdate.capture());
         assertThat(senderUpdate.getValue().getUnreadCount()).isEqualTo(3L);
+        assertThat(senderUpdate.getValue().getTotalUnreadCount()).isEqualTo(5L);
     }
 
     @Test

@@ -1,6 +1,7 @@
 package CamNecT.server.domain.community.repository.Comments;
 
 import CamNecT.server.domain.community.model.Comments.CommentLikes;
+import CamNecT.server.domain.community.model.enums.CommentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -24,11 +25,13 @@ public interface CommentLikesRepository extends JpaRepository<CommentLikes, Long
 
     @Query("""
     select cl.comment.id as commentId, count(cl) as cnt
-    from CommentLikes cl
-    where cl.comment.id in :commentIds
+    from CommentLikes cl join cl.comment c
+    where c.post.id = :postId and c.status in :statuses
+      and (c.id in :roots or c.parent.id in :roots)
     group by cl.comment.id
 """)
-    List<LikeCountRow> countByCommentIds(@Param("commentIds") Collection<Long> commentIds);
+    List<LikeCountRow> countForRootPage(@Param("postId") Long postId, @Param("roots") Collection<Long> roots,
+                                       @Param("statuses") Collection<CommentStatus> statuses);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("delete from CommentLikes cl where cl.comment.post.id = :postId")

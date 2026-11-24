@@ -12,7 +12,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -34,6 +37,8 @@ class UserReportPenaltyServiceTest {
     @Mock TokenSessionService tokenSessionService;
 
     private UserReportPenaltyService service;
+    private final TransactionTemplate transaction = new TransactionTemplate(
+            new DataSourceTransactionManager(new DriverManagerDataSource("jdbc:h2:mem:report-penalty")));
 
     @BeforeEach
     void setUp() {
@@ -52,7 +57,11 @@ class UserReportPenaltyServiceTest {
         when(userRepository.findById(2L)).thenReturn(Optional.of(user));
         when(penaltyRepository.countByUser_UserId(2L)).thenReturn(1L);
 
-        PenaltyType result = service.applyPenalty(reportCase);
+        PenaltyType result = transaction.execute(status -> {
+            PenaltyType applied = service.applyPenalty(reportCase);
+            verifyNoInteractions(tokenSessionService);
+            return applied;
+        });
 
         ArgumentCaptor<UserReportPenalty> captor = ArgumentCaptor.forClass(UserReportPenalty.class);
         verify(penaltyRepository).saveAndFlush(captor.capture());
@@ -73,9 +82,36 @@ class UserReportPenaltyServiceTest {
         ReportCase reportCase = reportCase(10L, user, ReportCategory.FRAUD);
         when(userRepository.findById(2L)).thenReturn(Optional.of(user));
 
-        PenaltyType result = service.applyPenalty(reportCase);
+        PenaltyType result = transaction.execute(status -> service.applyPenalty(reportCase));
 
         assertThat(result).isEqualTo(PenaltyType.PERMANENT_BAN);
+        verify(tokenSessionService).revokeAll(2L);
+    }
+
+    @Test
+    void rolledBackDecisionKeepsExistingSessions() {
+        Users user = user(2L, UserStatus.ACTIVE);
+        ReportCase reportCase = reportCase(10L, user, ReportCategory.FRAUD);
+        when(userRepository.findById(2L)).thenReturn(Optional.of(user));
+
+        transaction.executeWithoutResult(status -> {
+            service.applyPenalty(reportCase);
+            status.setRollbackOnly();
+        });
+
+        verifyNoInteractions(tokenSessionService);
+    }
+
+    @Test
+    void committedWarningKeepsExistingSessions() {
+        Users user = user(2L, UserStatus.ACTIVE);
+        ReportCase reportCase = reportCase(10L, user, ReportCategory.OTHER);
+        when(userRepository.findById(2L)).thenReturn(Optional.of(user));
+
+        PenaltyType result = transaction.execute(status -> service.applyPenalty(reportCase));
+
+        assertThat(result).isEqualTo(PenaltyType.WARNING);
+        verifyNoInteractions(tokenSessionService);
     }
 
     @Test

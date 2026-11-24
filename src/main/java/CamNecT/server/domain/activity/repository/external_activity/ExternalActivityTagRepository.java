@@ -24,5 +24,15 @@ public interface ExternalActivityTagRepository extends JpaRepository<ExternalAct
     List<CamNecT.server.global.tag.dto.TagDto> findTagsForDetail(@Param("activityId") Long activityId);
 
     List<ExternalActivityTag> findAllByActivity_ActivityId(Long activityId);
-    List<ExternalActivityTag> findAllByActivity_ActivityIdIn(List<Long> activityIds);
+    interface ArchiveTag {
+        Long getActivityId();
+        String getName();
+    }
+
+    @Query("""
+            select a.activity.activityId as activityId, t.name as name
+            from ExternalActivityTag a join a.tag t
+            where a.activity.activityId in :ids order by a.activity.activityId, a.id
+            """)
+    List<ArchiveTag> findNamesForArchive(@Param("ids") List<Long> ids);
 }

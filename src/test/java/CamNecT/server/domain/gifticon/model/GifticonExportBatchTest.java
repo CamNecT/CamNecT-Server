@@ -46,6 +46,8 @@ class GifticonExportBatchTest {
                 .lastError("previous failure")
                 .build();
 
+        batch.beginSubmission(NOW);
+        assertThat(batch.isDue(NOW.plusDays(1))).isFalse();
         batch.markSubmitted(NOW);
 
         assertThat(batch.getDeliveryStatus()).isEqualTo(GifticonExportDeliveryStatus.SUBMITTED);

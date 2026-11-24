@@ -16,6 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -54,7 +56,12 @@ public class UserReportPenaltyService {
         }
 
         if (penalty.getPenaltyType() != PenaltyType.WARNING) {
-            revokeSafely(userId);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    revokeSafely(userId);
+                }
+            });
         }
 
         return penalty.getPenaltyType();

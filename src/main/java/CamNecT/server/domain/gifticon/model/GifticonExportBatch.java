@@ -77,10 +77,15 @@ public class GifticonExportBatch {
                 && (nextAttemptAt == null || !nextAttemptAt.isAfter(now));
     }
 
-    public void markSubmitted(LocalDateTime attemptedAt) {
+    public void beginSubmission(LocalDateTime attemptedAt) {
         deliveryAttemptCount = currentAttemptCount() + 1;
         lastAttemptAt = attemptedAt;
         nextAttemptAt = null;
+        lastError = null;
+        deliveryStatus = GifticonExportDeliveryStatus.SENDING;
+    }
+
+    public void markSubmitted(LocalDateTime attemptedAt) {
         submittedAt = attemptedAt;
         lastError = null;
         deliveryStatus = GifticonExportDeliveryStatus.SUBMITTED;
@@ -92,7 +97,9 @@ public class GifticonExportBatch {
             int maxAttempts,
             LocalDateTime retryAt
     ) {
-        deliveryAttemptCount = currentAttemptCount() + 1;
+        if (deliveryStatus != GifticonExportDeliveryStatus.SENDING) {
+            deliveryAttemptCount = currentAttemptCount() + 1;
+        }
         lastAttemptAt = attemptedAt;
         submittedAt = null;
         lastError = truncate(error);

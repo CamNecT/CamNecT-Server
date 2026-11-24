@@ -375,7 +375,7 @@ class SignupTokenFlowIntegrationTest {
         String token = tempToken(user);
         Tag tag = tag();
         when(s3.headObject(any(HeadObjectRequest.class)))
-                .thenReturn(HeadObjectResponse.builder().contentType("image/png").contentLength(100L).build());
+                .thenReturn(HeadObjectResponse.builder().eTag("\"upload\"").contentType("image/png").contentLength(100L).build());
         String upload = mockMvc.perform(post("/api/profile/uploads/presign")
                         .header("Authorization", bearer(token)).contentType(MediaType.APPLICATION_JSON)
                         .content(IMAGE_REQUEST))

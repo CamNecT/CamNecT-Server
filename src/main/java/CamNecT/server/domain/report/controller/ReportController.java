@@ -164,6 +164,7 @@ public class ReportController {
     @Operation(
             summary = "신고 처리 (승인/반려)",
             description = "신고 case를 승인(RESOLVED) 또는 반려(REJECTED) 처리합니다. 승인 시 관리자가 확정한 decidedCategory가 필수이며 case당 패널티가 한 번만 적용됩니다.\n\n" +
+                    "활동 신고가 승인되면 공고와 연결된 모집을 숨기고 대기 지원 요청을 종료합니다. 기존 채팅방과 지원 기록은 보존합니다.\n\n" +
                     "**패널티 체계:**\n" +
                     "- 1회: 경고 알림\n" +
                     "- 2회: 7일 정지\n" +
@@ -176,7 +177,7 @@ public class ReportController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "40100 유효하지 않거나 만료된 JWT", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "40300 관리자 권한 없음 / 44303 관리자 사용자가 아님", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "51401 신고 case / 44401 관리자 사용자 정보를 찾을 수 없음", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "46006 연결된 팀 모집글로 인해 활동 삭제 불가 / 51903 신고 대상 작성자 확인 불가", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "51903 신고 대상 작성자 확인 불가", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "415", description = "41500 지원하지 않는 요청 Content-Type", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "50000 내부 서버 오류", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
