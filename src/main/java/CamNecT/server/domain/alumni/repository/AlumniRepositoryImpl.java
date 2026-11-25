@@ -58,6 +58,7 @@ public class AlumniRepositoryImpl implements AlumniRepositoryCustom {
                 .where(
                         myId == null ? null : user.userId.ne(myId),
                         user.status.eq(UserStatus.ACTIVE),
+                        user.username.notIn("admin", "camnect"),
                         nameContains(name),
                         hasAllTags(tagIdList, user.userId)
                 )

@@ -13,6 +13,7 @@ public interface AlumniRepository extends JpaRepository<Users, Long>, AlumniRepo
         SELECT u.user_id FROM Users u
         JOIN User_Profile up ON u.user_id = up.user_id
         WHERE u.user_id != :myId
+        AND u.username NOT IN ('admin', 'camnect')
         AND (:name IS NULL OR u.name LIKE CONCAT('%', :name, '%'))
         AND (:tagCount = 0 OR u.user_id IN (
             SELECT utm.user_id FROM user_tag_map utm
