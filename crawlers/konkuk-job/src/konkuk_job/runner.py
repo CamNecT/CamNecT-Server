@@ -3,6 +3,8 @@ import time
 import uuid
 from urllib.parse import urlsplit
 
+from bs4 import BeautifulSoup
+
 from .parser import BLOCK_MARKERS, LIST_URL, SourceBlocked, SourceError, parse_detail, parse_list
 from .storage import now
 from .http import IncompleteMedia, PayloadTooLarge, RunBudgetReached
@@ -33,6 +35,8 @@ def collect_listing(client, max_pages=20):
 
 
 def collect_media(record, client, store, budget, max_media=8):
+    attachments = {item['url'] for item in record['attachments']}
+    blocked = set()
     urls = sorted(set(record['images'] + [a['url'] for a in record['attachments']]))
     if len(urls) > max_media:
         record['reviewReasons'].append('MEDIA_LIMIT')
@@ -61,6 +65,10 @@ def collect_media(record, client, store, budget, max_media=8):
         if any(marker in raw[:64_000].decode('utf-8', errors='replace').lower() for marker in BLOCK_MARKERS):
             raise SourceBlocked('Source returned a block page for media')
         if mime in ('text/html', 'application/xhtml+xml') or raw.lstrip().lower().startswith((b'<!doctype html', b'<html')):
+            if url in attachments and is_filtered_attachment(raw):
+                blocked.add(url)
+                record['media'].append({'url': url, 'status': 'SOURCE_FILTERED'})
+                continue
             raise SourceError('Unexpected media response; original record retained')
         if detected is None:
             record['reviewReasons'].append('UNSUPPORTED_MEDIA')
@@ -71,7 +79,19 @@ def collect_media(record, client, store, budget, max_media=8):
         record['media'].append({'url': url, 'status': 'DOWNLOADED', 'mime': detected,
                                 'sha256': hashlib.sha256(raw).hexdigest(),
                                 'bytes': len(raw), 'blobKey': key})
+    if blocked:
+        record['attachments'] = [item for item in record['attachments'] if item['url'] not in blocked]
+        for field in ('images', 'externalLinks'):
+            record[field] = [link for link in record[field] if link not in blocked]
+        if not (record['bodyText'].strip() or record['images'] or record['attachments']):
+            raise SourceError('No usable content after excluding filtered attachments')
+        record['reviewReasons'].append('ATTACHMENT_SOURCE_FILTERED')
     record['reviewReasons'] = sorted(set(record['reviewReasons']))
+
+
+def is_filtered_attachment(raw):
+    text = BeautifulSoup(raw[:64_000], 'html.parser').get_text(' ', strip=True)
+    return 'Smart X Filter' in text and '개인정보가 포함' in text
 
 
 def media_type(raw):
