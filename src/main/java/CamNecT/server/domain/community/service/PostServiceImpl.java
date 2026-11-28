@@ -19,6 +19,7 @@ import CamNecT.server.domain.users.repository.UserFollowRepository;
 import CamNecT.server.global.point.model.PointEvent;
 import CamNecT.server.global.point.service.PointService;
 import CamNecT.server.domain.users.model.UserRole;
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import CamNecT.server.domain.users.repository.UserRepository;
 import CamNecT.server.global.common.auth.AccountAccessGuard;
@@ -328,12 +329,16 @@ public class PostServiceImpl implements PostService {
         Integer myPoints = accessDecision.myPoints();
         String content = accessDecision.canRead() ? post.getContent() : null;
 
-        /// 글쓴이 프로필
-        AuthorDto author = userId == null || post.isAnonymous()
-                ? null
-                : authorAssembler
-                    .buildAuthorMap(List.of(post.getUser().getUserId()))
-                    .get(post.getUser().getUserId());
+        AuthorDto author = null;
+        if (!post.isAnonymous()) {
+            Long authorId = post.getUser().getUserId();
+            if (userId != null) {
+                author = authorAssembler.buildAuthorMap(List.of(authorId)).get(authorId);
+            } else if (post.getBoard().getCode() == BoardCode.INFO
+                    && post.getUser().getStatus() == UserStatus.ACTIVE) {
+                author = authorAssembler.buildGuestAuthor(authorId);
+            }
+        }
 
         /// 첨부파일 내려주는 파트
         List<PostAttachmentItemResponse> attachments = null;
