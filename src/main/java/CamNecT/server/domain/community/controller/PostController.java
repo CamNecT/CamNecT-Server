@@ -156,7 +156,7 @@ public class PostController {
 
     @Operation(
             summary = "게시글 상세 조회",
-            description = "게시글의 상세 내용과 첨부파일 목록, 좋아요/북마크 여부 등을 조회합니다. 질문글은 답변 채택 전까지 공개되고 채택 후 유료 열람 정책이 적용됩니다."
+            description = "게시글의 상세 내용과 첨부파일 목록, 좋아요/북마크 여부 등을 조회합니다. 질문글은 답변 채택 전까지 공개되고 채택 후 유료 열람 정책이 적용됩니다. 비회원이 활성 회원의 비익명 정보글을 조회하면 작성자 정보에는 학과와 학번에서 추출한 4자리 입학연도만 포함됩니다."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "요청 성공", useReturnTypeSchema = true),

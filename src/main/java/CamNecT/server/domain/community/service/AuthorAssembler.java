@@ -11,14 +11,35 @@ import org.springframework.util.StringUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class AuthorAssembler {
 
+    private static final Pattern STUDENT_NUMBER_WITH_ENTRY_YEAR = Pattern.compile("((?:19|20)[0-9]{2})[0-9]*");
+
     private final UserProfileRepository userProfileRepository;
     private final PublicUrlIssuer publicUrlIssuer;
+
+    public AuthorDto buildGuestAuthor(Long userId) {
+        return userProfileRepository.findGlobalByUserId(userId)
+                .map(profile -> {
+                    String majorName = StringUtils.hasText(profile.majorName()) ? profile.majorName() : null;
+                    String entryYear = null;
+                    if (StringUtils.hasText(profile.studentNo())) {
+                        var matcher = STUDENT_NUMBER_WITH_ENTRY_YEAR.matcher(profile.studentNo().strip());
+                        if (matcher.matches()) {
+                            entryYear = matcher.group(1);
+                        }
+                    }
+                    return majorName == null && entryYear == null
+                            ? null
+                            : new AuthorDto(null, null, null, entryYear, majorName);
+                })
+                .orElse(null);
+    }
 
     public Map<Long, AuthorDto> buildAuthorMap(List<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) return Map.of();

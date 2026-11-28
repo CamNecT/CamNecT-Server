@@ -5,6 +5,10 @@ import CamNecT.server.domain.community.model.Posts.*;
 import CamNecT.server.domain.community.model.enums.BoardCode;
 import CamNecT.server.domain.community.repository.BoardsRepository;
 import CamNecT.server.domain.community.service.PostService;
+import CamNecT.server.domain.profile.components.institutions.model.Institutions;
+import CamNecT.server.domain.profile.components.majors.model.Majors;
+import CamNecT.server.domain.users.model.UserProfile;
+import CamNecT.server.domain.users.model.UserStatus;
 import CamNecT.server.domain.users.model.Users;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -36,12 +40,47 @@ class GuestReadIntegrationTest {
     }
 
     private Posts seedPost(BoardCode code, Users owner) {
+        return seedPost(code, owner, false);
+    }
+
+    private Posts seedPost(BoardCode code, Users owner, boolean anonymous) {
         var board = boards.findByCode(code).orElseGet(() -> boards.save(Boards.of(code, code.name())));
-        var post = Posts.create(board, owner, "title-" + code, "body-" + code, false);
+        var post = Posts.create(board, owner, "title-" + code, "body-" + code, anonymous);
         em.persist(post);
         em.persist(PostStats.init(post));
         em.flush();
         return post;
+    }
+
+    @Test
+    void guestInfoDetailPublishesOnlyMajorAndEntryYearForNonAnonymousActiveAuthor() throws Exception {
+        var owner = user();
+        owner.changeStatus(UserStatus.ACTIVE);
+        var institution = Institutions.builder().institutionCode("TEST").institutionNameKor("Test University").build();
+        em.persist(institution);
+        var major = Majors.builder().institution(institution).majorCode("CS")
+                .majorNameKor("컴퓨터공학과").majorNameEng("Computer Science").sortOrder(0).isActive(true).build();
+        em.persist(major);
+        em.persist(UserProfile.builder().user(owner).studentNo("202412345").majorId(major.getMajorId())
+                .profileImageKey("profile/private-test-image").build());
+
+        var info = seedPost(BoardCode.INFO, owner);
+        var anonymous = seedPost(BoardCode.INFO, owner, true);
+        var detail = "/api/community/posts/";
+        mvc.perform(get(detail + info.getId())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.author.majorName").value("컴퓨터공학과"))
+                .andExpect(jsonPath("$.data.author.studentNo").value("2024"))
+                .andExpect(jsonPath("$.data.author.userId").doesNotExist())
+                .andExpect(jsonPath("$.data.author.name").doesNotExist())
+                .andExpect(jsonPath("$.data.author.profileImageUrl").doesNotExist());
+        mvc.perform(get(detail + anonymous.getId())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.author").isEmpty());
+
+        owner.changeStatus(UserStatus.WITHDRAWN);
+        em.flush();
+        em.clear();
+        mvc.perform(get(detail + info.getId())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.author").isEmpty());
     }
 
     @Test
