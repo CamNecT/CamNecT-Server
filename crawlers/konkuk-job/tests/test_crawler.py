@@ -242,6 +242,31 @@ class TransportAndPaginationTests(unittest.TestCase):
         with self.assertRaises(SourceBlocked):
             collect_media(record, client, Mock(), {'bytes': 0})
 
+    def test_privacy_filtered_attachment_is_excluded_from_publication(self):
+        from konkuk_job.publisher import make_payload
+        record = parse_detail(detail(body='<p>설명</p><a href="/a">자료</a>'), '1')
+        bad, good = BASE + '/a', BASE + '/b'
+        record['attachments'] = [{'url': u, 'name': '자료'} for u in (bad, good)]
+        client, store = Mock(), Mock()
+        client.fetch.side_effect = [
+            ('<html>Smart X Filter 요청하신 페이지에 개인정보가 포함 되어 있습니다.</html>'.encode(), 'text/html'),
+            (b'%PDF-body', 'application/pdf')]
+        collect_media(record, client, store, {'bytes': 0})
+        payload = make_payload(record, 1, store)
+        self.assertNotIn(bad, payload['content'])
+        self.assertIn(good, payload['content'])
+        self.assertIn('설명', payload['content'])
+        self.assertEqual(['SOURCE_FILTERED', 'DOWNLOADED'], [m['status'] for m in record['media']])
+        store.blob.assert_called_once_with(b'%PDF-body')
+
+    def test_unknown_attachment_html_is_an_error(self):
+        record = parse_detail(detail(), '1')
+        record['attachments'] = [{'url': BASE + '/file', 'name': '자료'}]
+        client = Mock()
+        client.fetch.return_value = (b'<html>Sign in</html>', 'text/html')
+        with self.assertRaisesRegex(SourceError, 'Unexpected media response'):
+            collect_media(record, client, Mock(), {'bytes': 0})
+
 
 class AwsTests(unittest.TestCase):
     def test_lambda_rejects_wrong_account_before_aws_calls(self):
